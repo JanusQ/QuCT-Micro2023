@@ -1,0 +1,10 @@
+to_xiangliang/
+__pycache__/
+analysis/__pycache__/
+dataset/__pycache__/
+pattern_extractor/__pycache__/
+simulator/__pycache__/
+to_xiangliang/*
+*.pyc
+*/__pycache__
+pattern_extractor/model

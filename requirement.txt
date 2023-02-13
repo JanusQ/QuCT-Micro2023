@@ -1,0 +1,9 @@
+qiskit-ignis
+tensorcircuit
+optax
+ray
+numpy
+jax
+qiskit
+matplotlib
+scikit-learn
