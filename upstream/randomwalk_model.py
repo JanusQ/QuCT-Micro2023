@@ -6,8 +6,8 @@ from qiskit import QuantumCircuit
 from qiskit.circuit import Instruction
 import pickle
 import os
-from circuit.quct.analysis.utils import train_error_params
-from circuit.quct.dataset.dataset_loader import parse_circuit, instruction2str, load_algorithms
+from analysis.utils import train_error_params
+from dataset.dataset_loader import parse_circuit, instruction2str, load_algorithms
 from numpy import pi
 import numpy as np
 from qiskit.circuit import QuantumCircuit, CircuitInstruction
@@ -16,7 +16,7 @@ import ray
 from copy import deepcopy
 from jax import numpy as jnp
 import optax
-from circuit.quct.analysis.sparse_dimensionality_reduction import make_same_size, sp_mds_reduce, sp_multi_constance, sp_pluse, sp_MDS, pad_to
+from analysis.sparse_dimensionality_reduction import make_same_size, sp_mds_reduce, sp_multi_constance, sp_pluse, sp_MDS, pad_to
 
 # 利用随机游走来采样的方法
 
@@ -380,7 +380,7 @@ class RandomwalkModel():
 
     def save(self, path):
         '''
-            save hash_table and dataset
+            save hash_table and algorithm
         '''
         path = os.path.join('circuit/quct/pattern_extractor/model', path, )
         file = open(path, 'wb')

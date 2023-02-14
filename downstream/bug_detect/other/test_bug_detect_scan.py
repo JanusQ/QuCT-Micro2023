@@ -1,30 +1,20 @@
 from collections import defaultdict
-from concurrent.futures import wait, ProcessPoolExecutor
-from ctypes import pointer
-from email.policy import default
 # from multiprocessing.pool import Pool
 # ProcessPoolExecutor
 from operator import index
-from statistics import mode
-from matplotlib.pyplot import axes, get
 from qiskit import QuantumCircuit
 from sklearn import neighbors
 from sklearn.cluster import KMeans
-from pattern_extractor.randomwalk_model import RandomwalkModel
+from upstream.randomwalk_model import RandomwalkModel
 import os
 from jax import numpy as jnp, vmap
-from sklearn.cluster import KMeans
 import numpy as np
-from dataset.dataset_loader import parse_circuit, my_format_circuit_to_qiskit
+from dataset.dataset_loader import parse_circuit
 from dataset.get_data import get_data, get_dataset, get_dataset_bug_detection
-from dataset.dataset_loader import load_algorithms, load_randomcircuits
 from analysis.cricuit_operation import assign_barrier, dynamic_decoupling
-from simulator.hardware_info import max_qubit_num
 from qiskit.tools.visualization import circuit_drawer
-from analysis.dimensionality_reduction import dist, sparse_vec2vec
-from analysis.sparse_dimensionality_reduction import make_same_size, sp_mds_reduce, sp_multi_constance, sp_pluse, sp_MDS, pad_to, sp_dist, construct_dense, sp_cos_dist
+from upstream.sparse_dimensionality_reduction import sp_multi_constance, sp_dist, construct_dense
 import matplotlib.pyplot as plt
-import copy
 import random
 import statistics
 from ray.util.multiprocessing import Pool
@@ -36,7 +26,7 @@ import math
 # 4. 分解电路出错
 
 
-# from dataset.get_data_bug import get_bug_circuit
+# from algorithm.get_data_bug import get_bug_circuit
 import ray
 ray.init()
 
@@ -49,7 +39,7 @@ totoal_identify_num = 0
 
 def scan(max_step, path_per_node, bug_num, min_qubit_num, max_qubit_num):
     dataset = get_dataset_bug_detection(min_qubit_num, max_qubit_num)
-    # dataset = dataset * 3
+    # algorithm = algorithm * 3
     id2circuit_info = {
         circuit_info['id']: circuit_info
         for circuit_info in dataset
@@ -58,13 +48,13 @@ def scan(max_step, path_per_node, bug_num, min_qubit_num, max_qubit_num):
     # algs = list(set(id2circuit_info.keys()))
 
     model = RandomwalkModel(max_step, path_per_node)  #max-step=2 会有14000维，max-step 也有10000维，减少生成的特征的数量``
-    # model.batch_train(dataset, 3)
+    # model.batch_train(algorithm, 3)
     model.train(dataset)
     model.load_vecs()
 
     positive_vecs = np.array(model.all_vecs, dtype=np.int64)
     all_qubit_nums = np.array([circuit_info['num_qubits'] for _,_,circuit_info in model.all_instructions], dtype=np.int64)
-    # neigative_dataset = copy.deepcopy(dataset)
+    # neigative_dataset = copy.deepcopy(algorithm)
 
     num_qubits2positive_vecs = defaultdict(list)
     num_qubits2instructions = defaultdict(list)
@@ -78,7 +68,7 @@ def scan(max_step, path_per_node, bug_num, min_qubit_num, max_qubit_num):
 
     # 构造一个训练集
     # X, Y = [], []
-    # for circuit_info in dataset:
+    # for circuit_info in algorithm:
     #     gate_vecs = circuit_info['sparse_vecs']
     #     X += gate_vecs
         
@@ -235,9 +225,6 @@ def scan(max_step, path_per_node, bug_num, min_qubit_num, max_qubit_num):
         return bug_circuit
         # return potential_bugs
 
-
-    from dataset.dataset1 import hamiltonian_simulation, ising, swap, QAOA_maxcut, qknn, qsvm, vqc
-    from dataset.dataset2 import qnn, qugan, simon
     from dataset.get_data import get_bitstr
 
     def construct_negative(circuit_info, bug_num):

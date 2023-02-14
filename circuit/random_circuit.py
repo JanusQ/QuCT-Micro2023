@@ -1,7 +1,7 @@
 from cmath import pi
 from qiskit import QuantumCircuit
 import random
-from circuit.quct.simulator.hardware_info import basis_two_gates,basis_single_gates
+from simulator.hardware_info import basis_two_gates,basis_single_gates
 from qiskit.converters import dag_to_circuit, circuit_to_dag
 import math
 

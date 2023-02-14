@@ -8,7 +8,7 @@ from qiskit import QuantumCircuit, transpile
 from simulator.hardware_info import coupling_map, initial_layout, max_qubit_num, basis_gates, single_qubit_fidelity, two_qubit_fidelity, readout_error
 from qiskit.quantum_info.analysis import hellinger_fidelity
 from dataset.random_circuit import random_circuit
-from pattern_extractor.randomwalk_model import RandomwalkModel
+from upstream.randomwalk_model import RandomwalkModel
 
 def naive_predict(circuit):
     fidelity = 1

@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from copy import deepcopy
 timeout = 3
 from simulator.noise_simulator import simulate_noise
-from pattern_extractor.randomwalk_model import  add_pattern_error_path,RandomwalkModel
+from upstream.randomwalk_model import  add_pattern_error_path,RandomwalkModel
 from qiskit import QuantumCircuit
 timeout = 3
 max_qubit_num =10
@@ -277,7 +277,7 @@ if __name__ == '__main__':
     index = 0
     
     ray.init()
-    # ray.put(dataset)
+    # ray.put(algorithm)
     futures = {}
     
     ## here we submit 'optimize' task
@@ -515,7 +515,7 @@ if __name__ == '__main__':
     # true_result = {
     # '0'*5: 2000
     # }
-    # circuit_info = dataset[0]
+    # circuit_info = algorithm[0]
 
     # circuit_info['ground_truth_fidelity'] = hellinger_fidelity(ret['probs'], true_result)
     # print("----------------------------")

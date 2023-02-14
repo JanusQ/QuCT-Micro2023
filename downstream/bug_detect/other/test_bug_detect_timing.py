@@ -7,25 +7,23 @@ from matplotlib.pyplot import axes, get
 from qiskit import QuantumCircuit
 from sklearn import neighbors
 from sklearn.cluster import KMeans
-from pattern_extractor.randomwalk_model import RandomwalkModel
+from upstream.randomwalk_model import RandomwalkModel
 import os
 from jax import numpy as jnp, vmap
 from sklearn.cluster import KMeans
 import numpy as np
 from dataset.dataset_loader import parse_circuit, my_format_circuit_to_qiskit
 from dataset.get_data import get_data, get_dataset, get_dataset_bug_detection
-from dataset.dataset_loader import load_algorithms, load_randomcircuits
-from analysis.cricuit_operation import assign_barrier, dynamic_decoupling
 from simulator.hardware_info import max_qubit_num
 from qiskit.tools.visualization import circuit_drawer
-from analysis.sparse_dimensionality_reduction import batch
-from analysis.sparse_dimensionality_reduction import make_same_size, sp_mds_reduce, sp_multi_constance, sp_pluse, sp_MDS, pad_to, sp_dist, construct_dense, sp_cos_dist
+from upstream.sparse_dimensionality_reduction import batch
+from upstream.sparse_dimensionality_reduction import sp_mds_reduce, sp_multi_constance, sp_pluse, sp_MDS, pad_to, sp_dist, \
+    sp_cos_dist
 import matplotlib.pyplot as plt
 import copy
 import random
 import statistics
 import time
-import math
 ###### 定义BUG的类型如下：
 # 1. 某一个子电路重复出现
 # 2. 大小端错误
@@ -33,7 +31,7 @@ import math
 # 4. 分解电路出错
 
 
-# from dataset.get_data_bug import get_bug_circuit
+# from algorithm.get_data_bug import get_bug_circuit
 import ray
 ray.init()
 
@@ -211,8 +209,7 @@ def scan(max_step, path_per_node, bug_num, min_qubit_num, max_qubit_num):
         
         return bug_circuit
 
-    from dataset.dataset1 import hamiltonian_simulation, ising, swap, QAOA_maxcut, qknn, qsvm, vqc
-    from dataset.dataset2 import qnn, qugan, simon
+    from dataset.dataset1 import hamiltonian_simulation, ising, swap, QAOA_maxcut, qknn, qsvm
     from dataset.get_data import get_bitstr
 
     def construct_negative(circuit_info, bug_num):
