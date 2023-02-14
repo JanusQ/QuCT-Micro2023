@@ -8,3 +8,4 @@ to_xiangliang/*
 *.pyc
 */__pycache__
 pattern_extractor/model
+model/
