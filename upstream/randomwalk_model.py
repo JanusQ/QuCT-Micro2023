@@ -345,7 +345,7 @@ class RandomwalkModel():
 
         reudced_vecs = np.array(vecs,dtype=np.int64)
         random.shuffle(reudced_vecs)
-        reudced_vecs = reudced_vecs[:10000]
+        reudced_vecs = reudced_vecs[:200000]
         print('mds', len(reudced_vecs))
         print('reduced_dim',self.reduced_dim)
 

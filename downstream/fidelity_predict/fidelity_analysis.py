@@ -108,7 +108,7 @@ def batch_loss(params, X, Y):
 def epoch_train(circuit_infos, params, opt_state, optimizer):
     # print(circuit_infos[0].keys())
     X = np.array([circuit_info['reduced_vecs'] for circuit_info in circuit_infos], dtype=np.float32)
-    Y = np.array([[circuit_info['xeb_fidelity']] for circuit_info in circuit_infos], dtype=np.float32)
+    Y = np.array([[circuit_info['ground_truth_fidelity']] for circuit_info in circuit_infos], dtype=np.float32)
 
     loss_value, gradient = jax.value_and_grad(batch_loss)(params, X, Y)
     updates, opt_state = optimizer.update(gradient, opt_state, params)
