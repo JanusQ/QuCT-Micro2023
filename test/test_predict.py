@@ -1,4 +1,4 @@
-from quct import generate_circtuit, predict_fidelity
+from model.load_model import generate_circtuit, predict_fidelity
 
 
 test_dataset = generate_circtuit(5,20,400,1,True,True)

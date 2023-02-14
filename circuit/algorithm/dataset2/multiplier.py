@@ -1,7 +1,7 @@
-from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
-import sys
-import random
 import math
+import random
+
+from qiskit import QuantumCircuit, QuantumRegister
 
 
 def carry(qc, c0, a, b, c1):

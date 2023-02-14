@@ -1,5 +1,6 @@
-from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 import random
+
+from qiskit import QuantumCircuit, QuantumRegister
 
 random.seed(555)
 

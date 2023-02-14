@@ -1,6 +1,7 @@
+import random
+
 import numpy as np
 from qiskit import QuantumCircuit
-import random
 
 random.seed(555)
 

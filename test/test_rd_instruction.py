@@ -1,12 +1,8 @@
 # 测试下MDS降维应用在门上面
 
-from dataset.random_circuit import random_circuit
-from pattern_extractor.randomwalk_model import RandomwalkModel, add_pattern_error
-from dataset.dataset_loader import load_algorithms, load_randomcircuits
-from analysis.cricuit_operation import assign_barrier, dynamic_decoupling
-from simulator.hardware_info import max_qubit_num
+from upstream.randomwalk_model import RandomwalkModel
 
-from analysis.dimensionality_reduction import MDS, mds_reduce, v_mds_reduce
+from upstream.dimensionality_reduction import MDS
 import numpy as np
 
 import pickle

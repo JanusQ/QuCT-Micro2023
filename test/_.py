@@ -1,19 +1,11 @@
 
 from collections import defaultdict
 from operator import index
-import random
-from pattern_extractor.randomwalk_model import RandomwalkModel, add_pattern_error, Step, Path
-from simulator.noise_free_simulator import simulate_noise_free
-from simulator.noise_simulator import *
-from qiskit import QuantumCircuit, execute
-from qiskit.visualization import plot_histogram
+from upstream.randomwalk_model import RandomwalkModel, add_pattern_error, Step
 import matplotlib.pyplot as plt
-from qiskit import QuantumCircuit, transpile
-from simulator.hardware_info import coupling_map, initial_layout, max_qubit_num, basis_gates, single_qubit_fidelity, two_qubit_fidelity, readout_error
-from qiskit.quantum_info.analysis import hellinger_fidelity
-from dataset.random_circuit import one_layer_random_circuit, random_circuit
-from analysis.predict_fidelity import naive_predict
-from analysis.dimensionality_reduction import batch
+from simulator.hardware_info import max_qubit_num
+from downstream.fidelity_predict.other import naive_predict
+from upstream.dimensionality_reduction import batch
 import numpy as np
 from dataset.dataset_loader import load_algorithms, load_randomcircuits
 

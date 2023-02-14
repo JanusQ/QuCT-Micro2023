@@ -1,5 +1,5 @@
 from unicodedata import name
-from pattern_extractor.randomwalk_model import RandomwalkModel, add_pattern_error
+from upstream.randomwalk_model import RandomwalkModel, add_pattern_error
 from simulator.noise_free_simulator import simulate_noise_free
 from simulator.noise_simulator import *
 from qiskit import QuantumCircuit, execute
@@ -9,7 +9,7 @@ from qiskit import QuantumCircuit, transpile
 from simulator.hardware_info import coupling_map, initial_layout, max_qubit_num, basis_gates, single_qubit_fidelity, two_qubit_fidelity, readout_error
 from qiskit.quantum_info.analysis import hellinger_fidelity
 from dataset.random_circuit import random_circuit
-from analysis.predict_fidelity import naive_predict
+from downstream.fidelity_predict.other import naive_predict
 
 path = 'rwm.pkl'
 model = RandomwalkModel.load(path)

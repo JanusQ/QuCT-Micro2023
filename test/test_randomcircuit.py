@@ -1,7 +1,7 @@
 from collections import defaultdict
 from operator import index
 import random
-from pattern_extractor.randomwalk_model import RandomwalkModel, add_pattern_error_path, Step, Path
+from upstream.randomwalk_model import RandomwalkModel, add_pattern_error_path, Step, Path
 from simulator.noise_free_simulator import simulate_noise_free
 from simulator.noise_simulator import *
 from qiskit import QuantumCircuit, execute
@@ -11,8 +11,8 @@ from qiskit import QuantumCircuit, transpile
 from simulator.hardware_info import coupling_map, initial_layout, max_qubit_num, basis_gates, single_qubit_fidelity, two_qubit_fidelity, readout_error
 from qiskit.quantum_info.analysis import hellinger_fidelity
 from dataset.random_circuit import one_layer_random_circuit, random_circuit
-from analysis.predict_fidelity import naive_predict
-from analysis.dimensionality_reduction import batch
+from downstream.fidelity_predict.other import naive_predict
+from upstream.dimensionality_reduction import batch
 import numpy as np
 from dataset.dataset_loader import load_algorithms, load_randomcircuits
 
@@ -31,7 +31,7 @@ dataset = []
 for n_gates in range(2, 20, 5):
     for prob in range(3, 8):
         prob = prob * 0.1
-        # dataset += load_randomcircuits(n_qubits = max_qubit_num, n_gates = 20, two_qubit_prob = prob, n_circuits = 2000)
+        # algorithm += load_randomcircuits(n_qubits = max_qubit_num, n_gates = 20, two_qubit_prob = prob, n_circuits = 2000)
         dataset += load_randomcircuits(n_qubits = max_qubit_num, n_gates = n_gates, two_qubit_prob = prob, n_circuits = 100)
 
 print(f'generate {len(dataset)} circuits')
@@ -45,7 +45,7 @@ print(f'succeed in training, and generate {len(model.hash_table)} path type.')
 # print('succeeded in mds')
 # # 怎么评判向量化的效果，KL散度？但是感觉没啥可以解释的
 
-# for circuit_info in dataset:
+# for circuit_info in algorithm:
 #     qiskit_circuit = circuit_info['qiskit_circuit'].copy()
 #     qiskit_circuit.measure_all()
 
@@ -58,18 +58,18 @@ print(f'succeed in training, and generate {len(model.hash_table)} path type.')
 #     circuit_info['error_circuit'] = error_circuit
 #     circuit_info['n_erroneous_patterns'] = n_erroneous_patterns
 
-# noisy_dataset = [circuit_info for circuit_info in dataset if circuit_info['n_erroneous_patterns'] != 0]
+# noisy_dataset = [circuit_info for circuit_info in algorithm if circuit_info['n_erroneous_patterns'] != 0]
 # print(f'len(noisy_dataset): {len(noisy_dataset)}')
 
 # # print('start simulate')
-# results = [simulate_noise_free(circuit_info['error_circuit']) for circuit_info in dataset]
+# results = [simulate_noise_free(circuit_info['error_circuit']) for circuit_info in algorithm]
 # true_result = {
 #     '0'*max_qubit_num: 2000
 # }
-# for i, circuit_info in enumerate(dataset):
+# for i, circuit_info in enumerate(algorithm):
 #     circuit_info['error_result'] = results[i]
 #     circuit_info['ground_truth_fidelity'] = hellinger_fidelity(circuit_info['error_result'], true_result)
 
 # model.save(model_path)
-# len(dataset)
+# len(algorithm)
 # print('succeeded in saving')

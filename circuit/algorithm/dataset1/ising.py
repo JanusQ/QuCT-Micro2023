@@ -1,5 +1,6 @@
-from qiskit import QuantumCircuit
 import random
+
+from qiskit import QuantumCircuit
 
 Bx = 2.0
 total_T = 15.0

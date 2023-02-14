@@ -4,8 +4,9 @@
 ##
 ## More samples like this can be found at http://oreilly-qc.github.io
 
-from qiskit import QuantumCircuit, QuantumRegister
 import math
+
+from qiskit import QuantumCircuit, QuantumRegister
 
 
 def get_cir():

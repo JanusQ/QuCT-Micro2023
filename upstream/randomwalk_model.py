@@ -1,22 +1,18 @@
-import copy
-# import networkx as nx
 import random
 from collections import defaultdict
-from qiskit import QuantumCircuit
 from qiskit.circuit import Instruction
 import pickle
 import os
-from analysis.utils import train_error_params
-from dataset.dataset_loader import parse_circuit, instruction2str, load_algorithms
-from numpy import pi
+from circuit.parser import qiskit_to_layered_circuits
+from circuit.formatter import instruction2str
 import numpy as np
-from qiskit.circuit import QuantumCircuit, CircuitInstruction
+from qiskit.circuit import QuantumCircuit
 from jax import grad, jit, vmap, pmap
 import ray
 from copy import deepcopy
 from jax import numpy as jnp
 import optax
-from analysis.sparse_dimensionality_reduction import make_same_size, sp_mds_reduce, sp_multi_constance, sp_pluse, sp_MDS, pad_to
+from upstream.sparse_dimensionality_reduction import  sp_mds_reduce, sp_MDS, pad_to
 
 # 利用随机游走来采样的方法
 
@@ -349,7 +345,7 @@ class RandomwalkModel():
 
         reudced_vecs = np.array(vecs,dtype=np.int64)
         random.shuffle(reudced_vecs)
-        reudced_vecs = reudced_vecs[:200000]
+        reudced_vecs = reudced_vecs[:10000]
         print('mds', len(reudced_vecs))
         print('reduced_dim',self.reduced_dim)
 
@@ -387,19 +383,11 @@ class RandomwalkModel():
         pickle.dump(self, file)
         file.close()
         return
-    def load_error_params(self):
-        
-        error_params = jnp.zeros(shape=(1, self.reduced_dim))
-        optimizer = optax.adamw(learning_rate=1e-2)
-        opt_state = optimizer.init(error_params)
-        train_dataset = self.dataset
-        error_params, opt_state = train_error_params(train_dataset,error_params, opt_state, optimizer, epoch_num = 30)
-        self.error_params = error_params
-                
+
     def vectorize(self, circuit):
         # assert circuit.num_qubits <=
         if isinstance(circuit, QuantumCircuit):
-            circuit_info = parse_circuit(circuit)
+            circuit_info = qiskit_to_layered_circuits(circuit)
             circuit_info['qiskit_circuit'] = circuit
         elif isinstance(circuit, dict) :# and 'qiskit_circuit' in circuit
             circuit_info = circuit

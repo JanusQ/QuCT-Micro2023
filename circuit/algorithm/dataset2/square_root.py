@@ -1,7 +1,6 @@
-from qiskit import QuantumCircuit
 import math
 
-
+from qiskit import QuantumCircuit
 
 pi = math.pi
 
