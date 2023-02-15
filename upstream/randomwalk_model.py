@@ -329,7 +329,7 @@ class RandomwalkModel():
 
     @staticmethod
     def load(path):
-        path = os.path.join('circuit/quct/pattern_extractor/model', path, )
+        path = os.path.join('model', path, )
         file = open(path, 'rb')
         model = pickle.load(file)
         file.close()
@@ -339,7 +339,7 @@ class RandomwalkModel():
         '''
             save hash_table and algorithm
         '''
-        path = os.path.join('circuit/quct/pattern_extractor/model', path, )
+        path = os.path.join('model', path, )
         file = open(path, 'wb')
         pickle.dump(self, file)
         file.close()

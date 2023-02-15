@@ -3,7 +3,7 @@ import random
 from qiskit import QuantumCircuit, transpile
 import numpy as np
 from collections import defaultdict
-max_qubit_num = 10
+max_qubit_num = 5
 
 default_basis_gates = ['rx', 'ry', 'rz', 'cz']  # 'h',  # ['u', 'cz'] #
 default_basis_single_gates =  ['rx', 'ry', 'rz']  #'h',  #['u'] #
@@ -109,4 +109,4 @@ def match_hardware_constraints(circuit: QuantumCircuit) -> bool:
 
 def fix_transpile(circuit: QuantumCircuit, ) -> QuantumCircuit:
     match_hardware_constraints(circuit)
-    return transpile(circuit, basis_gates=default_basis_gates, coupling_map=coupling_map, initial_layout=initial_layout, optimization_level=0)
+    return transpile(circuit, basis_gates=basis_gates, coupling_map=coupling_map, initial_layout=initial_layout, optimization_level=0)

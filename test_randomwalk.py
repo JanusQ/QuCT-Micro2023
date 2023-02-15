@@ -22,7 +22,7 @@ backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info
 
 train_dataset = gen_random_circuits(min_gate = 10, max_gate = 100, n_circuits = 20, two_qubit_gate_probs=[4, 8],backend = backend)
 
-upstream_model = RandomwalkModel(3, 20, backend = backend)
+upstream_model = RandomwalkModel(1, 20, backend = backend)
 upstream_model.train(train_dataset, multi_process = True)
 
 # upstream_model.load_reduced_vecs()
