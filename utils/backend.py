@@ -48,6 +48,7 @@ def topology_to_coupling_map(topology: dict) -> list:
 
 def get_grid_neighbor_info(size, max_distance):
     neigh_info = defaultdict(list)
+    
     for x in range(size):
         for y in range(size):
             qubit = x * size + y
@@ -55,7 +56,7 @@ def get_grid_neighbor_info(size, max_distance):
                 for neigh_y in range(y-1, y+2):
                     if neigh_x < 0 or neigh_x >= size or neigh_y < 0 or neigh_y >= size or (x == neigh_x and y == neigh_y):
                         continue
-                    if math.sqrt((x-neigh_x)**2 + (x-neigh_y)**2) <= max_distance:
+                    if ((x-neigh_x)**2 + (y-neigh_y)**2) <= max_distance**2:
                         neigh_qubit = neigh_x * size + neigh_y
                         neigh_info[qubit].append(neigh_qubit)
 
