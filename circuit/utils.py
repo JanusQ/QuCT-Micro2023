@@ -64,3 +64,10 @@ def get_extra_info(dataset):
         cir['prop'] = get_couple_prop(cir)
         cir['gate_num'] = len(cir['instructions'])
     return dataset
+
+def label_ground_truth_fidelity(dataset, labels):
+    assert len(dataset) == len(labels)
+    assert isinstance(dataset[0], dict)
+    for idx, cir in enumerate(dataset):
+        cir['ground_truth_fidelity'] = labels[idx]
+

@@ -3,7 +3,7 @@ import random
 from qiskit import QuantumCircuit, transpile
 import numpy as np
 from collections import defaultdict
-max_qubit_num = 10
+max_qubit_num = 5
 
 # basis_gates = ['rx', 'ry', 'rz', 'cz'] #'h', 
 # basis_single_gates = ['rx', 'ry', 'rz'] #'h', 

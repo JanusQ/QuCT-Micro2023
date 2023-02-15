@@ -1,15 +1,15 @@
 import random
-from qiskit.providers.aer.noise import NoiseModel
-import qiskit.providers.aer.noise as noise
-from qiskit.providers.aer.noise import kraus_error, mixed_unitary_error, depolarizing_error, reset_error, thermal_relaxation_error, ReadoutError, phase_amplitude_damping_error, amplitude_damping_error, coherent_unitary_error, pauli_error, phase_damping_error
-from dataset.dataset_loader import my_format_circuit_to_qiskit
+
+from qiskit_aer.noise import NoiseModel, pauli_error, depolarizing_error, thermal_relaxation_error
+
+from circuit.formatter import my_format_circuit_to_qiskit
 from .hardware_info import basis_gates, coupling_map, match_hardware_constraints, max_qubit_num, basis_single_gates, basis_two_gates, two_qubit_fidelity, single_qubit_fidelity, qubit2T1, qubit2T2 #, readout_error
 import pickle
 from qiskit import QuantumCircuit, execute
 from qiskit import IBMQ, Aer
-from qiskit.providers.aer.noise.device  import basic_device_gate_errors
+
 from qiskit.quantum_info.analysis import hellinger_fidelity
-import numpy
+from numpy import pi
 # https://qiskit.org/documentation/tutorials/simulators/3_building_noise_models.html
 
 # backend_name = 'ibm_nairobi'
@@ -137,7 +137,7 @@ def add_pattern_error_path(circuit, n_qubits, model,erroneous_pattern):  # ÂçïËø
     error_circuit = QuantumCircuit(n_qubits)
     n_erroneous_patterns = 0
     
-    instruction2sparse_vector = circuit_info['instruction2sparse_vecs']
+    instruction2sparse_vector = circuit_info['sparse_vecs']
     instructions = circuit_info['instructions']
     for index, instruction in enumerate(instructions):
         name = instruction['name']
@@ -150,24 +150,24 @@ def add_pattern_error_path(circuit, n_qubits, model,erroneous_pattern):  # ÂçïËø
             assert len(params) == 0 and len(qubits) == 2
             error_circuit.__getattribute__(name)(qubits[0], qubits[1])
         elif name in ('h'):
-            error_circuit.__getattribute__(name)(qubits[1])
+            error_circuit.__getattribute__(name)(qubits[0])
 
-        sparse_vector =  instruction2sparse_vector[index]
-        for _index in sparse_vector:
-            if _index[0][0] in index2erroneous_pattern:
+        sparse_vector = instruction2sparse_vector[index]
+        for _index in sparse_vector[0]:
+            if _index in index2erroneous_pattern:
                 for qubit in instruction['qubits']:
-                    error_circuit.rx(numpy.pi/20 * random.random(), qubit)  #pi / 20
+                    error_circuit.rx(pi/20 * random.random(), qubit)  #pi / 20
                     # error_circuit.rx(pi/10, qubit)  #pi / 20
                 n_erroneous_patterns += 1
                 # break
 
     return error_circuit, n_erroneous_patterns
 
-def get_error_result(circuit_info,model,erroneous_pattern = None):
+def get_error_result(circuit_info,model,erroneous_pattern):
     if 'qiskit_circuit' not in circuit_info:
         circuit_info['qiskit_circuit'] = my_format_circuit_to_qiskit(max_qubit_num, circuit_info['layer2instructions'])
-    if erroneous_pattern != None:
-        error_circuit, n_erroneous_patterns = add_pattern_error_path(circuit_info, max_qubit_num, model,erroneous_pattern)
+
+    error_circuit, n_erroneous_patterns = add_pattern_error_path(circuit_info, max_qubit_num, model,erroneous_pattern)
     error_circuit.measure_all()
     noisy_count = simulate_noise(error_circuit, 1000)
     circuit_info['error_result'] = noisy_count
@@ -176,3 +176,19 @@ def get_error_result(circuit_info,model,erroneous_pattern = None):
     }
     circuit_info['ground_truth_fidelity'] = hellinger_fidelity(circuit_info['error_result'], true_result)
     return circuit_info
+
+
+def get_random_erroneous_pattern(model):
+    error_pattern_num = 20
+    paths = list(model.hash_table.keys())
+    random.shuffle(paths)
+    erroneous_pattern = paths[:error_pattern_num]
+    return erroneous_pattern
+
+
+def get_error_results(dataset,model,erroneous_pattern = None):
+    if erroneous_pattern == None:
+        erroneous_pattern = get_random_erroneous_pattern(model)
+
+    for circuit_info in dataset:
+        get_error_result(circuit_info, model, erroneous_pattern)

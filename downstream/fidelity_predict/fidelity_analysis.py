@@ -13,30 +13,28 @@ error_param_rescale = 10000
 
 
 class FidelityModel():
-    def __init__(self, model):
+    def __init__(self):
         self.error_params = None
-        self.model = model
         return
 
-    def train(self):
-        error_params = jnp.zeros(shape=(1, self.model.reduced_dim))
+    def train(self,dataset):
+        error_params = jnp.zeros(shape=(1,100))
         optimizer = optax.adamw(learning_rate=1e-2)
         opt_state = optimizer.init(error_params)
-        train_dataset = self.model.dataset
+        train_dataset = dataset
         error_params, opt_state = train_error_params(train_dataset, error_params, opt_state, optimizer, epoch_num=30)
         self.error_params = error_params
 
-    def predict_fidelity(self, qc: QuantumCircuit):
-        veced = self.model.vectorize(qc)
+    def predict_fidelity(self, circuit_info):
         error_params = self.error_params
-        circuit_predict = smart_predict(error_params, veced['reduced_vecs'])
+        circuit_predict = smart_predict(error_params, circuit_info['reduced_vecs'])
         gate_errors = np.array([
             jnp.dot(error_params / error_param_rescale, vec)
-            for vec in veced['reduced_vecs']
+            for vec in circuit_info['reduced_vecs']
         ])[:, 0]
-        veced['gate_errors'] = gate_errors
-        veced['circuit_predict'] = circuit_predict
-        return circuit_predict, veced, gate_errors
+        circuit_info['gate_errors'] = gate_errors
+        circuit_info['circuit_predict'] = circuit_predict
+        return circuit_predict, circuit_info, gate_errors
 
 
 def train_error_params(train_dataset, params, opt_state, optimizer, epoch_num=10):
