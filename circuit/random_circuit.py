@@ -1,8 +1,8 @@
 from cmath import pi
 from qiskit import QuantumCircuit
 import random
-from simulator.hardware_info import basis_two_gates,basis_single_gates
-from qiskit.converters import dag_to_circuit, circuit_to_dag
+from utils.backend_info import default_basis_two_gates, default_basis_single_gates
+# from qiskit.converters import dag_to_circuit, circuit_to_dag
 import math
 
 '''
@@ -16,41 +16,47 @@ def random_pi():
     return rand * pi
 
 # 没从从coupling map里面挑两比特门
-def random_circuit(n_qubits, n_gates, two_qubit_prob = 0.5, reverse = True):
+def random_circuit(n_qubits, n_gates, two_qubit_prob = 0.5, reverse = True, coupling_map = None, basic_single_gates = None, basis_two_gates = None,):
     if reverse:
         n_gates = n_gates//2
     circuit = QuantumCircuit(n_qubits)
     qubits = list(range(n_qubits))
 
     for qubit in qubits:
-        gate_type = random.choice(basis_single_gates)
-        if gate_type == 'h':
+        gate_type = random.choice(default_basis_single_gates)
+        if gate_type in ('h',):
             circuit.h(random.choice(qubits))
         elif gate_type in ('rx', 'rz', 'ry'):
             getattr(circuit, gate_type)(random_pi(), qubit)
-        
-    coupling_map = [[q, q+1] for q in range(n_qubits-1)]
-    
+        elif gate_type in ('u',):
+            getattr(circuit, gate_type)(random_pi(), random_pi(), random_pi(), qubit)
+        else:
+            raise Exception('Unknown gate type', gate_type)
+
     for _ in range(n_gates):
         if random.random() < two_qubit_prob:
             gate_type = basis_two_gates[0]
             assert len(basis_two_gates) == 1
         else:
-            gate_type = random.choice(basis_single_gates)
+            gate_type = random.choice(default_basis_single_gates)
         
         operated_qubits = list(random.choice(coupling_map))
-        random.shuffle(operated_qubits)
         control_qubit = operated_qubits[0]
         target_qubit = operated_qubits[1]
         if gate_type == 'cz':
+            # 没有控制和非控制的区别
             circuit.cz(control_qubit, target_qubit)
-        if gate_type == 'cx':
+        elif gate_type == 'cx':
+            random.shuffle(operated_qubits)
             circuit.cx(control_qubit, target_qubit)
-        elif gate_type == 'h':
+        elif gate_type in ('h',):
             circuit.h(random.choice(qubits))
         elif gate_type in ('rx', 'rz', 'ry'):
             getattr(circuit, gate_type)(random_pi(), random.choice(qubits))
-            # circuit_to_dag(circuit)
+        elif gate_type in ('u',):
+            getattr(circuit, gate_type)(random_pi(), random_pi(), random_pi(), qubit)
+        else:
+            raise Exception('Unknown gate type', gate_type)
 
     if reverse:
         circuit = circuit.compose(circuit.inverse())
@@ -66,10 +72,10 @@ def random_circuit_various_input(n_qubits, n_gates, n_circuits, two_qubit_prob =
     coupling_map = [[q, q+1] for q in range(n_qubits-1)]
     for _ in range(n_gates):
         if random.random() < two_qubit_prob:
-            gate_type = basis_two_gates[0]
-            assert len(basis_two_gates) == 1
+            gate_type = default_basis_two_gates[0]
+            assert len(default_basis_two_gates) == 1
         else:
-            gate_type = random.choice(basis_single_gates)
+            gate_type = random.choice(default_basis_single_gates)
         
         operated_qubits = list(random.choice(coupling_map))
         random.shuffle(operated_qubits)
@@ -89,7 +95,7 @@ def random_circuit_various_input(n_qubits, n_gates, n_circuits, two_qubit_prob =
         circuit = QuantumCircuit(n_qubits)
 
         for qubit in qubits:
-            gate_type = random.choice(basis_single_gates)
+            gate_type = random.choice(default_basis_single_gates)
             if gate_type == 'h':
                 circuit.h(random.choice(qubits))
             elif gate_type in ('rx', 'rz', 'ry'):
@@ -104,7 +110,7 @@ def random_circuit_various_input(n_qubits, n_gates, n_circuits, two_qubit_prob =
 def one_layer_random_circuit(n_qubits):
     circuit = QuantumCircuit(n_qubits)
     for qubit in range(n_qubits):
-        gate_type = random.choice(basis_single_gates)
+        gate_type = random.choice(default_basis_single_gates)
         getattr(circuit, gate_type)(pi * random.random(), qubit)
     return circuit
 

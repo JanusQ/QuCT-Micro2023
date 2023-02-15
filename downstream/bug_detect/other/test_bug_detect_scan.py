@@ -28,7 +28,7 @@ import math
 
 # from algorithm.get_data_bug import get_bug_circuit
 import ray
-ray.init()
+# ray.init()
 
 
 total_bug_num = 0
@@ -107,7 +107,7 @@ def scan(max_step, path_per_node, bug_num, min_qubit_num, max_qubit_num):
         print('start', circuit_info['id'])
         
         for analyzed_vec_index, analyzed_vec in enumerate(gate_vecs):
-            this_instruction = circuit_info['instructions'][analyzed_vec_index]
+            this_instruction = circuit_info['gates'][analyzed_vec_index]
             has_bug = analyzed_vec_index in bug_instructions
             
             # if has_bug:
@@ -145,9 +145,9 @@ def scan(max_step, path_per_node, bug_num, min_qubit_num, max_qubit_num):
                     print('next is bug') 
                 
                 print(circuit_info['id'], nearest_dists)
-                print('this', circuit_info['instructions'][analyzed_vec_index])
+                print('this', circuit_info['gates'][analyzed_vec_index])
                 # if analyzed_vec_index in bug_instructions:
-                #     print(circuit_info['instructions'][analyzed_vec_index]['original'])
+                #     print(circuit_info['gates'][analyzed_vec_index]['original'])
                 
 
                 print('nearest_circuits', nearest_circuits) # 相近的电路
@@ -232,14 +232,14 @@ def scan(max_step, path_per_node, bug_num, min_qubit_num, max_qubit_num):
         
         circuit = QuantumCircuit(circuit_info['num_qubits'])
 
-        start_instruction = random.randint(0, len(circuit_info['instructions'])-1-bug_num)
+        start_instruction = random.randint(0, len(circuit_info['gates'])-1-bug_num)
         end_instruction = start_instruction + bug_num
         bug_instructions = list(range(start_instruction, end_instruction))
-        # bug_instructions = list(range(len(circuit_info['instructions'])))
+        # bug_instructions = list(range(len(circuit_info['gates'])))
         # random.shuffle(bug_instructions)
         # bug_instructions = bug_instructions[:bug_num]
 
-        for layer, layer_instructions in enumerate(circuit_info['layer2instructions']):
+        for layer, layer_instructions in enumerate(circuit_info['layer2gates']):
             for instruction in layer_instructions:
                 name = instruction['name']
                 qubits = instruction['qubits']
@@ -280,7 +280,7 @@ def scan(max_step, path_per_node, bug_num, min_qubit_num, max_qubit_num):
         
         bug_circuit_info = parse_circuit(circuit)
         for bug_instruction in bug_instructions:
-            bug_circuit_info['instructions'][bug_instruction]['original'] = circuit_info['instructions'][bug_instruction]
+            bug_circuit_info['gates'][bug_instruction]['original'] = circuit_info['gates'][bug_instruction]
         bug_circuit_info['id'] = circuit_info['id'] + f'_bug_{bug_instructions}'
         bug_circuit_info['original_id'] = circuit_info['id']
 
@@ -292,8 +292,8 @@ def scan(max_step, path_per_node, bug_num, min_qubit_num, max_qubit_num):
 
         positive_circuit_info = id2circuit_info[circuit_id]
         
-        if len(positive_circuit_info['instructions']) > 600000:
-            print('warnning', al_name, n_qubit, 'has',  len(positive_circuit_info['instructions']), 'gates')
+        if len(positive_circuit_info['gates']) > 600000:
+            print('warnning', al_name, n_qubit, 'has',  len(positive_circuit_info['gates']), 'gates')
             return
         # print(positive_circuit_info['qiskit_circuit'])
         

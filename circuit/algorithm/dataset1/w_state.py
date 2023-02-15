@@ -1,5 +1,6 @@
-from qiskit import QuantumCircuit
 import math
+
+from qiskit import QuantumCircuit
 
 
 def F_gate(qc, i, j, n, k):

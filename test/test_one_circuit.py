@@ -255,7 +255,7 @@ sparse_vecs = [None] * len(instructions)
 path_per_instruction = 20
 max_step = 2
 path_count = defaultdict(int)
-instruction2paths = []
+gate_paths = []
 for head_instruction in instructions:
     traveled_paths = set()
     for _ in range(path_per_instruction):
@@ -266,10 +266,10 @@ for head_instruction in instructions:
                 continue
             traveled_paths.add(path)
             path_count[path] += 1
-    instruction2paths.append(traveled_paths)
+    gate_paths.append(traveled_paths)
 
 path_count = defaultdict(int)
-for _paths in instruction2paths:
+for _paths in gate_paths:
     for _path in _paths:
         path_count[str(_path)] += 1
 
@@ -282,7 +282,7 @@ path_index = [
 
 instruction2vec = [None] * len(instructions)
 # defaultdict(lambda : )
-for _index, _paths in enumerate(instruction2paths):
+for _index, _paths in enumerate(gate_paths):
     instruction = instructions[_index]
     vec = np.zeros((len(path_index,)))
     for _path in _paths:

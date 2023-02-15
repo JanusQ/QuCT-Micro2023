@@ -1,27 +1,24 @@
-import copy
-# import networkx as nx
 import random
 from collections import defaultdict
-from qiskit import QuantumCircuit
 from qiskit.circuit import Instruction
 import pickle
 import os
-from analysis.utils import train_error_params
-from dataset.dataset_loader import parse_circuit, instruction2str, load_algorithms
-from numpy import pi
+from circuit.parser import qiskit_to_layered_circuits
+from circuit.formatter import instruction2str
 import numpy as np
-from qiskit.circuit import QuantumCircuit, CircuitInstruction
+from qiskit.circuit import QuantumCircuit
 from jax import grad, jit, vmap, pmap
 import ray
 from copy import deepcopy
 from jax import numpy as jnp
 import optax
-from analysis.sparse_dimensionality_reduction import make_same_size, sp_mds_reduce, sp_multi_constance, sp_pluse, sp_MDS, pad_to
+from upstream.sparse_dimensionality_reduction import  sp_mds_reduce, sp_MDS, pad_to
+from utils.backend import Backend
 
 # 利用随机游走来采样的方法
 
 # def rephrase_gate(gate):
-#     ''' The input is a gate. The output is a gate that constains its operated qubits'''
+#     '''The input is a gate. The output is a gate that constains its operated qubits'''
 
 # 可能可以用 https://github.com/kerighan/graph-walker 来加速，但是看上去似乎没法指定节点
 
@@ -34,12 +31,12 @@ class Step():
         self.edge = edge
         self.target = instruction2str(target)
 
-        self._hash_id = str(self)
+        self._path_id = str(self)
 
         # self.  #label for noise simulation
         return
 
-    def __hash__(self): return hash(self._hash_id)
+    def __hash__(self): return hash(self._path_id)
 
     # self.source,
     def __str__(self): return f'{self.edge}-{self.target}'
@@ -51,267 +48,227 @@ class Path():
 
     def __init__(self, steps):
         self.steps = steps
-        self._hash_id = str(self)
+        self._path_id = str(self)
 
     def add(self, step):
         steps = list(self.steps)
         steps.append(step)
         return Path(steps)
 
-    def __hash__(self): return hash(self._hash_id)
+    def __hash__(self): return hash(self._path_id)
 
     def __str__(self): return ','.join([str(step) for step in self.steps])
 
 
-def travel_instructions(circuit_info, head_instruction, path_per_node, max_step):
+def travel_instructions(circuit_info, head_gate, path_per_node, max_step, neighbor_info):
     traveled_paths = set()
     for _ in range(path_per_node):
-        paths = randomwalk(circuit_info, head_instruction, max_step)
+        paths = randomwalk(circuit_info, head_gate, neighbor_info, max_step)
         for path in paths:
             # print(path)
-            path_id = path._hash_id
+            path_id = path._path_id
             if path_id in traveled_paths:
                 continue
             traveled_paths.add(path_id)
 
-    op_qubits = [qubit for qubit in head_instruction['qubits']]
+    op_qubits = [qubit for qubit in head_gate['qubits']]
     op_qubits_str = "-".join([str(_q) for _q in op_qubits])
-    traveled_paths.add(f'#Q{op_qubits_str}')  # 加一个比特自己的信息
-    # traveled_paths.add(f'#G{head_instruction.operation.name}-{op_qubits_str}') # 加一个比特自己的信息，这个就是loop
+    op_name = head_gate['name']
+    # traveled_paths.add(f'#Q{op_qubits_str}')  # 加一个比特自己的信息
+    traveled_paths.add(f'{op_name}-{op_qubits_str}') # 加一个比特自己的信息，这个就是loop
+    
     return traveled_paths
 
 
-def train(dataset, max_step: int, path_per_node: int, offest=0):
-    all_instruction2pathes = []
+def train(dataset, max_step: int, path_per_node: int, neighbor_info: dict, offest=0):
+    all_gate_paths = []
 
     for index, circuit_info in enumerate(dataset):
+        # print(circuit_info['qiskit_circuit'])
         if index % 100 == 0:
             print(f'train:{index}/{len(dataset)}, {offest}th offest')
 
-        instruction2pathes = []
-        for head_instruction in circuit_info['instructions']:
-            traveled_paths = travel_instructions(circuit_info, head_instruction, path_per_node, max_step)
-            instruction2pathes.append(traveled_paths)
+        gate_paths = []
+        for head_gate in circuit_info['gates']:
+            traveled_paths = travel_instructions(circuit_info, head_gate, path_per_node, max_step, neighbor_info)
+            gate_paths.append(traveled_paths)
 
-        all_instruction2pathes.append(instruction2pathes)
+            # print('head_gate = ', head_gate)
+            # for path in traveled_paths:
+            #     print(path)
+            # print('----------------------------------------------------------------')
+            
+        all_gate_paths.append(gate_paths)
 
-    return all_instruction2pathes
+    return all_gate_paths
 
 @ray.remote
-def remote_train(dataset, max_step: int, path_per_node: int, offest=0):
-    return train(dataset, max_step, path_per_node, offest)
+def remote_train(dataset, max_step: int, path_per_node: int, neighbor_info: dict, offest=0):
+    return train(dataset, max_step, path_per_node, neighbor_info, offest)
 
-def randomwalk(circuit_info: dict, head_instruction: Instruction, max_step: int):
+''' TODO: 改成步骤回头路的'''
+def randomwalk(circuit_info: dict, head_gate: dict, neighbor_info: dict, max_step: int):
     # circuit = circuit_info['qiskit_circuit']
-    layer2instructions = circuit_info['layer2instructions']
-    instruction2layer = circuit_info['instruction2layer']
-    instructions = circuit_info['instructions']
-    # dagcircuit = circuit_info['dagcircuit']
-    # nodes = circuit_info['nodes']
+    layer2gates = circuit_info['layer2gates']
+    gate2layer = circuit_info['gate2layer']
+    # gates = circuit_info['gates']
 
-    now_instruction = head_instruction
-    traveled_nodes = [head_instruction]
+    now_gate = head_gate
+    traveled_gates = [head_gate]
 
-    now_path = Path([Step(head_instruction, 'loop', head_instruction)])  # 初始化一个指向自己的
-    now_path_app = deepcopy(now_path)
+    # now_path = Path([Step(head_instruction, 'head', head_instruction)])  # 初始化一个指向自己的
     # now_path = Path(['head'])
+    
+    now_path = Path([])
+    now_path_app = deepcopy(now_path)
     paths = [now_path_app]
 
     for _ in range(max_step):
-        former_node = now_instruction
-        # now_node_index = instructions.index(now_instruction)
-        now_node_index = now_instruction['id']  # hard code in the mycircuit_to_dag
-        now_layer = instruction2layer[now_node_index]
-        parallel_gates = layer2instructions[now_layer]
-        former_gates = [] if now_layer == 0 else layer2instructions[now_layer - 1]  # TODO: 暂时只管空间尺度的
-        later_gates = [] if now_layer == len(layer2instructions)-1 else layer2instructions[now_layer + 1]
+        now_node_index = now_gate['id']  # hard code in the mycircuit_to_dag
+        now_layer = gate2layer[now_node_index]
+        parallel_gates = layer2gates[now_layer]
+        former_gates = [] if now_layer == 0 else layer2gates[now_layer - 1]  # TODO: 暂时只管空间尺度的
+        later_gates = [] if now_layer == len(layer2gates)-1 else layer2gates[now_layer + 1]
 
-        # if len(parallel_gates) + len(former_gates) == 0: break
+        '''TODO: 可以配置是否只要前后啥的'''
+        candidates = [('parallel', gate) for gate in parallel_gates if gate != now_gate] + [('fromer', gate) for gate in former_gates] + [('next', gate) for gate in later_gates]
         
-        step_type = None
-        total_len = len(parallel_gates) + len(former_gates) + len(later_gates)
-        choice = random.random()
-        if choice < len(former_gates) / total_len:
-            candidates = former_gates
-            step_type = 'dependency'
-        elif choice < (len(former_gates) + len(parallel_gates)) / total_len and len(parallel_gates) > 0:
-            candidates = parallel_gates
-            step_type = 'parallel'
-        else:
-            candidates = later_gates
-            step_type = 'next'
-
-        # candidates = parallel_gates + former_gates
-        candidates = [candidate for candidate in candidates if candidate not in traveled_nodes]
+        ''' update: 对于gate只能到对应qubit周围的比特的门上 (neighbor_info)'''
+        candidates = [
+            ( step_type, candidate)
+            for step_type, candidate in candidates
+            if candidate not in traveled_gates and any([q1 in neighbor_info[q2] or q1 == q2  for q2 in now_gate['qubits'] for q1 in candidate['qubits']])
+        ]
+        
         if len(candidates) == 0:
             break
 
-        now_instruction = random.choice(candidates)
-        traveled_nodes.append(now_instruction)
-
-        # now_path = now_path.add(Step(former_node, 'parallel', now_instruction))
-        now_path = now_path.add(Step(former_node, step_type, now_instruction))
+        step_type, next_gate = random.choice(candidates)
+        traveled_gates.append(now_gate)
+        
+        now_path = now_path.add(Step(now_gate, step_type, next_gate))
+        now_gate = next_gate
         paths.append(now_path)
 
     return paths
 
 
-# meta-path只有两种 gate-parallel-gate, gate-former-gate
+# meta-path只有三种 gate-parallel-gate, gate-former-gate, gate-next-gate
 # max_step: 定义了最大的步长
 
+def extract_device(gate):
+    if len(gate['qubits']) == 2:
+        return tuple(sorted(gate['qubits']))
+    else:
+        return gate['qubits'][0]
 
 class RandomwalkModel():
-    def __init__(self, max_step, path_per_node):
+    def __init__(self, max_step, path_per_node, backend: Backend):
         '''
             max_step: maximum step size
         '''
         self.model = None
-        self.hash_table = {}  # 存了路径(Path)到向量化后的index的映射
-        self.reverse_hash_table = {}  #
-        self.path_count = defaultdict(int)
+        
+        # 这里的device可以是device也可以是coupler
+        self.device2path_table = defaultdict(dict) # 存了路径(Path)到向量化后的index的映射
+        
+        self.device2reverse_path_table = defaultdict(dict)  # qubit -> path -> index
 
         self.max_step = max_step
         self.path_per_node = path_per_node
         self.dataset = None
         self.reduced_dim = 100
+        
+        self.backend = backend
         return
 
-    def count_path(self, _hash_id):
-        self.path_count[_hash_id] += 1
-
-    def path_index(self, _hash_id):
-        # _hash_id = path._hash_id
-
-        if _hash_id not in self.hash_table:
-            self.hash_table[_hash_id] = len(self.hash_table)
-            self.reverse_hash_table[self.hash_table[_hash_id]] = _hash_id
+    def path_index(self, device, path_id):
+        path_table = self.device2path_table[device]
+        reverse_path_table = self.device2reverse_path_table[device]
+        
+        if path_id not in path_table:
+            path_table[path_id] = len(path_table)
+            reverse_path_table[path_table[path_id]] = path_id
         # else:
         #     print('hit')
-        return self.hash_table[_hash_id]
+        return path_table[path_id] 
 
-    def has_path(self, _hash_id):
-        return _hash_id in self.hash_table
+    def has_path(self, device, path_id):
+        return path_id in self.device2path_table[device]
 
-    def batch_train(self, dataset, process_num=10):
+    def train(self, dataset, multi_process: bool = False, process_num: int = 10):
+        # 改成一种device一个path table
+        
+        '''TODO: 可以枚举来生成所有的path table'''
+        
         assert self.dataset is None
         self.dataset = dataset
+        
+        neighbor_info = self.backend.neighbor_info
         max_step = self.max_step
         path_per_node = self.path_per_node
-
+                
+        if multi_process:
+            batch_size = len(dataset) // process_num
+        else:
+            batch_size = len(dataset)
+        
         futures = []
-        batch_size = len(dataset) // process_num
         for start in range(0, len(dataset), batch_size):
             sub_dataset = dataset[start: start + batch_size]
-            sub_dataset_future = remote_train.remote(sub_dataset, max_step, path_per_node, start)
+            if multi_process:
+                sub_dataset_future = remote_train.remote(sub_dataset, max_step, path_per_node, neighbor_info, start)
+            else:
+                sub_dataset_future = train(sub_dataset, max_step, path_per_node, neighbor_info, start)
             futures.append(sub_dataset_future)
 
-        all_instruction2pathes = []
+        all_gate_paths = []
 
         for future in futures:
-            result = ray.get(future)
-            for instruction2pathes in result:
-                assert len(instruction2pathes) != 0
-            all_instruction2pathes += result
+            if multi_process:
+                result = ray.get(future)
+            else:
+                result = future
+                
+            for gate_paths in result:
+                assert len(gate_paths) != 0
+                
+            all_gate_paths += result
 
-        for circuit_info, instruction2pathes in zip(dataset, all_instruction2pathes):
-            for traveled_paths in instruction2pathes:
+        path_count = defaultdict(lambda : defaultdict(int))
+        for circuit_info, gate_paths in zip(dataset, all_gate_paths):
+            for gate_index, traveled_paths in enumerate(gate_paths):
+                device = extract_device(circuit_info['gates'][gate_index])
                 for path_id in traveled_paths:
-                    self.count_path(path_id)
+                    path_count[device][path_id] += 1
 
-            assert len(instruction2pathes) == len(circuit_info['instructions'])
-            circuit_info['instruction2pathes'] = instruction2pathes
+            assert len(gate_paths) == len(circuit_info['gates'])
+            circuit_info['gate_paths'] = gate_paths
 
-        # unusual path can be removed
-        for path, count in self.path_count.items():
-            if count >= 10:
-                self.path_index(path)
+        # unusual paths are not added to the path table
+        for device in path_count:
+            for path_id, count in path_count[device].items():
+                if count >= 10:
+                    self.path_index(device, path_id)
 
         for index, circuit_info in enumerate(dataset):
-            circuit_info['path_indexs'] = []  # 原先叫sparse_vec
-            for paths in circuit_info['instruction2pathes']:
-                vec = [self.path_index(path_id) for path_id in paths if self.has_path(path_id)]
+            circuit_info['path_indexs'] = []
+            for gate, paths in zip(circuit_info['gates'], circuit_info['gate_paths']):
+                device = extract_device(gate)
+                vec = [self.path_index(device, path_id) for path_id in paths if self.has_path(device, path_id)]
                 vec.sort()
                 circuit_info['path_indexs'].append(vec)
 
-        self.all_instructions = []
-        for circuit_info in self.dataset:
-            for index, insturction in enumerate(circuit_info['instructions']):
-                self.all_instructions.append(
-                    (index, insturction, circuit_info)
-                )
+        # self.all_instructions = []
+        # for circuit_info in self.dataset:
+        #     for index, insturction in enumerate(circuit_info['gates']):
+        #         self.all_instructions.append(
+        #             (index, insturction, circuit_info)
+        #         )
                 
-        print(len(self.hash_table))
-
-
-
-    def train(self, dataset):
-        assert self.dataset is None
-        self.dataset = dataset
-        max_step = self.max_step
-        path_per_node = self.path_per_node
-
-        futures = []
-        batch_size = len(dataset)
-        for start in range(0, len(dataset), batch_size):
-            sub_dataset = dataset[start: start + batch_size]
-            sub_dataset_future = train(sub_dataset, max_step, path_per_node, start)
-            futures.append(sub_dataset_future)
-
-        all_instruction2pathes = []
-
-        for future in futures:
-            result = future
-            for instruction2pathes in result:
-                assert len(instruction2pathes) != 0
-            all_instruction2pathes += result
-
-        for circuit_info, instruction2pathes in zip(dataset, all_instruction2pathes):
-            for traveled_paths in instruction2pathes:
-                for path_id in traveled_paths:
-                    self.count_path(path_id)
-
-            assert len(instruction2pathes) == len(circuit_info['instructions'])
-            circuit_info['instruction2pathes'] = instruction2pathes
-
-        # unusual path can be removed
-        for path, count in self.path_count.items():
-            if count >= 10:
-                self.path_index(path)
-
-        for index, circuit_info in enumerate(dataset):
-            circuit_info['path_indexs'] = []  # 原先叫sparse_vec
-            for paths in circuit_info['instruction2pathes']:
-                vec = [self.path_index(path_id) for path_id in paths if self.has_path(path_id)]
-                vec.sort()
-                circuit_info['path_indexs'].append(vec)
-
-        self.all_instructions = []
-        for circuit_info in self.dataset:
-            for index, insturction in enumerate(circuit_info['instructions']):
-                self.all_instructions.append(
-                    (index, insturction, circuit_info)
-                )
-                
-        print(len(self.hash_table))
-
-    # def travel_instructions(self, circuit_info, head_instruction, path_per_node, max_step):
-    #     traveled_paths = set()
-    #     for _ in range(path_per_node):
-    #         paths = randomwalk(circuit_info, head_instruction, max_step) 
-    #         for path in paths:
-    #             # print(path)
-    #             path_id = path._hash_id
-    #             if path_id in traveled_paths:
-    #                 continue
-    #             traveled_paths.add(path_id)
-
-    #     op_qubits = [qubit for qubit in head_instruction['qubits']]
-    #     op_qubits_str = "-".join([str(_q) for _q in op_qubits])
-    #     # traveled_paths.add(f'#Q{op_qubits_str}')  # 加一个比特自己的信息
-    #     # traveled_paths.add(f'#G{head_instruction.operation.name}-{op_qubits_str}') # 加一个比特自己的信息，这个就是loop
-
-    #     # print('path table:', len(self.hash_table))
-    #     return traveled_paths
+        print('random walk finish device size = ', len(self.device2path_table))
+        for device, path_table in self.device2path_table.items():
+            print(device, 'path table size = ', len(path_table))
 
     @staticmethod
     def count_step(path_id: str) -> int:
@@ -363,7 +320,7 @@ class RandomwalkModel():
         print('reducing...')
         for i,circuit_info in enumerate(self.dataset):
             circuit_reduced_vecs = []
-            for instruction in circuit_info['instructions']:
+            for instruction in circuit_info['gates']:
                 circuit_reduced_vecs.append(all_reduced_vecs[point])
                 point += 1
             circuit_info['reduced_vecs'] = np.array(circuit_reduced_vecs, dtype=np.float)
@@ -387,19 +344,11 @@ class RandomwalkModel():
         pickle.dump(self, file)
         file.close()
         return
-    def load_error_params(self):
-        
-        error_params = jnp.zeros(shape=(1, self.reduced_dim))
-        optimizer = optax.adamw(learning_rate=1e-2)
-        opt_state = optimizer.init(error_params)
-        train_dataset = self.dataset
-        error_params, opt_state = train_error_params(train_dataset,error_params, opt_state, optimizer, epoch_num = 30)
-        self.error_params = error_params
-                
+
     def vectorize(self, circuit):
         # assert circuit.num_qubits <=
         if isinstance(circuit, QuantumCircuit):
-            circuit_info = parse_circuit(circuit)
+            circuit_info = qiskit_to_layered_circuits(circuit)
             circuit_info['qiskit_circuit'] = circuit
         elif isinstance(circuit, dict) :# and 'qiskit_circuit' in circuit
             circuit_info = circuit
@@ -412,7 +361,7 @@ class RandomwalkModel():
 
         circuit_info['path_indexs'] = []
         circuit_info['sparse_vecs'] = []
-        for index, head_instruction in enumerate(circuit_info['instructions']):
+        for index, head_instruction in enumerate(circuit_info['gates']):
             traveled_paths = travel_instructions(circuit_info, head_instruction, path_per_node, max_step)
             path_indexs = [self.path_index(path) for path in traveled_paths if self.has_path(path)]
             path_indexs.sort()

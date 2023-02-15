@@ -38,7 +38,7 @@ def count_error_path_num(circuit, n_qubits, model: RandomwalkModel, erroneous_pa
     n_erroneous_patterns = []
     
     instruction2sparse_vector = circuit_info['instruction2sparse_vecs']
-    instructions = circuit_info['instructions']
+    instructions = circuit_info['gates']
     for index, instruction in enumerate(instructions):
         error_count = 0 
         sparse_vector = instruction2sparse_vector[index]
@@ -52,7 +52,7 @@ def count_error_path_num(circuit, n_qubits, model: RandomwalkModel, erroneous_pa
         
     return n_erroneous_patterns
 def get_error_result(circuit_info,model,erroneous_pattern):
-    # circuit_info['qiskit_circuit'] = my_format_circuit_to_qiskit(max_qubit_num, circuit_info['layer2instructions'])
+    # circuit_info['qiskit_circuit'] = layered_circuits_to_qiskit(max_qubit_num, circuit_info['layer2gates'])
     error_circuit, n_erroneous_patterns = add_pattern_error_path(circuit_info, max_qubit_num, model,erroneous_pattern)
     error_circuit.measure_all()
     noisy_count = simulate_noise(error_circuit, 1000)
@@ -68,15 +68,15 @@ def smart_predict(params, reduced_vecs):
 
 
 def getLayerType(circuit,layer):
-    return len(circuit['layer2instructions'][layer][0]['qubits'])
+    return len(circuit['layer2gates'][layer][0]['qubits'])
 
 
 def getMoveRange(id,circuit):
     available_layer = []
     
-    inst = circuit['instructions']
-    i2l = circuit['instruction2layer']
-    l2i = circuit['layer2instructions']
+    inst = circuit['gates']
+    i2l = circuit['gate2layer']
+    l2i = circuit['layer2gates']
     
     #accelerate search structure
     loc = 0
@@ -129,9 +129,9 @@ def getMoveRange(id,circuit):
     
     
 def moveCircuit(new_layer,id,circuit):
-    inst = circuit['instructions']
-    i2l = circuit['instruction2layer']
-    l2i = circuit['layer2instructions']
+    inst = circuit['gates']
+    i2l = circuit['gate2layer']
+    l2i = circuit['layer2gates']
 
     layer = i2l[id]
     i2l[id]=new_layer
@@ -168,16 +168,16 @@ def multi_optimize(circuit):
 def optimize(circuit):
     # pprint.pprint(circuit)
     # print("-----instructions----------")
-    # pprint.pprint(circuit['instructions'])
+    # pprint.pprint(circuit['gates'])
     # print("-------layer2instructions--------")
-    # pprint.pprint(circuit['layer2instructions'])
+    # pprint.pprint(circuit['layer2gates'])
     # print("-------instruction2layer--------")
-    # print(circuit['instruction2layer'])
+    # print(circuit['gate2layer'])
     circuit_info = deepcopy(circuit)
 
     time0=time.time()
 
-    gate_num = len(circuit_info['instructions'])
+    gate_num = len(circuit_info['gates'])
     visited = -1
     score0 = smart_predict(error_params, np.array(circuit_info['instruction2reduced_propgation_vecs'], dtype=np.float32))
     n_erroneous_patterns = count_error_path_num(circuit_info, circuit_info['num_qubits'], model, model.erroneous_pattern)
@@ -202,7 +202,7 @@ def optimize(circuit):
         ran = getMoveRange(id, circuit_info)
         # print(id,ran)
         if(len(ran)!=0):
-            original_layer = circuit_info['instruction2layer'][id]
+            original_layer = circuit_info['gate2layer'][id]
             # original_score = smart_predict(error_params, np.array(circuit_info['instruction2reduced_propgation_vecs'], dtype=np.float32))
             # 直接算error_path试下
             original_score = -sum(n_erroneous_patterns)
@@ -276,7 +276,7 @@ if __name__ == '__main__':
     opt_res = {}
     index = 0
     
-    ray.init()
+    # ray.init()
     # ray.put(algorithm)
     futures = {}
     

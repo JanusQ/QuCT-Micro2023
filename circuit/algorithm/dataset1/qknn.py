@@ -1,5 +1,5 @@
-import qiskit
 import numpy as np
+import qiskit
 
 
 class QKNN():

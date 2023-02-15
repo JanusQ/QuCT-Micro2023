@@ -1,5 +1,5 @@
 from qiskit.ignis.mitigation.measurement import complete_meas_cal, CompleteMeasFitter
-from simulator.hardware_info import max_qubit_num
+from utils.backend_info import max_qubit_num
 import numpy as np
 import scipy.linalg as la
 from qiskit.result import LocalReadoutMitigator

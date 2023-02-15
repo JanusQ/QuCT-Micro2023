@@ -1,7 +1,6 @@
-from qiskit import QuantumCircuit
-import numpy as np
-from qiskit.circuit.random import random_circuit
 from numpy import pi
+from qiskit import QuantumCircuit
+
 
 class Algorithm:
     def __init__(self, n_qubits):

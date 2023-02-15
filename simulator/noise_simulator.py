@@ -2,8 +2,8 @@ import random
 from qiskit.providers.aer.noise import NoiseModel
 import qiskit.providers.aer.noise as noise
 from qiskit.providers.aer.noise import kraus_error, mixed_unitary_error, depolarizing_error, reset_error, thermal_relaxation_error, ReadoutError, phase_amplitude_damping_error, amplitude_damping_error, coherent_unitary_error, pauli_error, phase_damping_error
-from dataset.dataset_loader import my_format_circuit_to_qiskit
-from .hardware_info import basis_gates, coupling_map, match_hardware_constraints, max_qubit_num, basis_single_gates, basis_two_gates, two_qubit_fidelity, single_qubit_fidelity, qubit2T1, qubit2T2 #, readout_error
+from dataset.dataset_loader import layered_circuits_to_qiskit
+from utils.backend_info import default_basis_gates, coupling_map, match_hardware_constraints, max_qubit_num, default_basis_single_gates, default_basis_two_gates, two_qubit_fidelity, single_qubit_fidelity, qubit2T1, qubit2T2 #, readout_error
 import pickle
 from qiskit import QuantumCircuit, execute
 from qiskit import IBMQ, Aer
@@ -55,7 +55,7 @@ for qubit in range(max_qubit_num):
     
     total_qubit_error = bit_flip.compose(phase_flip).compose(thermal_error).compose(_depolarizing_error)
     # total_qubit_error = thermal_error.compose(_depolarizing_error)
-    noise_model.add_quantum_error(total_qubit_error, basis_single_gates, [qubit])
+    noise_model.add_quantum_error(total_qubit_error, default_basis_single_gates, [qubit])
     # # noise_model.add_readout_error(ReadoutError(readout_error[qubit]), [qubit])
     # noise_model.add_quantum_error(errors_thermal, basis_single_gates, [qubit])
 
@@ -69,7 +69,7 @@ for index, (qubit1, qubit2) in enumerate(coupling_map):
     
     total_coupler_error = bit_flip.compose(phase_flip).compose(thermal_error).compose(_depolarizing_error)
     # total_coupler_error = thermal_error.compose(_depolarizing_error)
-    noise_model.add_quantum_error(total_coupler_error, basis_two_gates, [qubit1, qubit2])
+    noise_model.add_quantum_error(total_coupler_error, default_basis_two_gates, [qubit1, qubit2])
     
     # error_2q = depolarizing_error(_error, 2)
     # noise_model.add_quantum_error(error_2q, basis_two_gates, [qubit1, qubit2])
@@ -91,7 +91,7 @@ def simulate_noise(circuit, n_samples=2000):
     # match_hardware_constraints(circuit)
     result = execute(circuit, qasm_simulator,
                     # coupling_map=coupling_map,
-                    basis_gates=basis_gates,
+                    basis_gates=default_basis_gates,
                     initial_layout = initial_layout,
                     noise_model=noise_model, shots = n_samples, optimization_level = 0).result()
     return result.get_counts()
@@ -138,7 +138,7 @@ def add_pattern_error_path(circuit, n_qubits, model,erroneous_pattern):  # ÂçïËø
     n_erroneous_patterns = 0
     
     instruction2sparse_vector = circuit_info['instruction2sparse_vecs']
-    instructions = circuit_info['instructions']
+    instructions = circuit_info['gates']
     for index, instruction in enumerate(instructions):
         name = instruction['name']
         qubits = instruction['qubits']
@@ -165,7 +165,7 @@ def add_pattern_error_path(circuit, n_qubits, model,erroneous_pattern):  # ÂçïËø
 
 def get_error_result(circuit_info,model,erroneous_pattern = None):
     if 'qiskit_circuit' not in circuit_info:
-        circuit_info['qiskit_circuit'] = my_format_circuit_to_qiskit(max_qubit_num, circuit_info['layer2instructions'])
+        circuit_info['qiskit_circuit'] = layered_circuits_to_qiskit(max_qubit_num, circuit_info['layer2gates'])
     if erroneous_pattern != None:
         error_circuit, n_erroneous_patterns = add_pattern_error_path(circuit_info, max_qubit_num, model,erroneous_pattern)
     error_circuit.measure_all()

@@ -1,6 +1,7 @@
-from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
-import random
 import math
+import random
+
+from qiskit import QuantumCircuit, QuantumRegister
 
 
 def swapTest(qc, qr):

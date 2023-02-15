@@ -7,8 +7,11 @@
 ## A complete notebook of all Chapter 4 samples (including this one) can be found at
 ##  https://github.com/oreilly-qc/oreilly-qc.github.io/tree/master/samples/Qiskit
 
-from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, execute, Aer, IBMQ, BasicAer
 import math
+
+from qiskit import QuantumCircuit, QuantumRegister
+
+
 ## Uncomment the next line to see diagrams when running in a notebook
 #%matplotlib inline
 

@@ -1,6 +1,9 @@
-import qiskit
-from qiskit.dagcircuit.dagnode import DAGNode, DAGOpNode, DAGInNode, DAGOutNode
-from analysis.cricuit_operation import my_circuit_to_dag
+from qiskit.dagcircuit.dagnode import DAGOpNode
+from qiskit.dagcircuit.dagnode import DAGOpNode
+
+from circuit.formatter import my_circuit_to_dag
+
+
 def get_layered_instructions(circuit):
     '''
     这个layer可能不是最好的，应为这个还考虑了画图的时候不要交错

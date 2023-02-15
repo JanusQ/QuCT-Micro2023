@@ -1,10 +1,23 @@
-from quct import generate_circtuit, predict_fidelity
+from circuit import gen_random_circuits
+from upstream import  RandomwalkModel
+from downstream import FidelityModel
+from collections import defaultdict
+
+train_dataset = gen_random_circuits(5,20,200,10,True,True)
+upstream_model = RandomwalkModel(1,15)
+upstream_model.batch_train(train_dataset)
+upstream_model.load_reduced_vecs()
+
+# load xeb, ground_truth_fidelity
 
 
-test_dataset = generate_circtuit(5,20,200,1,True,True)
-veceds  = [] 
+downstream_model = FidelityModel(upstream_model)
+downstream_model.train(train_dataset)
+
+veceds = []
+test_dataset = gen_random_circuits(5,20,200,1,True,True)
 for cir in test_dataset:
-    veced, predict, gate_errors = predict_fidelity(cir['qiskit_circuit'])
+    predict, veced, gate_errors = downstream_model.predict_fidelity(cir['qiskit_circuit'])
     veceds.append(veced)
-    print(veced['predict'],cir['xeb_fidelity'],gate_errors)
+    print(predict,cir['xeb_fidelity'],gate_errors)
     

@@ -1,21 +1,13 @@
 
 from collections import defaultdict
 from operator import index
-import random
-from pattern_extractor.randomwalk_model import RandomwalkModel, add_pattern_error, Step, Path
-from simulator.noise_free_simulator import simulate_noise_free
-from simulator.noise_simulator import *
-from qiskit import QuantumCircuit, execute
-from qiskit.visualization import plot_histogram
+from upstream.randomwalk_model import RandomwalkModel, add_pattern_error, Step
 import matplotlib.pyplot as plt
-from qiskit import QuantumCircuit, transpile
-from simulator.hardware_info import coupling_map, initial_layout, max_qubit_num, basis_gates, single_qubit_fidelity, two_qubit_fidelity, readout_error
-from qiskit.quantum_info.analysis import hellinger_fidelity
-from dataset.random_circuit import one_layer_random_circuit, random_circuit
-from analysis.predict_fidelity import naive_predict
-from analysis.dimensionality_reduction import batch
+from utils.backend_info import max_qubit_num
+from downstream.fidelity_predict.other import naive_predict
+from upstream.dimensionality_reduction import batch
 import numpy as np
-from dataset.dataset_loader import load_algorithms, load_randomcircuits
+from dataset.dataset_loader import load_algorithms, _gen_random_circuits
 
 
 from sklearn.utils import shuffle
@@ -39,7 +31,7 @@ def get_n_instruction2circuit_infos(dataset):
     n_instruction2circuit_infos = defaultdict(list)
     for circuit_info in dataset:
         qiskit_circuit = circuit_info['qiskit_circuit']
-        gate_num = len(circuit_info['instructions'])
+        gate_num = len(circuit_info['gates'])
         n_instruction2circuit_infos[gate_num].append(circuit_info)
 
     # print(n_instruction2circuit_infos[gate_num])
@@ -83,7 +75,7 @@ def naive_epoch_train(circuit_infos, naive_params, naive_opt_state, naive_optimi
 
     X = np.array([[   
             [qubit.index for qubit in instruction.qubits] if len(instruction.qubits) == 2 else [qubit.index for qubit in instruction.qubits ] + [-1]
-                for instruction in circuit_info['instructions']
+                for instruction in circuit_info['gates']
                     # if len(instruction.qubits) == 2
         ] for circuit_info in circuit_infos])
 

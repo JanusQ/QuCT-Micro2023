@@ -4,7 +4,7 @@ from qiskit import IBMQ, Aer
 from qiskit.visualization import plot_histogram
 import pickle
 import os
-from .hardware_info import basis_gates, coupling_map, match_hardware_constraints, max_qubit_num
+from utils.backend_info import default_basis_gates, coupling_map, match_hardware_constraints, max_qubit_num
 from jax import pmap, vmap
 
 # 需要暴露电路中比特

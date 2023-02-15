@@ -1,7 +1,5 @@
-import random
-
-from qiskit import QuantumCircuit
 import numpy as np
+from qiskit import QuantumCircuit
 
 
 def example_grover_iteration():

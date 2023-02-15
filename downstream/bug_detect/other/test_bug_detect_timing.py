@@ -12,9 +12,9 @@ import os
 from jax import numpy as jnp, vmap
 from sklearn.cluster import KMeans
 import numpy as np
-from dataset.dataset_loader import parse_circuit, my_format_circuit_to_qiskit
+from dataset.dataset_loader import parse_circuit, layered_circuits_to_qiskit
 from dataset.get_data import get_data, get_dataset, get_dataset_bug_detection
-from simulator.hardware_info import max_qubit_num
+from utils.backend_info import max_qubit_num
 from qiskit.tools.visualization import circuit_drawer
 from upstream.sparse_dimensionality_reduction import batch
 from upstream.sparse_dimensionality_reduction import sp_mds_reduce, sp_multi_constance, sp_pluse, sp_MDS, pad_to, sp_dist, \
@@ -33,7 +33,7 @@ import time
 
 # from algorithm.get_data_bug import get_bug_circuit
 import ray
-ray.init()
+# ray.init()
 
 
 total_bug_num = 0
@@ -204,8 +204,8 @@ def scan(max_step, path_per_node, bug_num, min_qubit_num, max_qubit_num):
                 break
         
         spend_time = time.time() - start_time
-        print('grove, len(gates):', len(circuit_info['instructions']), 'num_qubits', circuit_info['num_qubits'], 'time:', spend_time, )
-        time2info.append((circuit_info['id'], len(circuit_info['instructions']), circuit_info['num_qubits'], spend_time))
+        print('grove, len(gates):', len(circuit_info['gates']), 'num_qubits', circuit_info['num_qubits'], 'time:', spend_time, )
+        time2info.append((circuit_info['id'], len(circuit_info['gates']), circuit_info['num_qubits'], spend_time))
         
         return bug_circuit
 
@@ -217,11 +217,11 @@ def scan(max_step, path_per_node, bug_num, min_qubit_num, max_qubit_num):
         
         circuit = QuantumCircuit(circuit_info['num_qubits'])
 
-        start_instruction = random.randint(0, len(circuit_info['instructions'])-1-bug_num)
+        start_instruction = random.randint(0, len(circuit_info['gates'])-1-bug_num)
         end_instruction = start_instruction + bug_num
         bug_instructions = list(range(start_instruction, end_instruction))
 
-        for layer, layer_instructions in enumerate(circuit_info['layer2instructions']):
+        for layer, layer_instructions in enumerate(circuit_info['layer2gates']):
             for instruction in layer_instructions:
                 name = instruction['name']
                 qubits = instruction['qubits']
@@ -253,7 +253,7 @@ def scan(max_step, path_per_node, bug_num, min_qubit_num, max_qubit_num):
         
         bug_circuit_info = parse_circuit(circuit)
         for bug_instruction in bug_instructions:
-            bug_circuit_info['instructions'][bug_instruction]['original'] = circuit_info['instructions'][bug_instruction]
+            bug_circuit_info['gates'][bug_instruction]['original'] = circuit_info['gates'][bug_instruction]
         bug_circuit_info['id'] = circuit_info['id'] + f'_bug_{bug_instructions}'
         bug_circuit_info['original_id'] = circuit_info['id']
 

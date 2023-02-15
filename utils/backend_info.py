@@ -5,16 +5,18 @@ import numpy as np
 from collections import defaultdict
 max_qubit_num = 10
 
+default_basis_gates = ['rx', 'ry', 'rz', 'cz']  # 'h',  # ['u', 'cz'] #
+default_basis_single_gates =  ['rx', 'ry', 'rz']  #'h',  #['u'] #
+default_basis_two_gates = ['cz']
+
+single_gate_time = 30
+double_gate_time = 60
+
+
 # basis_gates = ['rx', 'ry', 'rz', 'cz'] #'h', 
 # basis_single_gates = ['rx', 'ry', 'rz'] #'h', 
 # basis_two_gates = ['cx']
 
-basis_gates = ['h', 'rx', 'ry', 'rz', 'cz']
-basis_single_gates = ['h', 'rx', 'ry', 'rz']
-basis_two_gates = ['cz']
-
-single_gate_time = 30
-double_gate_time = 60
 
 # def index2pos(index):
 #     '''q0 -> q(0,0)'''
@@ -26,7 +28,7 @@ double_gate_time = 60
 
 
 # 先假设一维链吧
-coupling_map = [[q, q+1] for q in range(max_qubit_num-1)]
+# coupling_map = [[q, q+1] for q in range(max_qubit_num-1)]
 # [[0, 1], [1, 2], [2, 3], [3, 4],
 #                 [4, 5], [5, 6], [6, 7], [7, 8], [8, 9]]
 
@@ -34,7 +36,7 @@ coupling_map = [[q, q+1] for q in range(max_qubit_num-1)]
 #                          4: 0.9903143081867356, 5: 0.9977550549915091, 6: 0.995788376970502, 7: 0.9971490825344018, 8: 0.9994070174215289, 9: 0.9943473868359441}
 # single_qubit_fidelity = defaultdict(lambda: 1)
 
-initial_layout = list(range(max_qubit_num))
+# initial_layout = list(range(max_qubit_num))
 
 # two_qubit_fidelity = {(0, 1): 0.9843107156710624, (1, 2): 0.9820908660885013, (2, 3): 0.9992926991023456, (3, 4): 0.9961834312102361, (
 #     4, 5): 0.9977736740721713, (5, 6): 0.9960065327834351, (6, 7): 0.9863462286778378, (7, 8): 0.9851131078808855, (8, 9): 0.9828325041486045}
@@ -95,16 +97,16 @@ qubit2T2 = [6.218568594109152, 5.815100065135997, 4.92364541017952, 5.9798809568
 def match_hardware_constraints(circuit: QuantumCircuit) -> bool:
     assert circuit.num_qubits <= max_qubit_num
 
-    two_qubit_gates = circuit.get_instructions(basis_two_gates[0])
+    two_qubit_gates = circuit.get_instructions(default_basis_two_gates[0])
     for gate in two_qubit_gates:
         operated_qubits = [_.index for _ in gate.qubits]
         operated_qubits.sort()
         gate_type = gate.operation.name
-        assert gate_type in basis_two_gates
+        assert gate_type in default_basis_two_gates
         assert operated_qubits in coupling_map  # satisfy the processor topology
 
     return True
 
 def fix_transpile(circuit: QuantumCircuit, ) -> QuantumCircuit:
     match_hardware_constraints(circuit)
-    return transpile(circuit, basis_gates=basis_gates, coupling_map=coupling_map, initial_layout=initial_layout, optimization_level=0)
+    return transpile(circuit, basis_gates=default_basis_gates, coupling_map=coupling_map, initial_layout=initial_layout, optimization_level=0)
