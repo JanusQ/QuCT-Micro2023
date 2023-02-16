@@ -23,6 +23,10 @@ from utils.backend import default_basis_single_gates, default_basis_two_gates
 # simulator = NoiseSimulator(backend)
 # simulator.get_error_results(train_dataset, upstream_model)
 # # label_ground_truth_fidelity(train_dataset,numpy.random.rand(64))
+# import pickle
+# with open("upstream_model.pkl","wb") as f:
+#      pickle.dump(upstream_model, f)
+
 
 import pickle
 with open("upstream_model.pkl","rb") as f:
