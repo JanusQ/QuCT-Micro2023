@@ -17,15 +17,16 @@ class FidelityModel():
         self.error_params = None
         return
 
-    def train(self,dataset,device2reverse_path_table_size):
-        device2error_params = dict
+    def train(self, dataset, device2reverse_path_table_size):
+        device2error_params = defaultdict(lambda: jnp.array(0))
         for device, dim in device2reverse_path_table_size.items():
-            device2error_params[device] = jnp.zeros(shape=(1,dim))
+            device2error_params[device] = jnp.zeros(shape=(1, dim))
 
         optimizer = optax.adamw(learning_rate=1e-2)
         opt_state = optimizer.init(device2error_params)
         train_dataset = dataset
-        error_params, opt_state = train_error_params(train_dataset, device2error_params, opt_state, optimizer, epoch_num=30)
+        error_params, opt_state = train_error_params(train_dataset, device2error_params, opt_state, optimizer,
+                                                     epoch_num=30)
         self.error_params = error_params
 
     def predict_fidelity(self, circuit_info):
@@ -82,7 +83,7 @@ def train_error_params(train_dataset, params, opt_state, optimizer, epoch_num=10
     return params, opt_state
 
 
-@jax.jit
+# @jax.jit
 def smart_predict(device2params, device2vectors):
     '''预测电路的保真度'''
     predict = 1.0
@@ -90,7 +91,7 @@ def smart_predict(device2params, device2vectors):
         vectors = np.array(vectors)
         param = device2params[device]
         errors = vmap(lambda param, vectors: jnp.dot(param / error_param_rescale, vectors), in_axes=(None, 0),
-                  out_axes=0)(param, vectors)
+                      out_axes=0)(param, vectors)
         predict *= jnp.product(1 - errors, axis=0)[0]
     return predict  # 不知道为什么是[0][0]
     # return 1-jnp.sum([params[index] for index in sparse_vector])
@@ -113,7 +114,7 @@ def batch_loss(params, X, Y):
 # 在训练中逐渐增加gate num
 def epoch_train(circuit_infos, params, opt_state, optimizer):
     # print(circuit_infos[0].keys())
-    X = np.array([circuit_info['device2vectors'] for circuit_info in circuit_infos], dtype=np.float32)
+    X = np.array([circuit_info['device2vectors'] for circuit_info in circuit_infos])
     Y = np.array([[circuit_info['ground_truth_fidelity']] for circuit_info in circuit_infos], dtype=np.float32)
 
     loss_value, gradient = jax.value_and_grad(batch_loss)(params, X, Y)
