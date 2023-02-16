@@ -62,7 +62,7 @@ def get_extra_info(dataset):
         cir['xeb_fidelity'] = get_xeb_fidelity(cir)
         cir['duration'] = get_circuit_duration(cir['layer2instructions'])
         cir['prop'] = get_couple_prop(cir)
-        cir['gate_num'] = len(cir['instructions'])
+        cir['n_qubits'] = len(cir['instructions'])
     return dataset
 
 def label_ground_truth_fidelity(dataset, labels):

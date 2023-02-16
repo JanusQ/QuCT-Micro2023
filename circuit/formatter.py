@@ -62,7 +62,7 @@ def qiskit_to_my_format_instruction(instruction):
     return {
         'name': instruction.operation.name,
         'qubits': [qubit.index for qubit in instruction.qubits],
-        'params': instruction.operation.params,
+        'params': list(instruction.operation.params),
     }
 
 

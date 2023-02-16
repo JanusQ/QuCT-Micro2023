@@ -264,6 +264,7 @@ class RandomwalkModel():
                 vec[np.array(_path_index)] = 1.
                 device2vectors[device].append(vec)
                 circuit_info['device2vectors'] = device2vectors
+                
         # self.all_instructions = []
         # for circuit_info in self.dataset:
         #     for index, insturction in enumerate(circuit_info['gates']):
@@ -272,9 +273,14 @@ class RandomwalkModel():
         #         )
                 
         print('random walk finish device size = ', len(self.device2path_table))
+        
+        self.max_table_size = 0
         for device, path_table in self.device2path_table.items():
             self.device2reverse_path_table_size[device] = len(path_table)
             print(device, 'path table size = ', len(path_table))
+            
+            if len(path_table) > self.max_table_size:
+                self.max_table_size = len(path_table)
 
     @staticmethod
     def count_step(path_id: str) -> int:
@@ -403,7 +409,8 @@ class RandomwalkModel():
 
         neighbor_info = self.backend.neighbor_info
         circuit_info['path_indexs'] = []
-        device2vectors = defaultdict(list)
+        # device2vectors = defaultdict(list)
+        circuit_info['vecs'] = []
         for gate in circuit_info['gates']:
             paths = travel_instructions(circuit_info, gate, path_per_node, max_step, neighbor_info)
             device = extract_device(gate)
@@ -413,7 +420,10 @@ class RandomwalkModel():
 
             vec = np.zeros(len(self.device2path_table[device]),dtype=np.float64)
             vec[np.array(_path_index)] = 1.
-            device2vectors[device].append(vec)
-            circuit_info['device2vectors'] = device2vectors
+            circuit_info['vecs'].append(vec)
+            # device2vectors[device].append(vec)
+            # circuit_info['device2vectors'] = device2vectors
+            
+        return circuit_info
 
 

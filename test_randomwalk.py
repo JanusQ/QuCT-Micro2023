@@ -10,10 +10,8 @@ from utils.backend import default_basis_single_gates, default_basis_two_gates
 # topological information
 topology = gen_grid_topology(3)  # 3x3 9 qubits
 neigh_info = get_grid_neighbor_info(3, 1)
-coupling_map = topology_to_coupling_map(topology)
 
 print(topology)
-print(coupling_map)
 print(neigh_info)
 
 n_qubits = 9
@@ -31,5 +29,8 @@ upstream_model.train(train_dataset, multi_process=True)
 
 test_dataset = gen_random_circuits(min_gate=10, max_gate=100, n_circuits=1, two_qubit_gate_probs=[4, 8],
                                     backend=backend)
-upstream_model.vectorize(test_dataset[0])
+circuit_info = upstream_model.vectorize(test_dataset[0])
+
+
+
 print('finish')
