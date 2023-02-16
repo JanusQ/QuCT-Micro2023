@@ -123,7 +123,7 @@ def get_n_instruction2circuit_infos(dataset):
     for circuit_info in dataset:
         # qiskit_circuit = circuit_info['qiskit_circuit']
         gate_num = len(circuit_info['gates'])
-        n_instruction2circuit_infos[gate_num].append(circuit_info)
+        n_instruction2circuit_infos[gate_num].append(circuit_info['gates'])
 
     # print(n_instruction2circuit_infos[gate_num])
     gate_nums = list(n_instruction2circuit_infos.keys())

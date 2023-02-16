@@ -7,3 +7,4 @@ jax
 qiskit
 matplotlib
 scikit-learn
+cloudpickle
