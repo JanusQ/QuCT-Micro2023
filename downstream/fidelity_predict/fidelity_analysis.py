@@ -17,12 +17,15 @@ class FidelityModel():
         self.error_params = None
         return
 
-    def train(self,dataset):
-        error_params = jnp.zeros(shape=(1,100))
+    def train(self,dataset,device2reverse_path_table_size):
+        device2error_params = dict
+        for device, dim in device2reverse_path_table_size.items():
+            device2error_params[device] = jnp.zeros(shape=(1,dim))
+
         optimizer = optax.adamw(learning_rate=1e-2)
-        opt_state = optimizer.init(error_params)
+        opt_state = optimizer.init(device2error_params)
         train_dataset = dataset
-        error_params, opt_state = train_error_params(train_dataset, error_params, opt_state, optimizer, epoch_num=30)
+        error_params, opt_state = train_error_params(train_dataset, device2error_params, opt_state, optimizer, epoch_num=30)
         self.error_params = error_params
 
     def predict_fidelity(self, circuit_info):
@@ -80,18 +83,23 @@ def train_error_params(train_dataset, params, opt_state, optimizer, epoch_num=10
 
 
 @jax.jit
-def smart_predict(params, reduced_vecs):
+def smart_predict(device2params, device2vectors):
     '''预测电路的保真度'''
-    errors = vmap(lambda params, reduced_vec: jnp.dot(params / error_param_rescale, reduced_vec), in_axes=(None, 0),
-                  out_axes=0)(params, reduced_vecs)
-    return jnp.product(1 - errors, axis=0)[0]  # 不知道为什么是[0][0]
+    predict = 1.0
+    for device, vectors in device2vectors.items():
+        vectors = np.array(vectors)
+        param = device2params[device]
+        errors = vmap(lambda param, vectors: jnp.dot(param / error_param_rescale, vectors), in_axes=(None, 0),
+                  out_axes=0)(param, vectors)
+        predict *= jnp.product(1 - errors, axis=0)[0]
+    return predict  # 不知道为什么是[0][0]
     # return 1-jnp.sum([params[index] for index in sparse_vector])
     # np.array(sum(error).primal)
 
 
-def loss_func(params, reduced_vecs, true_fidelity):
+def loss_func(device2params, device2vectors, true_fidelity):
     # predict_fidelity = naive_predict(circ) # 对于电路比较浅的预测是准的，大概是因为有可能翻转回去吧，所以电路深了之后会比理论的保真度要高一些
-    predict_fidelity = smart_predict(params, reduced_vecs)
+    predict_fidelity = smart_predict(device2params, device2vectors)
     # print(predict_fidelity)
     # print(true_fidelity)
     return optax.l2_loss(true_fidelity - predict_fidelity) * 100
@@ -105,7 +113,7 @@ def batch_loss(params, X, Y):
 # 在训练中逐渐增加gate num
 def epoch_train(circuit_infos, params, opt_state, optimizer):
     # print(circuit_infos[0].keys())
-    X = np.array([circuit_info['reduced_vecs'] for circuit_info in circuit_infos], dtype=np.float32)
+    X = np.array([circuit_info['device2vectors'] for circuit_info in circuit_infos], dtype=np.float32)
     Y = np.array([[circuit_info['ground_truth_fidelity']] for circuit_info in circuit_infos], dtype=np.float32)
 
     loss_value, gradient = jax.value_and_grad(batch_loss)(params, X, Y)

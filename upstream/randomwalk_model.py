@@ -173,7 +173,7 @@ class RandomwalkModel():
         self.device2path_table = defaultdict(dict) # 存了路径(Path)到向量化后的index的映射
         
         self.device2reverse_path_table = defaultdict(dict)  # qubit -> path -> index
-
+        self.device2reverse_path_table_size = defaultdict(int)
         self.max_step = max_step
         self.path_per_node = path_per_node
         self.dataset = None
@@ -252,13 +252,19 @@ class RandomwalkModel():
                     self.path_index(device, path_id)
 
         for index, circuit_info in enumerate(dataset):
+            device2vectors = defaultdict(list)
             circuit_info['path_indexs'] = []
             for gate, paths in zip(circuit_info['gates'], circuit_info['gate_paths']):
                 device = extract_device(gate)
-                vec = [self.path_index(device, path_id) for path_id in paths if self.has_path(device, path_id)]
-                vec.sort()
-                circuit_info['path_indexs'].append(vec)
+                _path_index = [self.path_index(device, path_id) for path_id in paths if self.has_path(device, path_id)]
+                _path_index.sort()
+                circuit_info['path_indexs'].append(_path_index)
 
+                vec = np.zeros(len(self.device2path_table[device]), dtype=np.float64)
+                vec[np.array(_path_index)] = 1.
+                device2vectors[device].append(vec)
+                circuit_info['device2vectors'] = device2vectors
+                
         # self.all_instructions = []
         # for circuit_info in self.dataset:
         #     for index, insturction in enumerate(circuit_info['gates']):
@@ -267,8 +273,14 @@ class RandomwalkModel():
         #         )
                 
         print('random walk finish device size = ', len(self.device2path_table))
+        
+        self.max_table_size = 0
         for device, path_table in self.device2path_table.items():
+            self.device2reverse_path_table_size[device] = len(path_table)
             print(device, 'path table size = ', len(path_table))
+            
+            if len(path_table) > self.max_table_size:
+                self.max_table_size = len(path_table)
 
     @staticmethod
     def count_step(path_id: str) -> int:
@@ -345,6 +357,42 @@ class RandomwalkModel():
         file.close()
         return
 
+    # def vectorize(self, circuit):
+    #     # assert circuit.num_qubits <=
+    #     if isinstance(circuit, QuantumCircuit):
+    #         circuit_info = qiskit_to_layered_circuits(circuit)
+    #         circuit_info['qiskit_circuit'] = circuit
+    #     elif isinstance(circuit, dict) :# and 'qiskit_circuit' in circuit
+    #         circuit_info = circuit
+    #     else:
+    #         raise Exception(circuit, 'is a unexpected input')
+    #     max_step = self.max_step
+    #     path_per_node = self.path_per_node
+    #
+    #     assert 'path_indexs' not in circuit_info
+    #
+    #     circuit_info['path_indexs'] = []
+    #     circuit_info['sparse_vecs'] = []
+    #     for index, head_instruction in enumerate(circuit_info['gates']):
+    #         traveled_paths = travel_instructions(circuit_info, head_instruction, path_per_node, max_step)
+    #         path_indexs = [self.path_index(path) for path in traveled_paths if self.has_path(path)]
+    #         path_indexs.sort()
+    #         circuit_info['path_indexs'].append(path_indexs)
+    #         circuit_info['sparse_vecs'].append(self._construct_sparse_vec(path_indexs))
+    #
+    #     circuit_info['sparse_vecs'] = np.array(circuit_info['sparse_vecs'], dtype=np.int64)
+    #
+    #     if 'reduced_params' in self.__dict__:
+    #         scaling = self.reduced_scaling
+    #         reduced_params = self.reduced_params
+    #
+    #         vecs = circuit_info['sparse_vecs']
+    #         # vecs = [vec.tolist() for vec in vecs]
+    #         # vecs = make_same_size(vecs)
+    #         # vecs = np.array(vecs)
+    #         circuit_info['reduced_vecs'] = np.array(vmap(sp_mds_reduce, in_axes=(None, 0), out_axes=0)(reduced_params, vecs)/scaling, dtype=np.float)
+    #     return circuit_info
+
     def vectorize(self, circuit):
         # assert circuit.num_qubits <=
         if isinstance(circuit, QuantumCircuit):
@@ -359,26 +407,23 @@ class RandomwalkModel():
 
         assert 'path_indexs' not in circuit_info
 
+        neighbor_info = self.backend.neighbor_info
         circuit_info['path_indexs'] = []
-        circuit_info['sparse_vecs'] = []
-        for index, head_instruction in enumerate(circuit_info['gates']):
-            traveled_paths = travel_instructions(circuit_info, head_instruction, path_per_node, max_step)
-            path_indexs = [self.path_index(path) for path in traveled_paths if self.has_path(path)]
-            path_indexs.sort()
-            circuit_info['path_indexs'].append(path_indexs)
-            circuit_info['sparse_vecs'].append(self._construct_sparse_vec(path_indexs))
+        # device2vectors = defaultdict(list)
+        circuit_info['vecs'] = []
+        for gate in circuit_info['gates']:
+            paths = travel_instructions(circuit_info, gate, path_per_node, max_step, neighbor_info)
+            device = extract_device(gate)
+            _path_index = [self.path_index(device, path_id) for path_id in paths if self.has_path(device, path_id)]
+            _path_index.sort()
+            circuit_info['path_indexs'].append(_path_index)
 
-        circuit_info['sparse_vecs'] = np.array(circuit_info['sparse_vecs'], dtype=np.int64)
-
-        if 'reduced_params' in self.__dict__:
-            scaling = self.reduced_scaling
-            reduced_params = self.reduced_params
-         
-            vecs = circuit_info['sparse_vecs']
-            # vecs = [vec.tolist() for vec in vecs]
-            # vecs = make_same_size(vecs)
-            # vecs = np.array(vecs)
-            circuit_info['reduced_vecs'] = np.array(vmap(sp_mds_reduce, in_axes=(None, 0), out_axes=0)(reduced_params, vecs)/scaling, dtype=np.float)
+            vec = np.zeros(len(self.device2path_table[device]),dtype=np.float64)
+            vec[np.array(_path_index)] = 1.
+            circuit_info['vecs'].append(vec)
+            # device2vectors[device].append(vec)
+            # circuit_info['device2vectors'] = device2vectors
+            
         return circuit_info
-        
+
 

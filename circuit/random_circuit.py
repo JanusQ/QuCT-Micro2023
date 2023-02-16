@@ -16,14 +16,14 @@ def random_pi():
     return rand * pi
 
 # 没从从coupling map里面挑两比特门
-def random_circuit(n_qubits, n_gates, two_qubit_prob = 0.5, reverse = True, coupling_map = None, basic_single_gates = None, basis_two_gates = None,):
+def random_circuit(n_qubits, n_gates, two_qubit_prob = 0.5, reverse = True, coupling_map = None, basis_single_gates = None, basis_two_gates = None,):
     if reverse:
         n_gates = n_gates//2
     circuit = QuantumCircuit(n_qubits)
     qubits = list(range(n_qubits))
 
     for qubit in qubits:
-        gate_type = random.choice(basic_single_gates)
+        gate_type = random.choice(basis_single_gates)
         if gate_type in ('h',):
             circuit.h(random.choice(qubits))
         elif gate_type in ('rx', 'rz', 'ry'):
@@ -38,7 +38,7 @@ def random_circuit(n_qubits, n_gates, two_qubit_prob = 0.5, reverse = True, coup
             gate_type = basis_two_gates[0]
             assert len(basis_two_gates) == 1
         else:
-            gate_type = random.choice(basic_single_gates)
+            gate_type = random.choice(basis_single_gates)
         
         operated_qubits = list(random.choice(coupling_map))
         control_qubit = operated_qubits[0]

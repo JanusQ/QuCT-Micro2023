@@ -28,7 +28,10 @@ def matrix_distance_squared(A, B):
     """
     # optimized implementation
     return np.abs(1 - np.abs(np.sum(np.multiply(A, np.conj(B)))) / A.shape[0])
-        
+
+def get_params(layer2gates, U: jnp.array):
+    return
+
 class SynthesisModel():
     def __init__(self, backend: Backend):
         self.backend = backend
@@ -51,6 +54,8 @@ class SynthesisModel():
     def reconstruct():
         sub_layer_circuit = []
         return sub_layer_circuit
+    
+    
     
     def construct_model(self): 
         n_qubits = self.n_qubits

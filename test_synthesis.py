@@ -40,7 +40,7 @@ neigh_info = get_grid_neighbor_info(3, 1)
 # print(neigh_info)
 
 n_qubits = 9
-backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basic_single_gates = ['u'], 
+backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basis_single_gates = ['u'], 
                   basis_two_gates = ['cz'], divide = False, decoupling=False)
 
 
