@@ -167,7 +167,7 @@ def convert_circuit(circuit_info):
     # print(circuit_info['id'])
     return [convert_layer(level) for level in circuit_info['layer2gates']]
 
-BASIC_GATE_SET = ['h', 'rx', 'ry', 'rz', 'cz']
+BASIS_GATE_SET = ['h', 'rx', 'ry', 'rz', 'cz']
 
 GATE_NAME_MAP = {
     'h': 'H',

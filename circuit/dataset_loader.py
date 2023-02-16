@@ -20,13 +20,13 @@ def gen_random_circuits(min_gate: int, max_gate: int, n_circuits: int, two_qubit
 def _gen_random_circuits(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backend: Backend = None, reverse=True):
     
     divide, decoupling, coupling_map, n_qubits = backend.divide, backend.decoupling, backend.coupling_map, backend.n_qubits
-    basic_single_gates, basis_two_gates = backend.basic_single_gates, backend.basis_two_gates
+    basis_single_gates, basis_two_gates = backend.basis_single_gates, backend.basis_two_gates
     
     dataset = [
         ({
             'id': f'rc_{n_qubits}_{n_gates}_{two_qubit_prob}_{_}',
             'qiskit_circuit': random_circuit(n_qubits, n_gates, two_qubit_prob, reverse=reverse, coupling_map=coupling_map,
-                                             basic_single_gates=basic_single_gates, basis_two_gates=basis_two_gates)
+                                             basis_single_gates=basis_single_gates, basis_two_gates=basis_two_gates)
         })
         for _ in range(n_circuits)
     ]

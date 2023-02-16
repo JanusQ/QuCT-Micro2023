@@ -16,7 +16,7 @@ def random_pi():
     return rand * pi
 
 # 没从从coupling map里面挑两比特门
-def random_circuit(n_qubits, n_gates, two_qubit_prob = 0.5, reverse = True, coupling_map = None, basic_single_gates = None, basis_two_gates = None,):
+def random_circuit(n_qubits, n_gates, two_qubit_prob = 0.5, reverse = True, coupling_map = None, basis_single_gates = None, basis_two_gates = None,):
     if reverse:
         n_gates = n_gates//2
     circuit = QuantumCircuit(n_qubits)
