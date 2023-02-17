@@ -9,6 +9,8 @@ import jax
 from jax import vmap
 import optax
 
+from upstream.randomwalk_model import extract_device
+
 error_param_rescale = 10000
 
 
@@ -17,23 +19,24 @@ class FidelityModel():
         self.error_params = None
         return
 
-    def train(self,dataset,device2reverse_path_table_size):
-        device2error_params = dict
+    def train(self, dataset, device2reverse_path_table_size):
+        device2error_params = defaultdict(lambda: jnp.array(0))
         for device, dim in device2reverse_path_table_size.items():
-            device2error_params[device] = jnp.zeros(shape=(1,dim))
+            device2error_params[device] = jnp.zeros(shape=(1, dim))
 
         optimizer = optax.adamw(learning_rate=1e-2)
         opt_state = optimizer.init(device2error_params)
         train_dataset = dataset
-        error_params, opt_state = train_error_params(train_dataset, device2error_params, opt_state, optimizer, epoch_num=30)
+        error_params, opt_state = train_error_params(train_dataset, device2error_params, opt_state, optimizer,
+                                                     epoch_num=30)
         self.error_params = error_params
 
     def predict_fidelity(self, circuit_info):
         error_params = self.error_params
-        circuit_predict = smart_predict(error_params, circuit_info['reduced_vecs'])
+        circuit_predict = smart_predict(error_params, circuit_info['vecs'], circuit_info)
         gate_errors = np.array([
-            jnp.dot(error_params / error_param_rescale, vec)
-            for vec in circuit_info['reduced_vecs']
+            jnp.dot(error_params[extract_device(circuit_info['gates'][idx])] / error_param_rescale, vec)
+            for idx, vec in enumerate(circuit_info['vecs'])
         ])[:, 0]
         circuit_info['gate_errors'] = gate_errors
         circuit_info['circuit_predict'] = circuit_predict
@@ -82,46 +85,58 @@ def train_error_params(train_dataset, params, opt_state, optimizer, epoch_num=10
     return params, opt_state
 
 
-@jax.jit
-def smart_predict(device2params, device2vectors):
+# @jax.jit
+def smart_predict(device2params, vecs, circuit_info):
     '''预测电路的保真度'''
     predict = 1.0
-    for device, vectors in device2vectors.items():
-        vectors = np.array(vectors)
-        param = device2params[device]
-        errors = vmap(lambda param, vectors: jnp.dot(param / error_param_rescale, vectors), in_axes=(None, 0),
-                  out_axes=0)(param, vectors)
-        predict *= jnp.product(1 - errors, axis=0)[0]
+
+    for idx, vec in enumerate(vecs):
+        device = extract_device(circuit_info['gates'][idx])
+        error = jnp.dot(device2params[device] / error_param_rescale, vec)
+        predict *= 1 - error
+
+    #     device2vectors[device] += vec
+    # for device, vectors in device2vectors.items():
+    #     vectors = np.array(vectors)
+    #     param = device2params[device]
+    #     errors = vmap(lambda param, vectors: jnp.dot(param / error_param_rescale, vectors), in_axes=(None, 0),
+    #                   out_axes=0)(param, vectors)
+    #     predict *= jnp.product(1 - errors, axis=0)[0]
     return predict  # 不知道为什么是[0][0]
     # return 1-jnp.sum([params[index] for index in sparse_vector])
     # np.array(sum(error).primal)
 
 
-def loss_func(device2params, device2vectors, true_fidelity):
+def loss_func(device2params, vecs, true_fidelity, circuit_info):
     # predict_fidelity = naive_predict(circ) # 对于电路比较浅的预测是准的，大概是因为有可能翻转回去吧，所以电路深了之后会比理论的保真度要高一些
-    predict_fidelity = smart_predict(device2params, device2vectors)
+    predict_fidelity = smart_predict(device2params, vecs, circuit_info)
     # print(predict_fidelity)
     # print(true_fidelity)
     return optax.l2_loss(true_fidelity - predict_fidelity) * 100
 
 
-def batch_loss(params, X, Y):
-    losses = vmap(loss_func, in_axes=(None, 0, 0), out_axes=0)(params, X, Y)
-    return losses.mean()
+def batch_loss(params, X, Y, circuit_infos):
+    # losses = vmap(loss_func, in_axes=(None, 0, 0), out_axes=0)(params, X, Y)
+
+    losses = []
+    for x, y, circuit_info in zip(X, Y, circuit_infos):
+        losses.append(loss_func(params, x, y, circuit_info))
+    return jnp.array(losses).mean()
 
 
 # 在训练中逐渐增加gate num
 def epoch_train(circuit_infos, params, opt_state, optimizer):
     # print(circuit_infos[0].keys())
-    X = np.array([circuit_info['device2vectors'] for circuit_info in circuit_infos], dtype=np.float32)
+    X = [circuit_info['vecs'] for circuit_info in circuit_infos]
     Y = np.array([[circuit_info['ground_truth_fidelity']] for circuit_info in circuit_infos], dtype=np.float32)
 
-    loss_value, gradient = jax.value_and_grad(batch_loss)(params, X, Y)
+    loss_value, gradient = jax.value_and_grad(batch_loss)(params, X, Y, circuit_infos)
     updates, opt_state = optimizer.update(gradient, opt_state, params)
     params = optax.apply_updates(params, updates)
 
-    params = params.at[params > error_param_rescale / 10].set(error_param_rescale / 10)  # 假设一个特征对error贡献肯定小于0.1
-    params = params.at[params < 0].set(0)
+    for device, param in params.items():
+        param = param.at[param > error_param_rescale / 10].set(error_param_rescale / 10)  # 假设一个特征对error贡献肯定小于0.1
+        param = param.at[param < 0].set(0)
 
     return loss_value, params, opt_state
 
@@ -131,7 +146,7 @@ def get_n_instruction2circuit_infos(dataset):
     for circuit_info in dataset:
         # qiskit_circuit = circuit_info['qiskit_circuit']
         gate_num = len(circuit_info['gates'])
-        n_instruction2circuit_infos[gate_num].append(circuit_info['gates'])
+        n_instruction2circuit_infos[gate_num].append(circuit_info)
 
     # print(n_instruction2circuit_infos[gate_num])
     gate_nums = list(n_instruction2circuit_infos.keys())

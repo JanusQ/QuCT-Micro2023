@@ -1,4 +1,5 @@
 import random
+from collections import defaultdict
 
 from qiskit_aer.noise import NoiseModel, pauli_error, depolarizing_error, thermal_relaxation_error
 
@@ -9,6 +10,8 @@ from qiskit import Aer
 
 from qiskit.quantum_info.analysis import hellinger_fidelity
 from numpy import pi
+
+from upstream.randomwalk_model import extract_device
 
 
 # https://qiskit.org/documentation/tutorials/simulators/3_building_noise_models.html
@@ -154,7 +157,7 @@ class NoiseSimulator():
 # the noise qubits.
 
 # 模拟的时候似乎是通过把Noise Transpiler Passes 插入circuit来进行的
-def add_pattern_error_path(circuit, n_qubits, model, erroneous_pattern):  # 单这几个碰到的概念有点少
+def add_pattern_error_path(circuit, n_qubits, model, device2erroneous_pattern):  # 单这几个碰到的概念有点少
     '''circuit can be a QuantumCircuit or a circuit_info (a dict created with the instructions's sparse vector)'''
     if isinstance(circuit, QuantumCircuit):
         circuit_info = model.vectorize(circuit)
@@ -162,21 +165,25 @@ def add_pattern_error_path(circuit, n_qubits, model, erroneous_pattern):  # 单�
         circuit_info = circuit
         circuit = circuit_info['qiskit_circuit']
 
-    index2erroneous_pattern = {
-        model.path_index(path): path
-        for path in erroneous_pattern
-        if model.has_path(path)
-    }
+    device2erroneous_pattern_index = {}
+    for device, erroneous_pattern in device2erroneous_pattern.items():
+        erroneous_pattern_index = {
+            model.path_index(device, path): path
+            for path in erroneous_pattern
+            if model.has_path(device, path)
+        }
+        device2erroneous_pattern_index[device] = erroneous_pattern_index
 
     error_circuit = QuantumCircuit(n_qubits)
     n_erroneous_patterns = 0
 
-    instruction2sparse_vector = circuit_info['sparse_vecs']
-    instructions = circuit_info['instructions']
-    for index, instruction in enumerate(instructions):
-        name = instruction['name']
-        qubits = instruction['qubits']
-        params = instruction['params']
+    gates = circuit_info['gates']
+    for index, gate in enumerate(gates):
+        name = gate['name']
+        qubits = gate['qubits']
+        params = gate['params']
+        device = extract_device(gate)
+        erroneous_pattern_index = device2erroneous_pattern_index[device]
         if name in ('rx', 'ry', 'rz'):
             assert len(params) == 1 and len(qubits) == 1
             error_circuit.__getattribute__(name)(params[0], qubits[0])
@@ -186,10 +193,10 @@ def add_pattern_error_path(circuit, n_qubits, model, erroneous_pattern):  # 单�
         elif name in ('h'):
             error_circuit.__getattribute__(name)(qubits[0])
 
-        sparse_vector = instruction2sparse_vector[index]
-        for _index in sparse_vector[0]:
-            if _index in index2erroneous_pattern:
-                for qubit in instruction['qubits']:
+        path_index = circuit_info['path_indexs'][index]
+        for _index in path_index:
+            if _index in erroneous_pattern_index:
+                for qubit in gate['qubits']:
                     error_circuit.rx(pi / 20 * random.random(), qubit)  # pi / 20
                     # error_circuit.rx(pi/10, qubit)  #pi / 20
                 n_erroneous_patterns += 1
@@ -199,8 +206,11 @@ def add_pattern_error_path(circuit, n_qubits, model, erroneous_pattern):  # 单�
 
 
 def get_random_erroneous_pattern(model):
-    error_pattern_num = 20
-    paths = list(model.hash_table.keys())
-    random.shuffle(paths)
-    erroneous_pattern = paths[:error_pattern_num]
-    return erroneous_pattern
+    error_pattern_num_per_device = 3
+    device2erroneous_pattern = defaultdict(list)
+    for device, path_table in model.device2path_table.items():
+        paths = list(path_table.keys())
+        random.shuffle(paths)
+        erroneous_pattern = paths[:error_pattern_num_per_device]
+        device2erroneous_pattern[device] = erroneous_pattern
+    return device2erroneous_pattern

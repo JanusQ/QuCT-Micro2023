@@ -25,6 +25,7 @@ def qiskit_to_layered_circuits(circuit, divide=False, decoupling=False):
                 layer2instructions, 60, 300)
             circuit = layered_instructions_to_circuit(layer2instructions, circuit.num_qubits)
 
+    circuit = layered_instructions_to_circuit(layer2instructions, circuit.num_qubits)
     layer2instructions, instruction2layer, instructions, dagcircuit, nodes = get_layered_instructions(
         circuit)
 

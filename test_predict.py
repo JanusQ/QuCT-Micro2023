@@ -16,17 +16,32 @@ backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info
                   basis_two_gates = default_basis_two_gates, divide = False, decoupling=False)
 upstream_model = RandomwalkModel(1, 20, backend = backend)
 
-train_dataset = gen_random_circuits(min_gate = 10, max_gate = 100, n_circuits = 2, two_qubit_gate_probs=[4, 8],backend = backend)
+train_dataset = gen_random_circuits(min_gate = 10, max_gate = 40, n_circuits = 6, two_qubit_gate_probs=[4, 8],backend = backend)
 upstream_model.train(train_dataset, multi_process = True)
 
 
 simulator = NoiseSimulator(backend)
 simulator.get_error_results(train_dataset, upstream_model)
 # label_ground_truth_fidelity(train_dataset,numpy.random.rand(64))
-downstream_model = FidelityModel()
-downstream_model.train(train_dataset,upstream_model.device2reverse_path_table_size)
+import pickle
+with open("upstream_model.pkl","wb") as f:
+     pickle.dump(upstream_model, f)
 
-test_dataset = gen_random_circuits(5, 20, 60, 1, True, True)
+
+# import pickle
+#
+# with open("upstream_model.pkl", "rb") as f:
+#     upstream_model = pickle.load(f)
+
+downstream_model = FidelityModel()
+downstream_model.train(upstream_model.dataset, upstream_model.device2reverse_path_table_size)
+with open("downstream_model.pkl", "wb") as f:
+    pickle.dump(downstream_model, f)
+
+
+
+test_dataset = gen_random_circuits(min_gate=10, max_gate=40, n_circuits=1, two_qubit_gate_probs=[4, 8],
+                                   backend=upstream_model.backend)
 for cir in test_dataset:
     cir = upstream_model.vectorize(cir)
     predict, circuit_info, gate_errors = downstream_model.predict_fidelity(cir)

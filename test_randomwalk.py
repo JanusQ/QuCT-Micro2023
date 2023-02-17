@@ -1,5 +1,5 @@
 from circuit import gen_random_circuits
-from upstream import RandomwalkModel
+from upstream.randomwalk_model import RandomwalkModel
 from upstream.randomwalk_model import extract_device
 from downstream import FidelityModel
 from collections import defaultdict
@@ -23,8 +23,8 @@ backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info
 train_dataset = gen_random_circuits(min_gate=10, max_gate=100, n_circuits=1, two_qubit_gate_probs=[4, 8],
                                     backend=backend)
 
-upstream_model = RandomwalkModel(3, 30, backend=backend)
-upstream_model.train(train_dataset, multi_process=True)
+upstream_model = RandomwalkModel(2, 30, backend=backend)
+upstream_model.train(train_dataset, multi_process=False)
 
 # upstream_model.load_reduced_vecs()
 
