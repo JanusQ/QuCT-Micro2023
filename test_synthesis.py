@@ -32,14 +32,15 @@ from downstream.synthesis import matrix_distance_squared
 # print(matrix_distance_squared(tc_m, qml_m))
 
 # topological information
-topology = gen_grid_topology(3) # 3x3 9 qubits
-neigh_info = get_grid_neighbor_info(3, 1)
+grid_num = 2
+topology = gen_grid_topology(grid_num) # 3x3 9 qubits
+neigh_info = get_grid_neighbor_info(grid_num, 1)
 
 # print(topology)
 # print(coupling_map)
 # print(neigh_info)
 
-n_qubits = 9
+n_qubits = grid_num ** 2
 backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basis_single_gates = ['u'], 
                   basis_two_gates = ['cz'], divide = False, decoupling=False)
 
@@ -48,7 +49,6 @@ backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info
 
 from downstream.synthesis import SynthesisModel
 from scipy.stats import unitary_group
-
 
 
 synthesis_model = SynthesisModel(backend=backend)
