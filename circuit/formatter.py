@@ -43,29 +43,34 @@ def layered_circuits_to_qiskit(qubit_num, layer2instructions):
             name = instruction['name']
             qubits = instruction['qubits']
             params = instruction['params']
-        if name in ('rx', 'ry', 'rz'):
-            assert len(params) == 1 and len(qubits) == 1
-            circuit.__getattribute__(name)(params[0], qubits[0])
-        elif name in ('cz', 'cx'):
-            assert len(params) == 0 and len(qubits) == 2
-            circuit.__getattribute__(name)(qubits[0], qubits[1])
-        elif name in ('h'):
-            circuit.__getattribute__(name)(qubits[0])
-        else:
-            circuit.__getattribute__(name)(*(params + qubits))
+            if name in ('rx', 'ry', 'rz'):
+                assert len(params) == 1 and len(qubits) == 1
+                circuit.__getattribute__(name)(params[0], qubits[0])
+            elif name in ('cz', 'cx'):
+                assert len(params) == 0 and len(qubits) == 2
+                circuit.__getattribute__(name)(qubits[0], qubits[1])
+            elif name in ('h', ):
+                circuit.__getattribute__(name)(qubits[0])
+            elif name in ('u3'):
+                '''TODO: 参数的顺序需要check下， 现在是按照pennylane的Rot的'''
+                circuit.__getattribute__(name)(*params[0], qubits[0])  
+            else:
+                # circuit.__getattribute__(name)(*(params + qubits))
+                raise Exception('unkown gate', instruction)
 
         circuit.barrier()
 
     return circuit
 
-def qiskit_to_my_format_instruction(instruction):
+
+def qiskit_to_my_format_instruction(instruction): 
     return {
         'name': instruction.operation.name,
         'qubits': [qubit.index for qubit in instruction.qubits],
         'params': list(instruction.operation.params),
     }
 
-
+'''TODO: my_format_circuit -> layered_circuits'''
 def qiskit_to_my_format_circuit(layer2qiskit_instructions):
     instructions = []
     instruction2layer = []
@@ -88,7 +93,10 @@ def layered_instructions_to_circuit(layer2instructions, n_qubits):
     for layer, instructions in enumerate(layer2instructions):
         involved_qubits = []
         for instruction in instructions:
-            involved_qubits += [qubit.index for qubit in instruction.qubits]
+            if isinstance(instruction, dict):
+                involved_qubits += [qubit for qubit in instruction['qubits']]
+            else:
+                involved_qubits += [qubit.index for qubit in instruction.qubits]
             new_circuit.append(instruction)
         new_circuit.barrier()
     return new_circuit
@@ -152,7 +160,7 @@ def instruction2str(instruction):
     else:
         qubits = instruction['qubits']
         op_name = instruction['name']
-    return f'{op_name}-{"-".join([str(_) for _ in qubits])}'
+    return f'{op_name},{",".join([str(_) for _ in qubits])}'
 
 def layered_circuits_to_executable_code(layer2instructions):
     req_data = [{

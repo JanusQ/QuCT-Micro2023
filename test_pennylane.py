@@ -98,14 +98,22 @@ U = np.array([[0, 1, 0, 0],
 
 
 # Represents unitary U
-with qml.tape.QuantumTape(do_queue=False) as u_tape:
+with qml.tape.QuantumTape(do_queue=False) as u_tape1:
     # qml.SWAP(wires=[0, 1])
     # qml.Hadamard(wires=0)
     # qml.Hadamard(wires=1)
     # qml.QubitUnitary(U, wires=[0,1])
     qml.RZ(1.1, wires=0)
     qml.Hadamard(wires=0)
-    qml.Identity(wires=1)
+    qml.RZ(1.1, wires=1)
+    # qml.Identity(wires=1)
+
+# Represents unitary U
+with qml.tape.QuantumTape(do_queue=False) as u_tape:
+    qml.QubitUnitary(qml.matrix(u_tape1), wires=[0,1])
+
+
+# print(qml.matrix(u_tape))
 
 # with qml.tape.QuantumTape(do_queue=False) as U:
 #     qml.SWAP(wires=[0, 1])
@@ -116,7 +124,8 @@ def v_function(params):
     # qml.RZ(params[0], wires=1)
     qml.RZ(1.1, wires=2)
     qml.Hadamard(wires=2)
-    qml.Identity(wires=3)
+    qml.RZ(1.1, wires=3)
+    # qml.Identity(wires=3)
     # qml.Hadamard(wires=3)
 
 @qml.qnode(dev, interface="jax")

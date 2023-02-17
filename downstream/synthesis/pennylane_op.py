@@ -10,12 +10,17 @@ import optax
 from jax.config import config
 
 
-def layer_circuit_to_pennylane_circuit(layer2gates, offest = 0):
+def layer_circuit_to_pennylane_circuit(layer2gates, params = None, offest = 0):
     # with qml.tape.QuantumTape(do_queue=False) as U:
+    point = 0
     for layer in layer2gates:
         for gate in layer:
             if gate['name'] == 'u':
-                qml.Rot(*gate['params'], wires=gate['qubits'][0] + offest)
+                if params is None:
+                    qml.Rot(*gate['params'], wires=gate['qubits'][0] + offest)
+                else:
+                    qml.Rot(*params[point: point+3], wires=gate['qubits'][0] + offest)
+                    point += 3
                 # qml.RX(0, wires=gate['qubits'][0])
                 pass
             elif gate['name'] == 'cx':
@@ -27,9 +32,9 @@ def layer_circuit_to_pennylane_circuit(layer2gates, offest = 0):
     # return U
 
 '''TODO: 会出现比特没有被用到然后矩阵算错的情况'''
-def layer_circuit_to_pennylane_tape(layer2gates, offest = 0):
+def layer_circuit_to_pennylane_tape(layer2gates, params = None, offest = 0):
     with qml.tape.QuantumTape(do_queue=False) as U:
-        layer_circuit_to_pennylane_circuit(layer2gates, offest)
+        layer_circuit_to_pennylane_circuit(layer2gates, params = params, offest = offest)
     return U
 
 # def dist(U: jnp.array, layer2gates: list, n_qubits: int):

@@ -57,7 +57,7 @@ class Path():
 
     def __hash__(self): return hash(self._path_id)
 
-    def __str__(self): return ','.join([str(step) for step in self.steps])
+    def __str__(self): return '-'.join([str(step) for step in self.steps])
 
 
 def travel_instructions(circuit_info, head_gate, path_per_node, max_step, neighbor_info):
@@ -71,13 +71,60 @@ def travel_instructions(circuit_info, head_gate, path_per_node, max_step, neighb
                 continue
             traveled_paths.add(path_id)
 
-    op_qubits = [qubit for qubit in head_gate['qubits']]
-    op_qubits_str = "-".join([str(_q) for _q in op_qubits])
-    op_name = head_gate['name']
+    # op_qubits = [qubit for qubit in head_gate['qubits']]
+    op_qubits_str = instruction2str(head_gate) #"-".join([str(_q) for _q in op_qubits])
+    # op_name = head_gate['name']
     # traveled_paths.add(f'#Q{op_qubits_str}')  # 加一个比特自己的信息
-    traveled_paths.add(f'{op_name}-{op_qubits_str}') # 加一个比特自己的信息，这个就是loop
+    traveled_paths.add(op_qubits_str) # 加一个比特自己的信息，这个就是loop
     
     return traveled_paths
+
+
+def randomwalk(circuit_info: dict, head_gate: dict, neighbor_info: dict, max_step: int):
+    # circuit = circuit_info['qiskit_circuit']
+    layer2gates = circuit_info['layer2gates']
+    gate2layer = circuit_info['gate2layer']
+    # gates = circuit_info['gates']
+
+    now_gate = head_gate
+    traveled_gates = [head_gate]
+
+    # now_path = Path([Step(head_instruction, 'head', head_instruction)])  # 初始化一个指向自己的
+    # now_path = Path(['head'])
+    
+    now_path = Path([])
+    # now_path_app = deepcopy(now_path)
+    paths = []
+
+    for _ in range(max_step):
+        now_node_index = now_gate['id']  # hard code in the mycircuit_to_dag
+        now_layer = gate2layer[now_node_index]
+        parallel_gates = layer2gates[now_layer]
+        former_gates = [] if now_layer == 0 else layer2gates[now_layer - 1]  # TODO: 暂时只管空间尺度的
+        later_gates = [] if now_layer == len(layer2gates)-1 else layer2gates[now_layer + 1]
+
+        '''TODO: 可以配置是否只要前后啥的'''
+        candidates = [('parallel', gate) for gate in parallel_gates if gate != now_gate] + [('former', gate) for gate in former_gates] + [('next', gate) for gate in later_gates]
+        
+        ''' update: 对于gate只能到对应qubit周围的比特的门上 (neighbor_info)'''
+        candidates = [
+            ( step_type, candidate)
+            for step_type, candidate in candidates
+            if candidate not in traveled_gates and any([q1 in neighbor_info[q2] or q1 == q2  for q2 in now_gate['qubits'] for q1 in candidate['qubits']])
+        ]
+        
+        if len(candidates) == 0:
+            break
+
+        step_type, next_gate = random.choice(candidates)
+        traveled_gates.append(now_gate)
+        
+        now_path = now_path.add(Step(now_gate, step_type, next_gate))
+        now_gate = next_gate
+        paths.append(now_path)
+
+    return paths
+
 
 
 def train(dataset, max_step: int, path_per_node: int, neighbor_info: dict, offest=0):
@@ -105,52 +152,6 @@ def train(dataset, max_step: int, path_per_node: int, neighbor_info: dict, offes
 @ray.remote
 def remote_train(dataset, max_step: int, path_per_node: int, neighbor_info: dict, offest=0):
     return train(dataset, max_step, path_per_node, neighbor_info, offest)
-
-''' TODO: 改成步骤回头路的'''
-def randomwalk(circuit_info: dict, head_gate: dict, neighbor_info: dict, max_step: int):
-    # circuit = circuit_info['qiskit_circuit']
-    layer2gates = circuit_info['layer2gates']
-    gate2layer = circuit_info['gate2layer']
-    # gates = circuit_info['gates']
-
-    now_gate = head_gate
-    traveled_gates = [head_gate]
-
-    # now_path = Path([Step(head_instruction, 'head', head_instruction)])  # 初始化一个指向自己的
-    # now_path = Path(['head'])
-    
-    now_path = Path([])
-    now_path_app = deepcopy(now_path)
-    paths = [now_path_app]
-
-    for _ in range(max_step):
-        now_node_index = now_gate['id']  # hard code in the mycircuit_to_dag
-        now_layer = gate2layer[now_node_index]
-        parallel_gates = layer2gates[now_layer]
-        former_gates = [] if now_layer == 0 else layer2gates[now_layer - 1]  # TODO: 暂时只管空间尺度的
-        later_gates = [] if now_layer == len(layer2gates)-1 else layer2gates[now_layer + 1]
-
-        '''TODO: 可以配置是否只要前后啥的'''
-        candidates = [('parallel', gate) for gate in parallel_gates if gate != now_gate] + [('fromer', gate) for gate in former_gates] + [('next', gate) for gate in later_gates]
-        
-        ''' update: 对于gate只能到对应qubit周围的比特的门上 (neighbor_info)'''
-        candidates = [
-            ( step_type, candidate)
-            for step_type, candidate in candidates
-            if candidate not in traveled_gates and any([q1 in neighbor_info[q2] or q1 == q2  for q2 in now_gate['qubits'] for q1 in candidate['qubits']])
-        ]
-        
-        if len(candidates) == 0:
-            break
-
-        step_type, next_gate = random.choice(candidates)
-        traveled_gates.append(now_gate)
-        
-        now_path = now_path.add(Step(now_gate, step_type, next_gate))
-        now_gate = next_gate
-        paths.append(now_path)
-
-    return paths
 
 
 # meta-path只有三种 gate-parallel-gate, gate-former-gate, gate-next-gate
@@ -425,5 +426,149 @@ class RandomwalkModel():
             # circuit_info['device2vectors'] = device2vectors
             
         return circuit_info
+    
+    def extract_paths_from_vec(self, gate, gate_vector: np.array) -> list:
+        device = extract_device(gate)
+        inclued_path_indexs = np.argwhere(gate_vector==1)[:,0]
+        paths = [
+            self.device2reverse_path_table[device][index]
+            for index in inclued_path_indexs
+        ]
+        return paths 
+    
+    # def reconstruct(self, gate, gate_vector: np.array) -> list:
+        
+    #     # device = extract_device(gate)
+    #     # inclued_path_indexs = np.argwhere(gate_vector==1)[:,0]
+    #     paths = self.extract_paths_from_vec(gate, gate_vector)
+    #     # [
+    #     #     self.device2reverse_path_table[device][index]
+    #     #     for index in inclued_path_indexs
+    #     # ]
+        
+    #     def parse_gate_info(gate_info):
+    #         elms = gate_info.split(',')
+    #         gate = {
+    #             'name': elms[0],
+    #             'qubits': [int(qubit) for qubit in elms[1:]]
+    #         }
+    #         if elms[0] in ('rx', 'ry', 'rz'):
+    #             gate['params'] = np.array([np.pi])
+    #         if elms[0] in ('u'):
+    #             gate['params'] = np.array([np.pi] * 3)
+    #         elif elms[0] in ('cx', 'cz'):
+    #             gate['params'] = []
+                
+    #         return gate
+        
+    #     head_gate = {}
+    #     layer2gates = [
+    #         [head_gate]
+    #     ]
+    #     for path in paths:
+    #         # print(path)
+    #         for now_layer, gates in enumerate(layer2gates):
+    #             if head_gate in gates:
+    #                 print('head gate in ', now_layer)
+    #                 break
+                
+    #         elms = path.split('-')
+    #         if len(elms) == 1:
+    #             head_gate.update(parse_gate_info(elms[0]))
+    #             head_gate['params'] *= 3
+    #         else:
+    #             for index in range(0, len(elms), 2):
+    #                 relation, gate_info = elms[index:index+2]
+    #                 if relation == 'next':
+    #                     now_layer += 1
+    #                     if now_layer == len(layer2gates):
+    #                         layer2gates.append([
+    #                             parse_gate_info(gate_info)
+    #                         ])
+    #                     else:
+    #                         layer2gates[now_layer].append(parse_gate_info(gate_info))
+    #                 elif relation == 'parallel':
+    #                     layer2gates[now_layer].append(parse_gate_info(gate_info))
+    #                 elif relation == 'former':
+    #                     now_layer -= 1
+    #                     if now_layer == -1:
+    #                         layer2gates = [[
+    #                             parse_gate_info(gate_info)
+    #                         ]] + layer2gates
+    #                         now_layer = 0
+    #                     else:
+    #                         layer2gates[now_layer].append(parse_gate_info(gate_info))
+                            
+    #                 assert len(layer2gates) <= 3
+            
+    #     return layer2gates
+
+    def reconstruct(self, gate, gate_vector: np.array) -> list:
+        paths = self.extract_paths_from_vec(gate, gate_vector)
+
+        # TODO: 还要有一个判断是不是已经加进去了
+        def parse_gate_info(gate_info):
+            elms = gate_info.split(',')
+            gate = {
+                'name': elms[0],
+                'qubits': [int(qubit) for qubit in elms[1:]]
+            }
+            if elms[0] in ('rx', 'ry', 'rz'):
+                gate['params'] = np.array([np.pi])
+            if elms[0] in ('u'):
+                gate['params'] = np.array([np.pi] * 3)
+            elif elms[0] in ('cx', 'cz'):
+                gate['params'] = []
+                
+            return gate
+        
+        def add_to_layer(layer, gate):
+            for other_gate in layer2gates[layer]:
+                if instruction2str(other_gate) == instruction2str(gate):
+                # tuple(_gate['qubits']) == tuple(gate['qubits']):
+                    return
+                
+                assert all([qubit not in other_gate['qubits'] for qubit in gate['qubits']])
+            layer2gates[layer].append(gate)
+            return
+        
+        head_gate = {
+            'name': None,
+            'qubits': [],
+            'params': [],
+        }
+        # [head_gate]
+        layer2gates = [
+            list()
+            for _ in range(self.max_step*2+1)
+        ]
+        head_layer = self.max_step
+        # layer2gates[head_layer].append(head_gate)
+        add_to_layer(head_layer, head_gate)
+        
+        for path in paths:
+            now_layer = head_layer
+                
+            elms = path.split('-')
+            if len(elms) == 1:
+                head_gate.update(parse_gate_info(elms[0]))
+                head_gate['params'] *= 3
+            else:
+                for index in range(0, len(elms), 2):
+                    relation, gate_info = elms[index:index+2]
+                    if relation == 'next':
+                        now_layer += 1   
+                    elif relation == 'former':
+                        now_layer -= 1
+                    add_to_layer(now_layer, parse_gate_info(gate_info))
+                    # layer2gates[now_layer].append(parse_gate_info(gate_info))
+
+        layer2gates = [
+            layer
+            for layer in layer2gates
+            if len(layer) > 0
+        ]
+         
+        return layer2gates
 
 
