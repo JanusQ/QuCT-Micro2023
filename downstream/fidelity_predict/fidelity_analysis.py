@@ -33,10 +33,10 @@ class FidelityModel():
 
     def predict_fidelity(self, circuit_info):
         error_params = self.error_params
-        circuit_predict = smart_predict(error_params, circuit_info['reduced_vecs'])
+        circuit_predict = smart_predict(error_params, circuit_info['vecs'], circuit_info)
         gate_errors = np.array([
-            jnp.dot(error_params / error_param_rescale, vec)
-            for vec in circuit_info['reduced_vecs']
+            jnp.dot(error_params[extract_device(circuit_info['gates'][idx])] / error_param_rescale, vec)
+            for idx, vec in enumerate(circuit_info['vecs'])
         ])[:, 0]
         circuit_info['gate_errors'] = gate_errors
         circuit_info['circuit_predict'] = circuit_predict
@@ -85,7 +85,7 @@ def train_error_params(train_dataset, params, opt_state, optimizer, epoch_num=10
     return params, opt_state
 
 
-@jax.jit
+# @jax.jit
 def smart_predict(device2params, vecs, circuit_info):
     '''预测电路的保真度'''
     predict = 1.0
@@ -94,7 +94,6 @@ def smart_predict(device2params, vecs, circuit_info):
         device = extract_device(circuit_info['gates'][idx])
         error = jnp.dot(device2params[device] / error_param_rescale, vec)
         predict *= 1 - error
-
 
     #     device2vectors[device] += vec
     # for device, vectors in device2vectors.items():
@@ -117,8 +116,12 @@ def loss_func(device2params, vecs, true_fidelity, circuit_info):
 
 
 def batch_loss(params, X, Y, circuit_infos):
-    losses = vmap(loss_func, in_axes=(None, 0, 0), out_axes=0)(params, X, Y)
-    return losses.mean()
+    # losses = vmap(loss_func, in_axes=(None, 0, 0), out_axes=0)(params, X, Y)
+
+    losses = []
+    for x, y, circuit_info in zip(X, Y, circuit_infos):
+        losses.append(loss_func(params, x, y, circuit_info))
+    return jnp.array(losses).mean()
 
 
 # 在训练中逐渐增加gate num
@@ -131,8 +134,9 @@ def epoch_train(circuit_infos, params, opt_state, optimizer):
     updates, opt_state = optimizer.update(gradient, opt_state, params)
     params = optax.apply_updates(params, updates)
 
-    params = params.at[params > error_param_rescale / 10].set(error_param_rescale / 10)  # 假设一个特征对error贡献肯定小于0.1
-    params = params.at[params < 0].set(0)
+    for device, param in params.items():
+        param = param.at[param > error_param_rescale / 10].set(error_param_rescale / 10)  # 假设一个特征对error贡献肯定小于0.1
+        param = param.at[param < 0].set(0)
 
     return loss_value, params, opt_state
 

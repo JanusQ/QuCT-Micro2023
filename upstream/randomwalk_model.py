@@ -81,6 +81,57 @@ def travel_instructions(circuit_info, head_gate, path_per_node, max_step, neighb
     return traveled_paths
 
 
+def BFS(traveled_paths, traveled_gates, path, circuit_info: dict, now_gate: dict, neighbor_info: dict, max_step: int):
+    if max_step <= 0:
+        return
+    layer2gates = circuit_info['layer2gates']
+    gate2layer = circuit_info['gate2layer']
+
+    now_node_index = now_gate['id']  # hard code in the mycircuit_to_dag
+    now_layer = gate2layer[now_node_index]
+    parallel_gates = layer2gates[now_layer]
+    former_gates = [] if now_layer == 0 else layer2gates[now_layer - 1]  # TODO: 暂时只管空间尺度的
+    later_gates = [] if now_layer == len(layer2gates) - 1 else layer2gates[now_layer + 1]
+
+    '''TODO: 可以配置是否只要前后啥的'''
+    candidates = [('parallel', gate) for gate in parallel_gates if gate != now_gate] + [('fromer', gate) for gate in
+                                                                                        former_gates] + [
+                     ('next', gate) for gate in later_gates]
+
+    ''' update: 对于gate只能到对应qubit周围的比特的门上 (neighbor_info)'''
+    candidates = [
+        (step_type, candidate)
+        for step_type, candidate in candidates
+        if candidate not in traveled_gates and any(
+            [q1 in neighbor_info[q2] or q1 == q2 for q2 in now_gate['qubits'] for q1 in candidate['qubits']])
+    ]
+
+    for step_type, next_gate in candidates:
+        path_app = deepcopy(path)
+        path_app = path_app.add(Step(now_gate, step_type, next_gate))
+        path_id = path_app._path_id
+        if path_id not in traveled_paths:
+            traveled_paths.add(path_id)
+        traveled_gates.append(next_gate)
+        BFS(traveled_paths, traveled_gates, path_app, circuit_info, next_gate, neighbor_info, max_step - 1)
+        traveled_gates.remove(next_gate)
+
+
+def travel_instructions_BFS(circuit_info, head_gate, path_per_node, max_step, neighbor_info):
+    traveled_paths = set()
+
+    traveled_gates = [head_gate]
+    BFS(traveled_paths, traveled_gates, Path([]), circuit_info, head_gate, neighbor_info, max_step)
+
+    op_qubits = [qubit for qubit in head_gate['qubits']]
+    op_qubits_str = "-".join([str(_q) for _q in op_qubits])
+    op_name = head_gate['name']
+    # traveled_paths.add(f'#Q{op_qubits_str}')  # 加一个比特自己的信息
+    traveled_paths.add(f'{op_name}-{op_qubits_str}')  # 加一个比特自己的信息，这个就是loop
+
+    return traveled_paths
+
+
 def train(dataset, max_step: int, path_per_node: int, neighbor_info: dict, offest=0):
     all_gate_paths = []
 
@@ -204,8 +255,6 @@ class RandomwalkModel():
 
     def has_path(self, device, path_id):
         return path_id in self.device2path_table[device]
-
-
 
     def train(self, dataset, multi_process: bool = False, process_num: int = 10):
         # 改成一种device一个path table
