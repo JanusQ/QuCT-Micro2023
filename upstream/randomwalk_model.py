@@ -121,7 +121,7 @@ def BFS(traveled_paths, traveled_gates, path, circuit_info: dict, now_gate: dict
         if path_id not in traveled_paths:
             traveled_paths.add(path_id)
         traveled_gates.append(next_gate)
-        BFS(traveled_paths, traveled_gates, path_app, circuit_info, next_gate, neighbor_info, max_step - 1, directions)
+        BFS(traveled_paths, traveled_gates, path_app, circuit_info, next_gate, neighbor_info, max_step - 1, path_per_node, directions)
         traveled_gates.remove(next_gate)
 
 

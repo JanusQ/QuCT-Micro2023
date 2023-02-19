@@ -27,6 +27,8 @@ import ray
 
 config.update("jax_enable_x64", True)
 
+
+# https://blog.csdn.net/Exception_3212536934/article/details/118069879
 @jax.jit
 def matrix_distance_squared(A, B):
     """
