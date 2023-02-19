@@ -2,6 +2,33 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 import optax
+from jax import vmap
+
+
+A = jnp.array([0,1,2])
+B = jnp.array([2,3,4])
+
+def test(a, b):
+    return b[a]
+
+test(A[0], B)
+result = vmap(test, in_axes=(0, None))(A, B)
+
+A = jnp.array([0,1,2])
+B = {
+    0: 1,
+    1: 2,
+    2: 3,
+}
+
+def test(a, b):
+    return b[a]
+
+test(A[0], B)
+result = vmap(test, in_axes=(0, None))(A, B)
+
+
+
 
 def gen_data(x): 
     return 1/(12*x) + 1

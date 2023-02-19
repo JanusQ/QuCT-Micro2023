@@ -5,3 +5,4 @@ simulator/__pycache__/
 pattern_extractor/model
 model/
 *.pyc
+*.pkl

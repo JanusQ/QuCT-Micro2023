@@ -18,15 +18,17 @@ def sparse_vec2vec(sparse_vec, vec_size):
         vec[index1][0] = 1
     return vec
 
-def batch(X, Y = None, batch_size = 100,):
+def batch(X, Y = None, batch_size = 100, should_shuffle = False):
     if Y is not None:
         X = np.array(X)
-        X,Y = shuffle(X, Y)
+        if should_shuffle:
+            X,Y = shuffle(X, Y)
         for start in range(0, X.shape[0], batch_size):
             yield X[start: start+batch_size], Y[start: start+batch_size]
     else:
         X = np.array(X)
-        X= shuffle(X)
+        if should_shuffle:
+            X = shuffle(X)
         for start in range(0, X.shape[0], batch_size):
             yield X[start: start+batch_size]
 
