@@ -99,7 +99,7 @@ class FidelityModel():
 
         print(f'taining error params finishs')
 
-        self.params = params
+        self.error_params = params
         # _error_params = {}
         # for device, error_param in error_params.items():
         #     _error_params[device] = np.array(error_params[device])
@@ -107,7 +107,15 @@ class FidelityModel():
 
     def predict_fidelity(self, circuit_info):
         error_params = self.error_params
-        circuit_predict = smart_predict(error_params, circuit_info['vecs'], circuit_info)
+
+        circuit_devices = []
+        for gate in circuit_info['gates']:
+            device = extract_device(gate)
+            device_index = list(self.upstream_model.device2path_table.keys()).index(device)
+            circuit_devices.append(device_index)
+        circuit_devices = np.array(circuit_devices)
+        vecs = np.array(circuit_info['vecs'])
+        circuit_predict = smart_predict(error_params, vecs, circuit_devices)
         gate_errors = np.array([
             jnp.dot(error_params[extract_device(circuit_info['gates'][idx])] / error_param_rescale, vec)
             for idx, vec in enumerate(circuit_info['vecs'])
