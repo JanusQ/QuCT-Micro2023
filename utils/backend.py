@@ -34,18 +34,6 @@ def gen_grid_topology(size):
     return topology
 
 
-def topology_to_coupling_map(topology: dict) -> list:
-    coupling_map = set()
-    for qubit, coupling in topology.items():
-        for neighbor_qubit in coupling:
-            coupling = [qubit, neighbor_qubit]
-            coupling.sort()
-            coupling_map.add(tuple(coupling))
-    return [
-        list(coupling)
-        for coupling in coupling_map
-    ]
-
 
 def get_grid_neighbor_info(size, max_distance):
     neigh_info = defaultdict(list)
@@ -63,6 +51,37 @@ def get_grid_neighbor_info(size, max_distance):
                         neigh_info[qubit].append(neigh_qubit)
 
     return neigh_info
+
+
+def gen_linear_topology(n_qubits):
+    return {
+        q1: [q2 for q2 in [q1-1, q1+1] if q2 >= 0 and q2 < n_qubits]
+        for q1 in range(n_qubits)
+    }
+
+def get_linear_neighbor_info(n_qubits, max_distance):
+    return {
+        q1: [
+            q2 for q2 in range(n_qubits) 
+            if q1 != q2 and (q1-q2)**2 <= max_distance**2
+        ]
+        for q1 in range(n_qubits)
+    }
+
+
+def topology_to_coupling_map(topology: dict) -> list:
+    coupling_map = set()
+    for qubit, coupling in topology.items():
+        for neighbor_qubit in coupling:
+            coupling = [qubit, neighbor_qubit]
+            coupling.sort()
+            coupling_map.add(tuple(coupling))
+    return [
+        list(coupling)
+        for coupling in coupling_map
+    ]
+
+
 
 
 class Backend():

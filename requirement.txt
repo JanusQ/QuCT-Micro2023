@@ -8,3 +8,4 @@ qiskit
 matplotlib
 scikit-learn
 cloudpickle
+pennylane

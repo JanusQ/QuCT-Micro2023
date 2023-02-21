@@ -35,7 +35,7 @@ def get_layered_instructions(circuit):
 
     return layer2instructions, instruction2layer, instructions, dagcircuit, nodes
 
-def layered_circuits_to_qiskit(qubit_num, layer2instructions):
+def layered_circuits_to_qiskit(qubit_num, layer2instructions, barrier = True):
     circuit = QuantumCircuit(qubit_num)
 
     for layer, layer_instructions in enumerate(layer2instructions):
@@ -51,14 +51,14 @@ def layered_circuits_to_qiskit(qubit_num, layer2instructions):
                 circuit.__getattribute__(name)(qubits[0], qubits[1])
             elif name in ('h', ):
                 circuit.__getattribute__(name)(qubits[0])
-            elif name in ('u3'):
+            elif name in ('u', 'u3'):
                 '''TODO: 参数的顺序需要check下， 现在是按照pennylane的Rot的'''
-                circuit.__getattribute__(name)(*params[0], qubits[0])  
+                circuit.__getattribute__(name)(*params, qubits[0])  
             else:
                 # circuit.__getattribute__(name)(*(params + qubits))
                 raise Exception('unkown gate', instruction)
-
-        circuit.barrier()
+        if barrier:
+            circuit.barrier()
 
     return circuit
 

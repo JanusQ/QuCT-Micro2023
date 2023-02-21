@@ -121,7 +121,7 @@ def BFS(traveled_paths, traveled_gates, path, circuit_info: dict, now_gate: dict
         if path_id not in traveled_paths:
             traveled_paths.add(path_id)
         traveled_gates.append(next_gate)
-        BFS(traveled_paths, traveled_gates, path_app, circuit_info, next_gate, neighbor_info, max_step - 1, directions)
+        BFS(traveled_paths, traveled_gates, path_app, circuit_info, next_gate, neighbor_info, max_step - 1, path_per_node, directions)
         traveled_gates.remove(next_gate)
 
 
@@ -196,6 +196,7 @@ class RandomwalkModel():
 
         self.backend = backend
         self.travel_directions = travel_directions
+        self.n_qubits = backend.n_qubits
         return
 
     def path_index(self, device, path_id):
@@ -375,6 +376,7 @@ class RandomwalkModel():
         '''
             save hash_table and algorithm
         '''
+        # self.dataset = None
         path = os.path.join('model', path, )
         file = open(path, 'wb')
         pickle.dump(self, file)
@@ -429,7 +431,9 @@ class RandomwalkModel():
         max_step = self.max_step
         path_per_node = self.path_per_node
 
-        assert 'path_indexs' not in circuit_info
+        if 'path_indexs' in circuit_info:
+            return circuit_info
+
 
         neighbor_info = self.backend.neighbor_info
         circuit_info['path_indexs'] = []
@@ -448,8 +452,8 @@ class RandomwalkModel():
 
         return circuit_info
     
-    def extract_paths_from_vec(self, gate, gate_vector: np.array) -> list:
-        device = extract_device(gate)
+    def extract_paths_from_vec(self, device, gate_vector: np.array) -> list:
+        # device = extract_device(gate)
         inclued_path_indexs = np.argwhere(gate_vector==1)[:,0]
         paths = [
             self.device2reverse_path_table[device][index]
@@ -457,8 +461,8 @@ class RandomwalkModel():
         ]
         return paths 
     
-    def reconstruct(self, gate, gate_vector: np.array) -> list:
-        paths = self.extract_paths_from_vec(gate, gate_vector)
+    def reconstruct(self, device, gate_vector: np.array) -> list:
+        paths = self.extract_paths_from_vec(device, gate_vector)
 
         # TODO: 还要有一个判断是不是已经加进去了
         def parse_gate_info(gate_info):
@@ -486,10 +490,11 @@ class RandomwalkModel():
             layer2gates[layer].append(gate)
             return
         
+        # 要不要先随机一个
         head_gate = {
-            'name': None,
-            'qubits': [],
-            'params': [],
+            'name': 'u',
+            'qubits': [random.randint(0, self.n_qubits-1)],
+            'params': [random.random() * 2 *jnp.pi for _ in range(3)],
         }
         # [head_gate]
         layer2gates = [

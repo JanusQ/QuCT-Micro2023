@@ -7,7 +7,7 @@ import jax
 K = tc.set_backend("jax")
 
 # @jax.jit
-def layer_circuit_to_matrix(layer2gates, n_qubits, params = None):
+def layer_circuit_to_matrix(layer2gates, n_qubits, params = None) -> jax.numpy.array:
     point = 0
     
     circuit = tc.Circuit(n_qubits)

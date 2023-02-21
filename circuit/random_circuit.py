@@ -9,7 +9,7 @@ import math
 randomly generate various circuit for noise analysis
 '''
 
-
+        
 def random_pi(): 
     rand = round(random.random(), 1)
     if rand == 0: return 0.1 * pi
