@@ -1,6 +1,6 @@
 from utils.backend_info import *
 import math
-
+import copy
 
 def gen_grid_topology(size):
     '''
@@ -111,6 +111,7 @@ class Backend():
 
         self.topology = topology
         self.coupling_map = topology_to_coupling_map(topology)
+        self.true_coupling_map = list(self.coupling_map)
         self.neighbor_info = neighbor_info  # describe qubits that have mutual interactions
 
         if basis_single_gates is None:
@@ -148,3 +149,59 @@ class Backend():
             7 - random.random() * 3
             for q in range(n_qubits)
         ]
+        
+        self.cache = {}
+
+    def get_sub_backend(self, sub_qubits):
+        sub_backend = copy.deepcopy(self)
+        sub_backend.topology = {
+            qubit: [] if qubit not in sub_qubits else [connect_qubit for connect_qubit in connect_qubits if connect_qubit in sub_qubits]
+            for qubit, connect_qubits in self.topology.items()
+        }
+        sub_backend.coupling_map = topology_to_coupling_map(sub_backend.topology)
+        return sub_backend
+    
+
+    def get_connected_qubit_sets(self, gate_size ):
+        """
+        Returns a list of qubit sets that complies with the topology.
+        """
+
+        if gate_size > self.num_qubits:
+            raise ValueError( "The gate_size is too large." )
+
+        if gate_size <= 0:
+            raise ValueError( "The gate_size is nonpositive." )
+
+        if gate_size in self.cache:
+            return self.cache[ gate_size ]
+        
+        locations = []
+
+        for group in it.combinations( range( self.num_qubits ), gate_size ):
+            # Depth First Search
+            seen = set( [ group[0] ] )
+            frontier = [ group[0] ]
+
+            while len( frontier ) > 0 and len( seen ) < len( group ):
+                for q in group:
+                    if frontier[0] in self.adjlist[q] and q not in seen:
+                        seen.add( q )
+                        frontier.append( q )
+
+                frontier = frontier[1:]
+
+            if len( seen ) == len( group ):
+                locations.append( group )
+
+        self.cache[ gate_size ] = locations
+        return locations
+
+    def get_subgraph ( self, location ):
+        """Returns the sub_coupling_graph with qubits in location."""
+        subgraph = []
+        for q0, q1 in self.coupling_graph:
+            if q0 in location and q1 in location:
+                subgraph.append( (q0, q1) )
+        return subgraph
+

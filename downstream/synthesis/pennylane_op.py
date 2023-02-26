@@ -9,24 +9,47 @@ import jax
 import optax
 from jax.config import config
 
+def to_unitary(parmas):
+    z = 1/jnp.sqrt(2)*parmas
+    q, r = jnp.linalg.qr(z)
+    d = r.diagonal()
+    q *= d/jnp.abs(d)
+    return q
 
 def layer_circuit_to_pennylane_circuit(layer2gates, params = None, offest = 0):
     # with qml.tape.QuantumTape(do_queue=False) as U:
     point = 0
     for layer in layer2gates:
         for gate in layer:
+            qubits = [q+offest for q in gate['qubits']]
             if gate['name'] == 'u':
                 if params is None:
-                    qml.Rot(*gate['params'], wires=gate['qubits'][0] + offest)
+                    qml.Rot(*gate['params'], wires=qubits)
                 else:
-                    qml.Rot(*params[point: point+3], wires=gate['qubits'][0] + offest)
+                    qml.Rot(*params[point: point+3], wires=qubits)
                     point += 3
                 # qml.RX(0, wires=gate['qubits'][0])
                 pass
             elif gate['name'] == 'cx':
-                qml.CNOT(wires=[q+offest for q in gate['qubits']])
+                qml.CNOT(wires=qubits)
             elif gate['name'] == 'cz':
-                qml.CZ(wires=[q+offest for q in gate['qubits']])
+                qml.CZ(wires=qubits)
+            elif gate['name'] == 'unitary':
+                n_qubits = len(qubits)
+                # if params is not None:
+                #     unitary_params = params[point: point+(4**n_qubits)].reshape((2**n_qubits, 2**n_qubits))
+                #     point += 4**n_qubits
+                # else:
+                #     unitary_params = gate['params'].reshape((2**n_qubits, 2**n_qubits))
+                if params is not None:
+                    unitary_params = params[point: point+(4**n_qubits)*2]
+                    point += (4**n_qubits) * 2
+                else:
+                    unitary_params = gate['params']
+                unitary_params = (unitary_params[0: 4**n_qubits] + 1j * unitary_params[4**n_qubits:]).reshape((2**n_qubits, 2**n_qubits))
+                unitary = to_unitary(unitary_params)
+                # assert jnp.allclose(unitary.T.conj() @ unitary, jnp.eye(2**n_qubits))
+                qml.QubitUnitary(unitary, wires=qubits)
             else:
                 raise Exception('Unkown gate type', gate)
     # return U

@@ -102,6 +102,8 @@ class NoiseSimulator():
 
         for circuit_info in dataset:
             self.get_error_result(circuit_info, model, erroneous_pattern)
+        
+        return erroneous_pattern
 
     def get_error_result(self, circuit_info, model, erroneous_pattern=None):
         if 'qiskit_circuit' not in circuit_info:

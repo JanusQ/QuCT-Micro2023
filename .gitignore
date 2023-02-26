@@ -1,4 +1,4 @@
-circuit/algorithm/__pycache__/
+·circuit/algorithm/__pycache__/
 pattern_extractor/__pycache__/
 simulator/__pycache__/
 */__pycache__
@@ -6,3 +6,5 @@ pattern_extractor/model
 model/
 *.pyc
 temp_data/
+*.pkl
+screenlog.*

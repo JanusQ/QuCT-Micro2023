@@ -25,7 +25,7 @@ def random_circuit(n_qubits, n_gates, two_qubit_prob = 0.5, reverse = True, coup
     for qubit in qubits:
         gate_type = random.choice(basis_single_gates)
         if gate_type in ('h',):
-            circuit.h(random.choice(qubits))
+            circuit.h(qubits)
         elif gate_type in ('rx', 'rz', 'ry'):
             getattr(circuit, gate_type)(random_pi(), qubit)
         elif gate_type in ('u',):
@@ -40,21 +40,27 @@ def random_circuit(n_qubits, n_gates, two_qubit_prob = 0.5, reverse = True, coup
         else:
             gate_type = random.choice(basis_single_gates)
         
-        operated_qubits = list(random.choice(coupling_map))
-        control_qubit = operated_qubits[0]
-        target_qubit = operated_qubits[1]
+        if len(coupling_map) != 0:
+            operated_qubits = list(random.choice(coupling_map))
+            control_qubit = operated_qubits[0]
+            target_qubit = operated_qubits[1]
+        if len(coupling_map) == 0 and gate_type in ('cx', 'cz', 'unitary'):
+            continue
+        
         if gate_type == 'cz':
             # 没有控制和非控制的区别
             circuit.cz(control_qubit, target_qubit)
+            # if control_qubit == 1 and target_qubit == 2:
+            #     print(circuit)
         elif gate_type == 'cx':
             random.shuffle(operated_qubits)
-            circuit.cx(control_qubit, target_qubit)
+            circuit.cx(operated_qubits[0], operated_qubits[1])
         elif gate_type in ('h',):
             circuit.h(random.choice(qubits))
         elif gate_type in ('rx', 'rz', 'ry'):
             getattr(circuit, gate_type)(random_pi(), random.choice(qubits))
         elif gate_type in ('u',):
-            getattr(circuit, gate_type)(random_pi(), random_pi(), random_pi(), qubit)
+            getattr(circuit, gate_type)(random_pi(), random_pi(), random_pi(), random.choice(qubits))
         else:
             raise Exception('Unknown gate type', gate_type)
 

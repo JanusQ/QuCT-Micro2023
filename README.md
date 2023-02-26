@@ -25,3 +25,11 @@
 
 # TODO:
 1. jax gpu
+
+screen -L -S nn python test_synthesis_nn.py 
+screen -L -S nn python test_
+screen -ls
+screen -r yourname 
+
+ctrl-a + d 推出不杀死
+ctrl-a + k 关闭
