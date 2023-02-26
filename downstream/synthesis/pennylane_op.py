@@ -1,9 +1,6 @@
 import pennylane as qml
 from pennylane import numpy as pnp
 from jax import numpy as jnp
-
-
-from jax import numpy as jnp
 from jax import vmap
 import jax
 import optax
@@ -20,6 +17,7 @@ def layer_circuit_to_pennylane_circuit(layer2gates, params = None, offest = 0):
                     qml.Rot(*gate['params'], wires=gate['qubits'][0] + offest)
                 else:
                     qml.Rot(*params[point: point+3], wires=gate['qubits'][0] + offest)
+                    # print(gate, params[point: point+3], gate['qubits'][0] + offest)
                     point += 3
                 # qml.RX(0, wires=gate['qubits'][0])
                 pass
