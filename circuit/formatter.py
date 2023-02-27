@@ -1,7 +1,7 @@
 from qiskit import QuantumCircuit
 from qiskit.circuit import CircuitInstruction
 from qiskit.dagcircuit import DAGCircuit, DAGOpNode
-
+from qiskit.quantum_info import Operator
 
 def get_layered_instructions(circuit):
     '''
@@ -35,7 +35,18 @@ def get_layered_instructions(circuit):
 
     return layer2instructions, instruction2layer, instructions, dagcircuit, nodes
 
-def layered_circuits_to_qiskit(qubit_num, layer2instructions):
+
+import numpy as np
+def to_unitary(parmas):
+    z = 1/np.sqrt(2)*parmas
+    q, r = np.linalg.qr(z)
+    d = r.diagonal()
+    q *= d/np.abs(d)
+    return q
+
+# TODO: 找到to_unitary的inverse操作
+
+def layered_circuits_to_qiskit(qubit_num, layer2instructions, barrier = True):
     circuit = QuantumCircuit(qubit_num)
 
     for layer, layer_instructions in enumerate(layer2instructions):
@@ -45,29 +56,38 @@ def layered_circuits_to_qiskit(qubit_num, layer2instructions):
             params = instruction['params']
             if name in ('rx', 'ry', 'rz'):
                 assert len(params) == 1 and len(qubits) == 1
-                circuit.__getattribute__(name)(params[0], qubits[0])
+                circuit.__getattribute__(name)(float(params[0]), qubits[0])
             elif name in ('cz', 'cx'):
                 assert len(params) == 0 and len(qubits) == 2
                 circuit.__getattribute__(name)(qubits[0], qubits[1])
             elif name in ('h', ):
                 circuit.__getattribute__(name)(qubits[0])
-            elif name in ('u3'):
+            elif name in ('u', 'u3'):
                 '''TODO: 参数的顺序需要check下， 现在是按照pennylane的Rot的'''
-                circuit.__getattribute__(name)(*params[0], qubits[0])  
+                circuit.__getattribute__(name)(*[float(param) for param in params], qubits[0])  
+            elif name in ('unitary', ):
+                n_qubits = len(qubits)
+                unitary_params = params
+                unitary_params = (unitary_params[0: 4**n_qubits] + 1j * unitary_params[4**n_qubits:]).reshape((2**n_qubits, 2**n_qubits))
+                unitary = to_unitary(unitary_params)
+                gate = Operator(unitary)
+                circuit.append(gate, qubits)
             else:
                 # circuit.__getattribute__(name)(*(params + qubits))
                 raise Exception('unkown gate', instruction)
-
-        circuit.barrier()
+        if barrier:
+            circuit.barrier()
 
     return circuit
 
 
 def qiskit_to_my_format_instruction(instruction): 
+    name = instruction.operation.name
+    parms = list(instruction.operation.params)        
     return {
-        'name': instruction.operation.name,
+        'name': name,
         'qubits': [qubit.index for qubit in instruction.qubits],
-        'params': list(instruction.operation.params),
+        'params': parms,
     }
 
 '''TODO: my_format_circuit -> layered_circuits'''

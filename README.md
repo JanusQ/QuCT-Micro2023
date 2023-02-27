@@ -21,3 +21,15 @@
     2. 电路综合 (经典: a or b => 电路, 量子 酉矩阵 => 量子电路) 7qubit,单核 -> 4小时
 
 <!-- A complete characterization of the noise is useful because it allows for  the determination of good error-correction schemes, and thus the possibility of reliable transmission of quantum information. -->
+
+
+# TODO:
+1. jax gpu
+
+screen -L -S nn python test_synthesis_nn.py 
+screen -L -S nn python test_
+screen -ls
+screen -r yourname 
+
+ctrl-a + d 推出不杀死
+ctrl-a + k 关闭

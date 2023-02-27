@@ -1,4 +1,4 @@
-circuit/algorithm/__pycache__/
+·circuit/algorithm/__pycache__/
 pattern_extractor/__pycache__/
 simulator/__pycache__/
 */__pycache__
@@ -9,3 +9,7 @@ model/
 *.svg
 screenlog.0
 *.zip
+temp_data/
+*.pkl
+screenlog.*
+

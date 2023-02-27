@@ -3,8 +3,10 @@ tensorcircuit
 optax
 ray
 numpy
-jax
+jax==0.4.3
 qiskit
 matplotlib
 scikit-learn
 cloudpickle
+pennylane
+bqskit

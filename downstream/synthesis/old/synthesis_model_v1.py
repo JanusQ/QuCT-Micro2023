@@ -27,8 +27,6 @@ import ray
 
 config.update("jax_enable_x64", True)
 
-
-# https://blog.csdn.net/Exception_3212536934/article/details/118069879
 @jax.jit
 def matrix_distance_squared(A, B):
     """
@@ -122,11 +120,10 @@ class SynthesisModel():
     #     print('finish')
     #     return
     
-    
-    def find_parmas(self, circuit_info, U, lr = 1e-1, max_epoch = 100, max_dist = 1e-2):
-        n_qubits = self.n_qubits
-        layer2gates = circuit_info['layer2gates']
-        
+    @staticmethod
+    def find_parmas(n_qubits, layer2gates, U, lr = 1e-1, max_epoch = 100, max_dist = 1e-2):
+        # n_qubits = self.n_qubits
+
         param_size = 0
         params = []
         for layer in layer2gates:
