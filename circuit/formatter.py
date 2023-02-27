@@ -44,6 +44,8 @@ def to_unitary(parmas):
     q *= d/np.abs(d)
     return q
 
+# TODO: 找到to_unitary的inverse操作
+
 def layered_circuits_to_qiskit(qubit_num, layer2instructions, barrier = True):
     circuit = QuantumCircuit(qubit_num)
 
@@ -80,10 +82,12 @@ def layered_circuits_to_qiskit(qubit_num, layer2instructions, barrier = True):
 
 
 def qiskit_to_my_format_instruction(instruction): 
+    name = instruction.operation.name
+    parms = list(instruction.operation.params)        
     return {
-        'name': instruction.operation.name,
+        'name': name,
         'qubits': [qubit.index for qubit in instruction.qubits],
-        'params': list(instruction.operation.params),
+        'params': parms,
     }
 
 '''TODO: my_format_circuit -> layered_circuits'''

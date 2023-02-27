@@ -1,27 +1,62 @@
 from circuit import gen_random_circuits
-from circuit.formatter import qiskit_to_my_format_circuit, layered_circuits_to_qiskit
+from circuit.formatter import qiskit_to_my_format_circuit, layered_circuits_to_qiskit, get_layered_instructions
 from upstream import RandomwalkModel
 from collections import defaultdict
 
 import math
 from utils.backend import gen_grid_topology, get_grid_neighbor_info, Backend, gen_linear_topology, get_linear_neighbor_info
-# from utils.backend import default_basis_single_gates, default_basis_two_gates
 
 from qiskit import QuantumCircuit
 import pennylane as qml
 import numpy as np
 from downstream.synthesis.pennylane_op import layer_circuit_to_pennylane_circuit, layer_circuit_to_pennylane_tape
 from downstream.synthesis.tensor_network_op import layer_circuit_to_matrix
-from downstream.synthesis.synthesis_model_dnn import matrix_distance_squared
 
 from scipy.stats import unitary_group
 
-from downstream.synthesis.synthesis_model_pca_unitary import pkl_dump, pkl_load
-from downstream.synthesis.synthesis_model_pca_unitary import SynthesisModel
+from downstream.synthesis.synthesis_model_pca_unitary import pkl_dump, pkl_load, matrix_distance_squared 
+from downstream.synthesis.synthesis_model_pca_unitary import SynthesisModel, synthesize
 from itertools import combinations
 import time
 from qiskit import transpile
 import random
+
+from circuit.formatter import layered_circuits_to_qiskit, to_unitary
+from qiskit.quantum_info import Operator
+
+# n_qubits = 2
+# qiskit_circuit = QuantumCircuit(n_qubits)
+# # qiskit_circuit.u(1, 1, 2, 0)
+# qiskit_circuit.u(1, 2, 3, 0)
+# # qiskit_circuit.u(1, 2, 3, 1)
+# qiskit_circuit.u(0, 0, 0, 1)
+# # qiskit_circuit.cz(1, 0)
+
+# qiskit_unitary = Operator(qiskit_circuit).data
+# # .reverse_bits()
+
+# print(qiskit_circuit)
+# qiskit_circuit = qiskit_circuit.reverse_bits()  # 真他妈离谱，画出来和转换出来的是不一样的
+# # qiskit_circuit = QuantumCircuit(n_qubits)
+# # qiskit_circuit.u(1, 2, 3, 1)
+# # qiskit_circuit.u(0, 0, 0, 0)
+
+# print(qiskit_circuit)
+# layer2instructions, _, _, _, _ = get_layered_instructions(qiskit_circuit)  # instructions的index之后会作为instruction的id, nodes和instructions的顺序是一致的
+# synthesized_circuit, _, _ = qiskit_to_my_format_circuit(layer2instructions)  # 转成一个更不占内存的格式
+# print(synthesized_circuit)
+# synthesized_matrix = layer_circuit_to_matrix(synthesized_circuit, n_qubits)
+
+# qiskit_circuit_2 = layered_circuits_to_qiskit(n_qubits, synthesized_circuit, False)
+# qiskit_unitary_2 = Operator(qiskit_circuit_2).data
+
+# # my_circuit = qml.from_qiskit(qiskit_circuit_2)
+
+# print(matrix_distance_squared(synthesized_matrix, qiskit_unitary))
+# print(matrix_distance_squared(synthesized_matrix, qiskit_unitary_2))
+# print(matrix_distance_squared(qiskit_unitary, qiskit_unitary_2))
+
+
 # gird topological information
 # grid_num = 2
 # topology = gen_grid_topology(grid_num) # 3x3 9 qubits
@@ -59,12 +94,22 @@ import random
 # U = unitary_group.rvs(2**n_qubits)
 # params = SynthesisModel.find_parmas(n_qubits, layer2gates, U, max_epoch=100)
 
+# from qiskit.quantum_info import Operator
+
+# circuit = QuantumCircuit(2)
+# unitary = unitary_group.rvs(2**2)
+# gate = Operator(unitary)
+# circuit.append(gate, list(range(2)))
+# unitary_circuit = transpile(circuit, optimization_level=3, basis_gates=['u', 'cz'])
+
+# print(np.allclose(unitary, Operator(circuit).data))
 
 # 2-qubit topological information
-n_qubits = 4
+n_qubits = 5
 topology = gen_linear_topology(n_qubits)
 neigh_info = get_linear_neighbor_info(n_qubits, 1)
 
+# print(to_unitary(np.ones((2**n_qubits, 2**n_qubits))))
 
 backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basis_single_gates=['u'],
                   basis_two_gates=['cz'], divide=False, decoupling=False)
@@ -107,54 +152,55 @@ model_name = f'q{n_qubits}_02204_dnn_unitary_eval_data' #f'q{n_qubits}_0220_pca_
 # synthesis_model.construct_model()
 # synthesis_model.save()
 
-synthesis_model: SynthesisModel = SynthesisModel.load(model_name)
+# synthesis_model: SynthesisModel = SynthesisModel.load(model_name)
 
 # TODO: 一个model的放到一个文件夹
-circuits = gen_random_circuits(min_gate=500, max_gate=501, gate_num_step=1, n_circuits=1, two_qubit_gate_probs=[
-                               3, 4], backend=backend, reverse=False, optimize=True, multi_process=False)[0]
 
-while True:
-    qiskit_circuit = layered_circuits_to_qiskit(
-        n_qubits, circuits['layer2gates'], barrier=False)
-    print(qiskit_circuit)
-    init_unitary_mat = layer_circuit_to_matrix(circuits['layer2gates'], n_qubits)
+# while True:
+# circuit = gen_random_circuits(min_gate=500, max_gate=501, gate_num_step=1, n_circuits=1, two_qubit_gate_probs=[
+#                             3, 4], backend=backend, reverse=False, optimize=True, multi_process=False)[0]
 
-    # params, dist = synthesis_model.find_parmas(n_qubits, circuits['layer2gates'], init_unitary_mat, max_epoch=50, allowed_dist=1e-2,
-    #                                 n_iter_no_change=5, no_change_tolerance=1e-3)
+# qiskit_circuit = layered_circuits_to_qiskit(
+#     n_qubits, circuit['layer2gates'], barrier=False)
+# print(qiskit_circuit)
+# init_unitary_mat = layer_circuit_to_matrix(circuit['layer2gates'], n_qubits)
 
-    # init_unitary_mat = unitary_group.rvs(2**n_qubits)
-    start_time = time.time()
-    layer2gates = synthesis_model.synthesize(init_unitary_mat, allowed_dist=0.5, multi_process = True, use_heuristic = False)
-    print('Synthesis costs', time.time() - start_time, 's')
+# params, dist = synthesis_model.find_parmas(n_qubits, circuits['layer2gates'], init_unitary_mat, max_epoch=50, allowed_dist=1e-2,
+#                                 n_iter_no_change=5, no_change_tolerance=1e-3)
+
+init_unitary_mat = unitary_group.rvs(2**n_qubits)
+start_time = time.time()
+synthesized_circuit = synthesize(init_unitary_mat, backend = backend, allowed_dist=1e-2, multi_process = True, heuristic_model=None, verbose=True)
+# print(synthesized_circuit)
+print('Synthesis costs', time.time() - start_time, 's')
 
 # # 还要再递归的解决
 
-# qiskit_circuit = layered_circuits_to_qiskit(
-#     n_qubits, layer2gates, barrier=False)
+qiskit_circuit = layered_circuits_to_qiskit(
+    n_qubits, synthesized_circuit, barrier=False)
 # qiskit_circuit = transpile(qiskit_circuit, coupling_map=backend.coupling_map, optimization_level=3, basis_gates=[
 #                            'u', 'cz'], initial_layout=[qubit for qubit in range(n_qubits)])
 
 
-# def cnot_count(qc: QuantumCircuit):
-#     count_ops = qc.count_ops()
-#     if 'cx' in count_ops:
-#         return count_ops['cx']
-#     return 0
+def cnot_count(qc: QuantumCircuit):
+    count_ops = qc.count_ops()
+    if 'cx' in count_ops:
+        return count_ops['cx']
+    return 0
 
 
-# def cz_count(qc: QuantumCircuit):
-#     count_ops = qc.count_ops()
-#     if 'cx' in count_ops:
-#         return count_ops['cx']
-#     return 0
+def cz_count(qc: QuantumCircuit):
+    count_ops = qc.count_ops()
+    if 'cz' in count_ops:
+        return count_ops['cz']
+    return 0
 
 
-# # layer_U: jnp.array = layer_circuit_to_matrix(layer2gates, n_qubits)
-# print(qiskit_circuit)
-# print('gate = ', len(qiskit_circuit))
-# print('#two-qubit gates = ', cnot_count(qiskit_circuit) + cz_count(qiskit_circuit))
-# print('depth = ', qiskit_circuit.depth())
-# qiskit_to_my_format_circuit, layered_circuits_to_qiskit
+# layer_U: jnp.array = layer_circuit_to_matrix(layer2gates, n_qubits)
+print(qiskit_circuit)
+print('gate = ', len(qiskit_circuit))
+print('#two-qubit gates = ', cnot_count(qiskit_circuit) + cz_count(qiskit_circuit))
+print('depth = ', qiskit_circuit.depth())
 print('finish')
 print()
 # global phase: 2.9292
