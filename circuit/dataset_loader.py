@@ -4,47 +4,83 @@ from circuit.parser import get_circuit_duration, qiskit_to_layered_circuits
 from circuit.random_circuit import random_circuit
 from utils.backend import Backend
 from qiskit import transpile
+import ray
 
-def gen_random_circuits(min_gate: int, max_gate: int, n_circuits: int, two_qubit_gate_probs: list, backend: Backend, gate_num_step: int = 1, reverse = True, optimize = False):
+
+def gen_random_circuits(min_gate: int, max_gate: int, n_circuits: int, two_qubit_gate_probs: list, backend: Backend, gate_num_step: int = 1, reverse=True, optimize=False, multi_process=False):
     dataset = []
+    futures = []
+    assert two_qubit_gate_probs[0] < two_qubit_gate_probs[1]
     for n_gates in range(min_gate, max_gate, gate_num_step):
         for prob in range(*two_qubit_gate_probs):
             prob *= .1
-            dataset += _gen_random_circuits(n_gates=n_gates, two_qubit_prob=prob,
-                                           n_circuits=n_circuits, backend = backend, reverse = reverse, 
-                                           optimize = optimize)
-    
+            if multi_process:
+                futures.append(_gen_random_circuits_remote.remote(n_gates=n_gates, two_qubit_prob=prob,
+                                                                  n_circuits=n_circuits, backend=backend, reverse=reverse,
+                                                                  optimize=optimize))
+            else:
+                dataset += _gen_random_circuits(n_gates=n_gates, two_qubit_prob=prob,
+                                                n_circuits=n_circuits, backend=backend, reverse=reverse,
+                                                optimize=optimize)
+
+    for future in futures:
+        dataset += ray.get(future)
+
     print(f'finish random circuit generation with {len(dataset)} circuits')
     return dataset
 
 
-def _gen_random_circuits(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backend: Backend = None, reverse=True, optimize = False):
-    
+@ray.remote
+def _gen_random_circuits_remote(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backend: Backend = None, reverse=True, optimize=False):
+    return _gen_random_circuits(n_gates=n_gates, two_qubit_prob=two_qubit_prob,
+                                n_circuits=n_circuits, backend=backend, reverse=reverse,
+                                optimize=optimize)
+
+
+import traceback
+def _gen_random_circuits(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backend: Backend = None, reverse=True, optimize=False):
+
     divide, decoupling, coupling_map, n_qubits = backend.divide, backend.decoupling, backend.coupling_map, backend.n_qubits
     basis_single_gates, basis_two_gates = backend.basis_single_gates, backend.basis_two_gates
-    
-    circuit = random_circuit(n_qubits, n_gates, two_qubit_prob, reverse=reverse, coupling_map=coupling_map,
-                                             basis_single_gates=basis_single_gates, basis_two_gates=basis_two_gates)
-    if optimize:
-        circuit = transpile(circuit, coupling_map=coupling_map, optimization_level=3, basis_gates=(basis_single_gates+basis_two_gates), initial_layout=[qubit for qubit in range(n_qubits)])
-    
-    dataset = [
-        ({
+
+    # print(circuit)
+    dataset = []
+    for _ in range(n_circuits):
+        circuit = random_circuit(n_qubits, n_gates, two_qubit_prob, reverse=reverse, coupling_map=coupling_map,
+                                 basis_single_gates=basis_single_gates, basis_two_gates=basis_two_gates)
+
+        # print()
+        # print(circuit)
+        try:
+            if optimize:
+                circuit = transpile(circuit, coupling_map=backend.true_coupling_map, optimization_level=3, basis_gates=(
+                    basis_single_gates+basis_two_gates), initial_layout=[qubit for qubit in range(n_qubits)])
+        except Exception as e:
+            traceback.print_exc()
+
+        # print(circuit)
+        
+        circuit_info = {
             'id': f'rc_{n_qubits}_{n_gates}_{two_qubit_prob}_{_}',
             'qiskit_circuit': circuit
-        })
-        for _ in range(n_circuits)
-    ]
+        }
+        
+        dataset.append(circuit_info)
 
     new_dataset = []
     for _circuit_info in dataset:
         # instructions的index之后会作为instruction的id, nodes和instructions的顺序是一致的
-        circuit_info = qiskit_to_layered_circuits(_circuit_info['qiskit_circuit'], divide, decoupling)
+        circuit_info = qiskit_to_layered_circuits(
+            _circuit_info['qiskit_circuit'], divide, decoupling)
         circuit_info['id'] = _circuit_info['id']
 
-        circuit_info['duration'] = get_circuit_duration(circuit_info['layer2gates'], backend.single_qubit_gate_time, backend.two_qubit_gate_time)
+        circuit_info['duration'] = get_circuit_duration(
+            circuit_info['layer2gates'], backend.single_qubit_gate_time, backend.two_qubit_gate_time)
         circuit_info['gate_num'] = len(circuit_info['gates'])
-        
+
+        # 减少模型大小
+        circuit_info['qiskit_circuit'] = None
+
         new_dataset.append(circuit_info)
 
     return new_dataset

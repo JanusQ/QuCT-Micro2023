@@ -1,0 +1,114 @@
+from itertools import combinations
+
+my_array = [1, 2, 3]
+
+# 获取 my_array 所有的子集
+subsets = []
+for i in range(len(my_array) + 1):
+    for subset in combinations(my_array, i):
+        subsets.append(list(subset))
+
+# 输出所有子集
+print(subsets)
+
+
+
+
+"""This script is contains a simple use case of the QFAST synthesis method."""
+"""This example shows how to synthesize a circuit with BQSKit."""
+# from __future__ import annotations
+
+from bqskit import compile
+from scipy.stats import unitary_group
+# from bqskit.assemblers import ASSEMBLER_IBMOPENQASM
+
+n_qubits = 3
+# Let's create a random 3-qubit unitary to synthesize and add it to a
+# circuit.
+unitary = unitary_group.rvs(2**n_qubits)
+
+# Construct the unitary as an NumPy array
+# toffoli = [
+#     [1, 0, 0, 0, 0, 0, 0, 0],
+#     [0, 1, 0, 0, 0, 0, 0, 0],
+#     [0, 0, 1, 0, 0, 0, 0, 0],
+#     [0, 0, 0, 1, 0, 0, 0, 0],
+#     [0, 0, 0, 0, 1, 0, 0, 0],
+#     [0, 0, 0, 0, 0, 1, 0, 0],
+#     [0, 0, 0, 0, 0, 0, 0, 1],
+#     [0, 0, 0, 0, 0, 0, 1, 0],
+# ]
+
+# The compile function will perform synthesis
+synthesized_circuit = compile(unitary, max_synthesis_size=3)
+print(synthesized_circuit.gate_counts)
+print(synthesized_circuit.get_qasm)
+
+# qasm = ASSEMBLER_IBMOPENQASM.assemble(result, opt)
+# # print(qasm)
+# qc = qiskit.QuantumCircuit.from_qasm_str(qasm)
+# print(time.time() - start_time)
+# print(qc)
+    
+# from __future__ import annotations
+
+# from bqskit.compiler import CompilationTask
+# from bqskit.compiler import Compiler
+# from bqskit.ir import Circuit
+# from bqskit.passes import ForEachBlockPass
+# from bqskit.passes import LEAPSynthesisPass
+# from bqskit.passes import QFASTDecompositionPass
+# from bqskit.passes import ScanningGateRemovalPass
+# from bqskit.passes import UnfoldPass
+# from bqskit.qis import UnitaryMatrix
+# from scipy.stats import unitary_group
+
+# n_qubits = 3
+# # Let's create a random 3-qubit unitary to synthesize and add it to a
+# # circuit.
+# unitary = unitary_group.rvs(2**n_qubits)
+# circuit = Circuit.from_unitary(unitary)
+
+# # We will now define the CompilationTask we want to run.
+# task = CompilationTask(
+#     circuit, [
+#         QFASTDecompositionPass(),
+#         ForEachBlockPass([LEAPSynthesisPass(), ScanningGateRemovalPass()]),
+#         UnfoldPass(),
+#     ],
+# )
+
+# # Finally let's create create the compiler and execute the CompilationTask.
+# with Compiler() as compiler:
+#     compiled_circuit = compiler.compile(task)
+#     print(compiled_circuit.gate_counts)
+
+
+# from qiskit import QuantumCircuit, transpile
+# # from qfast.synthesis import synthesize as qfast_synthesis
+# from qfast import synthesize as qfast_synthesis
+# from scipy.stats import unitary_group
+# import numpy as np
+
+# n_qubits = 4
+# unitary = unitary_group.rvs(2**n_qubits)
+# qasm = qfast_synthesis(unitary, tool = "QiskitTool", combiner = "QiskitCombiner" )
+# circuit =  QuantumCircuit.from_qasm_str(qasm)
+# print(circuit)
+
+# """Example synthesis of a 4-qubit QFT program using QFAST with QISKit."""
+
+
+
+
+
+
+# # # You can enable verbose logging with the following two lines.
+# # # import logging
+# # # logging.getLogger( "qfast" ).setLevel( logging.DEBUG )
+
+# # # Read the qft4 file in
+# # qft4 = np.loadtxt( "qft4.unitary", dtype = np.complex128 )
+
+# # # Synthesize the qft4 unitary and print the resulting qasm code
+# # print( synthesize( qft4, tool = "QiskitTool", combiner = "QiskitCombiner" ) )

@@ -14,7 +14,7 @@ from jax import numpy as jnp
 import optax
 from upstream.sparse_dimensionality_reduction import sp_mds_reduce, sp_MDS, pad_to
 from utils.backend import Backend
-
+from circuit.formatter import layered_circuits_to_qiskit
 
 # 利用随机游走来采样的方法
 
@@ -146,6 +146,7 @@ def train(dataset, max_step: int, path_per_node: int, neighbor_info: dict, offes
 
     for index, circuit_info in enumerate(dataset):
         # print(circuit_info['qiskit_circuit'])
+        # print(layered_circuits_to_qiskit(circuit_info['num_qubits'], circuit_info['layer2gates'],))
         if index % 100 == 0:
             print(f'train:{index}/{len(dataset)}, {offest}th offest')
 
@@ -179,7 +180,8 @@ def extract_device(gate):
         return tuple(sorted(gate['qubits']))
     else:
         # return gate['qubits'][0]
-        return (gate['qubits'][0], -1)
+        '''不准改回去！！！！'''
+        return gate['qubits'][0]
 
 
 class RandomwalkModel():
@@ -201,6 +203,7 @@ class RandomwalkModel():
 
         self.backend = backend
         self.travel_directions = travel_directions
+        self.n_qubits = backend.n_qubits
         return
 
     def path_index(self, device, path_id):
@@ -379,6 +382,7 @@ class RandomwalkModel():
         '''
             save hash_table and algorithm
         '''
+        # self.dataset = None
         path = os.path.join('model', path, )
         file = open(path, 'wb')
         pickle.dump(self, file)
@@ -433,7 +437,9 @@ class RandomwalkModel():
         max_step = self.max_step
         path_per_node = self.path_per_node
 
-        assert 'path_indexs' not in circuit_info
+        if 'path_indexs' in circuit_info:
+            return circuit_info
+
 
         neighbor_info = self.backend.neighbor_info
         circuit_info['path_indexs'] = []
@@ -452,18 +458,18 @@ class RandomwalkModel():
             circuit_info['vecs'].append(vec)
 
         return circuit_info
-
-    def extract_paths_from_vec(self, gate, gate_vector: np.array) -> list:
-        device = extract_device(gate)
-        inclued_path_indexs = np.argwhere(gate_vector == 1)[:, 0]
+    
+    def extract_paths_from_vec(self, device, gate_vector: np.array) -> list:
+        # device = extract_device(gate)
+        inclued_path_indexs = np.argwhere(gate_vector==1)[:,0]
         paths = [
             self.device2reverse_path_table[device][index]
             for index in inclued_path_indexs
         ]
-        return paths
-
-    def reconstruct(self, gate, gate_vector: np.array) -> list:
-        paths = self.extract_paths_from_vec(gate, gate_vector)
+        return paths 
+    
+    def reconstruct(self, device, gate_vector: np.array) -> list:
+        paths = self.extract_paths_from_vec(device, gate_vector)
 
         # TODO: 还要有一个判断是不是已经加进去了
         def parse_gate_info(gate_info):
@@ -473,9 +479,10 @@ class RandomwalkModel():
                 'qubits': [int(qubit) for qubit in elms[1:]]
             }
             if elms[0] in ('rx', 'ry', 'rz'):
-                gate['params'] = np.array([np.pi])
-            if elms[0] in ('u'):
-                gate['params'] = np.array([np.pi] * 3)
+                # gate['params'] = 
+                gate['params'] = np.random.rand(1) * 2 * np.pi  # np.array([np.pi])  #np.zeros((1,)) #
+            if elms[0] in ('u'): 
+                gate['params'] = np.random.rand(3) * 2 * np.pi # np.array([np.pi] * 3)  #np.zeros((3,)) #
             elif elms[0] in ('cx', 'cz'):
                 gate['params'] = []
 
@@ -487,14 +494,14 @@ class RandomwalkModel():
                     # tuple(_gate['qubits']) == tuple(gate['qubits']):
                     return
 
-                assert all([qubit not in other_gate['qubits'] for qubit in gate['qubits']])
+                # assert all([qubit not in other_gate['qubits'] for qubit in gate['qubits']])
             layer2gates[layer].append(gate)
             return
-
+        
         head_gate = {
-            'name': None,
-            'qubits': [],
-            'params': [],
+            'name': 'u',
+            'qubits': [random.randint(0, self.n_qubits-1)],
+            'params':  np.ones((3,)) * np.pi * 2 #[random.random() * 2 *jnp.pi for _ in range(3)],
         }
         # [head_gate]
         layer2gates = [
