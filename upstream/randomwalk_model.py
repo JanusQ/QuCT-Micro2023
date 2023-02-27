@@ -111,9 +111,10 @@ def BFS(traveled_paths, traveled_gates, path, circuit_info: dict, now_gate: dict
     candidates = [
         (step_type, candidate)
         for step_type, candidate in candidates
-        if candidate not in traveled_gates and any(
-            [q1 in neighbor_info[q2] or q1 == q2 for q2 in now_gate['qubits'] for q1 in candidate['qubits']])
-    ]
+        if candidate not in traveled_gates and 
+        any([(q1 in neighbor_info[q2] or q1 == q2) for q2 in now_gate['qubits'] for q1 in candidate['qubits']]) and
+        any([(q1 in neighbor_info[q2] or q1 == q2) for q2 in traveled_gates[0]['qubits'] for q1 in candidate['qubits']])
+        ]
 
     for step_type, next_gate in candidates:
         path_app = deepcopy(path)
@@ -433,7 +434,7 @@ class RandomwalkModel():
         max_step = self.max_step
         path_per_node = self.path_per_node
 
-        assert 'path_indexs' not in circuit_info
+        # assert 'path_indexs' not in circuit_info
 
         neighbor_info = self.backend.neighbor_info
         circuit_info['path_indexs'] = []

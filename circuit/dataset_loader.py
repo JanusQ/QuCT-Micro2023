@@ -23,18 +23,17 @@ def _gen_random_circuits(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backen
     divide, decoupling, coupling_map, n_qubits = backend.divide, backend.decoupling, backend.coupling_map, backend.n_qubits
     basis_single_gates, basis_two_gates = backend.basis_single_gates, backend.basis_two_gates
     
-    circuit = random_circuit(n_qubits, n_gates, two_qubit_prob, reverse=reverse, coupling_map=coupling_map,
-                                             basis_single_gates=basis_single_gates, basis_two_gates=basis_two_gates)
-    if optimize:
-        circuit = transpile(circuit, coupling_map=coupling_map, optimization_level=3, basis_gates=(basis_single_gates+basis_two_gates), initial_layout=[qubit for qubit in range(n_qubits)])
-    
-    dataset = [
-        ({
-            'id': f'rc_{n_qubits}_{n_gates}_{two_qubit_prob}_{_}',
-            'qiskit_circuit': circuit
-        })
-        for _ in range(n_circuits)
-    ]
+    dataset = []
+    for _ in range(n_circuits):
+        circuit = random_circuit(n_qubits, n_gates, two_qubit_prob, reverse=reverse, coupling_map=coupling_map,
+                                                basis_single_gates=basis_single_gates, basis_two_gates=basis_two_gates)
+        if optimize:
+            circuit = transpile(circuit, coupling_map=coupling_map, optimization_level=3, basis_gates=(basis_single_gates+basis_two_gates), initial_layout=[qubit for qubit in range(n_qubits)])
+        
+        dataset.append({
+                'id': f'rc_{n_qubits}_{n_gates}_{two_qubit_prob}_{_}',
+                'qiskit_circuit': circuit
+            })
 
     new_dataset = []
     for _circuit_info in dataset:

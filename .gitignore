@@ -6,3 +6,6 @@ pattern_extractor/model
 model/
 *.pyc
 *.pkl
+*.svg
+screenlog.0
+*.zip

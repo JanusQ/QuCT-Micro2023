@@ -23,7 +23,7 @@ class FidelityModel():
         return
 
     # device2reverse_path_table_size去掉，从backend拿
-    def train(self, dataset, epoch_num = 30):
+    def train(self, train_dataset, epoch_num = 30):
         upstream_model = self.upstream_model
         # backend = self.upstream_model.backend
         
@@ -36,12 +36,14 @@ class FidelityModel():
 
         optimizer = optax.adamw(learning_rate=1e-2)
         opt_state = optimizer.init(params)
-        train_dataset = dataset
+        train_dataset = train_dataset
 
         # 如果同时训练的数组大小不一致没办法使用vmap加速
         n_instruction2circuit_infos, gate_nums = get_n_instruction2circuit_infos(train_dataset)
         print(gate_nums)
         for gate_num in gate_nums:
+            if(gate_num > 150):
+                continue
             best_loss_value = 1e10
             best_params = None
             for epoch in range(epoch_num):
@@ -108,22 +110,23 @@ class FidelityModel():
     def predict_fidelity(self, circuit_info):
         error_params = self.error_params
 
+
+        device_list = list(self.upstream_model.device2path_table.keys())
         circuit_devices = []
         for gate in circuit_info['gates']:
             device = extract_device(gate)
-            device_index = list(self.upstream_model.device2path_table.keys()).index(device)
+            device_index = device_list.index(device)
             circuit_devices.append(device_index)
         circuit_devices = np.array(circuit_devices)
         vecs = np.array(circuit_info['vecs'])
         circuit_predict = smart_predict(error_params, vecs, circuit_devices)
-        gate_errors = np.array([
-            jnp.dot(error_params[extract_device(circuit_info['gates'][idx])] / error_param_rescale, vec)
-            for idx, vec in enumerate(circuit_info['vecs'])
-        ])[:, 0]
-        circuit_info['gate_errors'] = gate_errors
+        # gate_errors = np.array([
+        #     jnp.dot(error_params[extract_device(circuit_info['gates'][idx])] / error_param_rescale, vec)
+        #     for idx, vec in enumerate(circuit_info['vecs'])
+        # ])[:, 0]
+        # circuit_info['gate_errors'] = gate_errors
         circuit_info['circuit_predict'] = circuit_predict
-        return circuit_predict, circuit_info, gate_errors
-
+        return circuit_predict
 
 
 def gate_error(device2params, vec, device):

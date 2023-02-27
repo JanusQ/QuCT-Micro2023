@@ -71,3 +71,27 @@ def label_ground_truth_fidelity(dataset, labels):
     for idx, cir in enumerate(dataset):
         cir['ground_truth_fidelity'] = labels[idx]
 
+def get_xeb_fidelity(dataset):
+    single_average_error = np.array([0.084, 0.040, 0.083, 0.025, 0.037, ]) / 100  # 原先是带%的
+    couple_average_error = np.array([0.6, 0.459, 0.537, 0.615, ]) / 100  # q1_q2, q2_q3, ..., q9_q10
+
+    measure0_fidelity = np.array([0.97535460, 0.97535460, 0.9645634, 0.9907482, 0.96958333])
+    measure1_fidelity = np.array([0.955646258, 0.97572327, 0.950431034, 0.9629411764, 0.9570833333])
+    
+    
+    xebs = []
+    for circuit_info in dataset:
+        fidelity = 1
+        for instruction in circuit_info['gates']:
+            if len(instruction['qubits']) == 2:
+                q0_id, q1_id = instruction['qubits'][0], instruction['qubits'][1]
+                if q0_id > q1_id:
+                    fidelity = fidelity * (1 - couple_average_error[q1_id])
+                else:
+                    fidelity = fidelity * (1 - couple_average_error[q0_id])
+            else:
+                q0_id = instruction['qubits'][0]
+                fidelity = fidelity * (1 - single_average_error[q0_id])
+        xebs.append(fidelity * np.product((measure0_fidelity + measure1_fidelity) / 2))
+    return np.array(xebs)
+    
