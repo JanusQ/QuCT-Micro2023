@@ -1,7 +1,116 @@
 from utils.backend_info import *
+from collections import defaultdict
 import math
 import copy
 import itertools as it
+
+
+def get_zhuan_topology(n_qubit):
+    topology = {0: [1, 14], 1: [0, 2], 2: [1, 3], 3: [2, 4], 4: [3, 5, 15], 5: [4, 6], 6: [5, 7], 7: [6, 8], 8: [7, 9, 16], 9: [10],
+                10: [9, 11], 11: [10, 12], 12: [11, 13, 17], 13: [12], 14: [0, 18], 15: [4, 22], 16: [8, 26], 17: [12, 30], 18: [14, 19], 19: [18, 20],
+                20: [19, 21, 33], 21: [20, 22], 22: [15, 21, 23], 23: [22, 24], 24: [23, 25, 34], 25: [24, 26], 26: [16, 25, 27], 27: [26, 28], 28: [27, 29, 35], 29: [28, 30],
+                30: [17, 29, 31], 31: [30, 32], 32: [31, 36], 33: [20, 39], 34: [24, 43], 35: [28, 47], 36: [32, 51], 37: [38, 52], 38: [37, 39], 39: [33, 38, 40],
+                40: [39, 41], 41: [40, 42, 53], 42: [41, 43], 43: [34, 42, 44], 44: [43, 45], 45: [44, 46, 54], 46: [45, 47], 47: [35, 46, 48], 48: [47, 49], 49: [48, 50, 55],
+                50: [49, 51], 51: [36, 50], 52: [37, 56], 53: [41, 60], 54: [45, 64], 55: [49, 68], 56: [52, 57], 57: [56, 58], 58: [57, 59, 71], 59: [58, 60],
+                60: [53, 59, 61], 61: [60, 62], 62: [61, 63, 72], 63: [62, 64], 64: [54, 63, 65], 65: [64, 66], 66: [65, 67, 73], 67: [66, 68], 68: [55, 67, 69], 69: [68, 70],
+                70: [69, 74], 71: [58, 77], 72: [62, 81], 73: [66, 85], 74: [70, 89], 75: [76, 90], 76: [75, 77], 77: [71, 76, 78], 78: [77, 79], 79: [78, 80, 91],
+                80: [79, 81], 81: [72, 80, 82], 82: [81, 83], 83: [82, 84, 92], 84: [83, 85], 85: [73, 84, 86], 86: [85, 87], 87: [86, 88, 93], 88: [87, 89], 89: [74, 88],
+                90: [75, 94], 91: [79, 98], 92: [83, 102], 93: [87, 106], 94: [90, 95], 95: [94, 96], 96: [95, 97, 109], 97: [96, 98], 98: [91, 97, 99], 99: [98, 100],
+                100: [99, 101, 110], 101: [100, 102], 102: [92, 101, 103], 103: [102, 104], 104: [103, 105, 111], 105: [104, 106], 106: [93, 105, 107], 107: [106, 108], 108: [107, 112], 109: [96, 114],
+                110: [100, 118], 111: [104, 122], 112: [108, 126], 113: [114], 114: [109, 113, 115], 115: [114, 116], 116: [115, 117], 117: [116, 118], 118: [110, 117, 119], 119: [118, 120],
+                120: [119, 121], 121: [120, 122], 122: [111, 121, 123], 123: [122, 124], 124: [123, 125], 125: [124, 126], 126: [112, 125]}
+    assert n_qubit <= 127
+    
+    new_topology  = defaultdict(list)
+    for qubit in  topology.keys():
+        if qubit < n_qubit:
+            for ele in topology[qubit]:
+                if ele <  n_qubit:
+                    new_topology[qubit].append(ele)
+    return new_topology
+
+def get_zhuan_neighbor_info(topology, max_distance):
+
+    neigh_info = copy.deepcopy(topology)
+    if max_distance == 1:
+        return neigh_info
+    for qubit in topology.keys():
+        fommer_step = topology[qubit]
+        t = max_distance - 1
+        while t > 0:
+            new_fommer_step = []
+            for fommer_qubit in fommer_step:
+                neigh_info[qubit] += topology[fommer_qubit]
+                new_fommer_step += topology[fommer_qubit]
+            fommer_step = new_fommer_step
+            t -= 1
+        neigh_info[qubit] = list(set(neigh_info[qubit]))
+        neigh_info[qubit].remove(qubit)
+    return neigh_info
+
+def get_sycamore_topology(size):
+    '''
+    Example:
+    0   1   2 
+      3   4   5
+    6   7   8
+
+
+     0   1   2   3
+       4   5   6   7
+     8   9   10  11
+       12  13  14  15
+    '''
+    topology = defaultdict(list)
+
+    for x in range(size):
+        for y in range(size):
+            qubit = x * size + y
+            if x == 0:
+                up = []
+            else:
+                up = [(x-1) * size + i for i in range(size)]
+            if x == size - 1:
+                down = []
+            else:
+                down = [(x+1) * size + i for i in range(size)]
+
+            up_down = up + down
+            if x % 2 == 1:
+                candidates = [qubit - size, qubit -
+                              size + 1, qubit + size, qubit + size+1]
+            else:
+                candidates = [qubit - size, qubit -
+                              size - 1, qubit + size, qubit + size-1]
+
+            for candidate in candidates:
+                if candidate in up_down:
+                    topology[qubit].append(candidate)
+
+    for qubit, coupling in topology.items():
+        coupling.sort()
+
+    return topology
+
+
+def get_sycamore_neighbor_info(topology, max_distance):
+
+    neigh_info = copy.deepcopy(topology)
+    if max_distance == 1:
+        return neigh_info
+    for qubit in topology.keys():
+        fommer_step = topology[qubit]
+        t = max_distance - 1
+        while t > 0:
+            new_fommer_step = []
+            for fommer_qubit in fommer_step:
+                neigh_info[qubit] += topology[fommer_qubit]
+                new_fommer_step += topology[fommer_qubit]
+            fommer_step = new_fommer_step
+            t -= 1
+        neigh_info[qubit] = list(set(neigh_info[qubit]))
+        neigh_info[qubit].remove(qubit)
+    return neigh_info
 
 
 def gen_grid_topology(size):
@@ -130,7 +239,7 @@ class Backend():
 
         self.single_qubit_gate_time = single_qubit_gate_time  # ns
         self.two_qubit_gate_time = two_qubit_gate_time  # ns
-        
+
         # 随机了一个噪音
         self.single_qubit_fidelity = [
             1 - random.random() / 1000
@@ -153,7 +262,6 @@ class Backend():
         ]
 
         self.cache = {}
-
 
     def get_subgraph(self, location):
         """Returns the sub_coupling_graph with qubits in location."""
@@ -180,7 +288,7 @@ class Backend():
         """
 
         assert n_qubit_set < self.n_qubits and n_qubit_set > 0
-        
+
         if n_qubit_set in self.cache:
             return self.cache[n_qubit_set]
 
@@ -204,15 +312,23 @@ class Backend():
 
         self.cache[n_qubit_set] = locations
         return locations
-    
+
     '''TODO: 拓扑结构也得相等'''
+
     def __eq__(self, other):
         return self.n_qubits == other.n_qubits
 
 
 '''TODO: 还没有写完'''
+
+
 class FullyConnectedBackend(Backend):
     def __init__(self, n_qubits):
         topology = {}
         Backend.__init__(self, n_qubits)
         return
+
+
+if __name__ == "__main__":
+    topology = get_sycamore_topology(4)
+    neigh_info = get_sycamore_neighbor_info(topology, 2)
