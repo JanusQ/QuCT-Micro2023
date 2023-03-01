@@ -349,6 +349,7 @@ class SynthesisModel():
 
 
 def find_parmas(n_qubits, layer2gates, U, lr=1e-1, max_epoch=1000, allowed_dist=1e-2, n_iter_no_change=10, no_change_tolerance=1e-2, random_params=True, verbose = False):
+    np.random.RandomState()
     param_size = 0
     params = []
     for layer in layer2gates:
@@ -363,7 +364,7 @@ def find_parmas(n_qubits, layer2gates, U, lr=1e-1, max_epoch=1000, allowed_dist=
 
     if random_params:
         params = jax.random.normal(jax.random.PRNGKey(
-            randint(0, 100)), (param_size,), dtype=jnp.float64)
+            np.random.randint(0, 100)), (param_size,), dtype=jnp.float64)
     else:
         params = jnp.array(params, dtype=jnp.float64)
 
