@@ -14,7 +14,7 @@ from downstream.synthesis.tensor_network_op import layer_circuit_to_matrix
 
 from scipy.stats import unitary_group
 
-from downstream.synthesis.synthesis_model_pca_unitary import pkl_dump, pkl_load, matrix_distance_squared 
+from downstream.synthesis.synthesis_model_pca_unitary import find_parmas, pkl_dump, pkl_load, matrix_distance_squared 
 from downstream.synthesis.synthesis_model_pca_unitary import SynthesisModel, synthesize
 from itertools import combinations
 import time
@@ -64,35 +64,35 @@ from qiskit.quantum_info import Operator
 # n_qubits = grid_num ** 2
 
 
-# n_qubits = 2
-# layer2gates = [
-#     [
-#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-#     ],
-#     [{'name': 'cz', 'qubits': [1,0], 'params': []}],
-#     [
-#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-#     ],
-#     [{'name': 'cz', 'qubits': [0,1], 'params': []}],
-#     [
-#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-#     ],
-#     [{'name': 'cz', 'qubits': [0,1], 'params': []}],
-#     [
-#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-#     ],
-#     [{'name': 'cz', 'qubits': [1,0], 'params': []}],
-#     [
-#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-#     ],
-# ]
-# U = unitary_group.rvs(2**n_qubits)
-# params = SynthesisModel.find_parmas(n_qubits, layer2gates, U, max_epoch=100)
+n_qubits = 2
+layer2gates = [
+    [
+        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+    ],
+    [{'name': 'cz', 'qubits': [1,0], 'params': []}],
+    [
+        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+    ],
+    [{'name': 'cz', 'qubits': [0,1], 'params': []}],
+    [
+        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+    ],
+    [{'name': 'cz', 'qubits': [0,1], 'params': []}],
+    [
+        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+    ],
+    [{'name': 'cz', 'qubits': [1,0], 'params': []}],
+    [
+        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+    ],
+]
+U = unitary_group.rvs(2**n_qubits)
+params = find_parmas(n_qubits, layer2gates, U, max_epoch=100, random_params= True, verbose = True)
 
 # from qiskit.quantum_info import Operator
 
@@ -105,6 +105,7 @@ from qiskit.quantum_info import Operator
 # print(np.allclose(unitary, Operator(circuit).data))
 
 # 2-qubit topological information
+
 n_qubits = 5
 topology = gen_linear_topology(n_qubits)
 neigh_info = get_linear_neighbor_info(n_qubits, 1)

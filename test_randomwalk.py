@@ -9,22 +9,45 @@ from utils.backend import gen_grid_topology, get_grid_neighbor_info, Backend, to
 from utils.backend import default_basis_single_gates, default_basis_two_gates
 
 # topological information
-topology = gen_grid_topology(3)  # 3x3 9 qubits
-neigh_info = get_grid_neighbor_info(3, 1)
+n_qubits = 2
+topology = gen_grid_topology(n_qubits)  # 3x3 9 qubits
+neigh_info = get_grid_neighbor_info(n_qubits, 1)
 
 print(topology)
 print(neigh_info)
 
-n_qubits = 9
+n_qubits = n_qubits ** 2
 backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info,
                   basis_single_gates=default_basis_single_gates,
                   basis_two_gates=default_basis_two_gates, divide=False, decoupling=False)
 
-train_dataset = gen_random_circuits(min_gate=10, max_gate=100, n_circuits=1, two_qubit_gate_probs=[4, 8],
-                                    backend=backend)
+train_dataset = gen_random_circuits(min_gate=10, max_gate=100, n_circuits=5, two_qubit_gate_probs=[4, 8],
+                                    backend=backend, multi_process=True)
 
-upstream_model = RandomwalkModel(2, 30, backend=backend)
-upstream_model.train(train_dataset, multi_process=False)
+upstream_model = RandomwalkModel(4, 200, backend=backend)
+upstream_model.train(train_dataset, multi_process=True)
+
+# 2
+# random walk finish device size =  8
+# 0 path table size =  738
+# 1 path table size =  734
+# 2 path table size =  741
+# 3 path table size =  737
+# (1, 3) path table size =  971
+# (0, 1) path table size =  952
+# (0, 2) path table size =  973
+# (2, 3) path table size =  976
+
+# 3
+# random walk finish device size =  8
+# 0 path table size =  7376
+# 1 path table size =  7472
+# 2 path table size =  7420
+# 3 path table size =  7186
+# (1, 3) path table size =  7096
+# (0, 1) path table size =  7062
+# (0, 2) path table size =  7460
+# (2, 3) path table size =  7096
 
 # upstream_model.load_reduced_vecs()
 

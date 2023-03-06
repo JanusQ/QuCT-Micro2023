@@ -100,7 +100,9 @@ class NoiseSimulator():
         if erroneous_pattern is None:
             erroneous_pattern = get_random_erroneous_pattern(model)
 
-        for circuit_info in dataset:
+        for idx, circuit_info in enumerate(dataset):
+            if idx % 100 == 0:
+                print(idx,"simulate finish!")
             self.get_error_result(circuit_info, model, erroneous_pattern)
         
         return erroneous_pattern

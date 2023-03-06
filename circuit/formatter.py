@@ -178,7 +178,8 @@ def instruction2str(instruction):
         qubits = [qubit.index for qubit in instruction.qubits]
         op_name = instruction.operation.name
     else:
-        qubits = instruction['qubits']
+        qubits = list(instruction['qubits'])
+        qubits.sort()
         op_name = instruction['name']
     return f'{op_name},{",".join([str(_) for _ in qubits])}'
 

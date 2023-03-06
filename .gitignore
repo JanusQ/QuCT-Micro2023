@@ -5,6 +5,11 @@ simulator/__pycache__/
 pattern_extractor/model
 model/
 *.pyc
+*.pkl
+*.svg
+screenlog.0
+*.zip
 temp_data/
 *.pkl
 screenlog.*
+*__pycache__
