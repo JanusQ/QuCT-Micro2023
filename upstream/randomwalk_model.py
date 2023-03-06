@@ -119,7 +119,7 @@ def travel_gates_BFS(circuit_info, head_gate, path_per_node, max_step, neighbor_
     traveled_paths = set()
 
     traveled_gates = [head_gate]
-    BFS(traveled_paths, traveled_gates, Path([]), circuit_info, head_gate, head_gate, neighbor_info, max_step, path_per_node,
+    BFS(traveled_paths, traveled_gates, Path([Step(head_gate,'loop',head_gate)]), circuit_info, head_gate, head_gate, neighbor_info, max_step, path_per_node,
         directions)
 
     op_qubits_str = instruction2str(head_gate)
@@ -282,7 +282,7 @@ class RandomwalkModel():
             redundant_path = device2redundant_path[device]
             _paths = list(_path_count.keys())
             for i1, p1 in enumerate(_paths):
-                if p1 in redundant_path:
+                if p1 in redundant_path or device not in device2path_coexist_count or p1 not in device2path_coexist_count[device]:
                     continue
                 for i2, p2 in enumerate(_paths[i1+1:]):
                     if p2 in redundant_path or device2path_coexist_count[device][p1][p2] == 0:
@@ -313,26 +313,26 @@ class RandomwalkModel():
             if len(path_table) > self.max_table_size:
                 self.max_table_size = len(path_table)
 
-        # for index, circuit_info in enumerate(dataset):
-        #     circuit_info['path_indexs'] = []
-        #     circuit_info['vecs'] = []
+        for index, circuit_info in enumerate(dataset):
+            circuit_info['path_indexs'] = []
+            circuit_info['vecs'] = []
 
-        #     for gate, paths in zip(circuit_info['gates'], circuit_info['gate_paths']):
-        #         device = extract_device(gate)
-        #         _path_index = [self.path_index(device, path_id) for path_id in paths if self.has_path(device, path_id)]
-        #         _path_index.sort()
-        #         circuit_info['path_indexs'].append(_path_index)
+            for gate, paths in zip(circuit_info['gates'], circuit_info['gate_paths']):
+                device = extract_device(gate)
+                _path_index = [self.path_index(device, path_id) for path_id in paths if self.has_path(device, path_id)]
+                _path_index.sort()
+                circuit_info['path_indexs'].append(_path_index)
 
-        #         vec = np.zeros(self.max_table_size, dtype=np.float32)
-        #         vec[np.array(_path_index)] = 1.
-        #         circuit_info['vecs'].append(vec)
+                vec = np.zeros(self.max_table_size, dtype=np.float32)
+                vec[np.array(_path_index)] = 1.
+                circuit_info['vecs'].append(vec)
 
-        # self.all_instructions = []
-        # for circuit_info in self.dataset:
-        #     for index, insturction in enumerate(circuit_info['gates']):
-        #         self.all_instructions.append(
-        #             (index, insturction, circuit_info)
-        #         )
+        self.all_instructions = []
+        for circuit_info in self.dataset:
+            for index, insturction in enumerate(circuit_info['gates']):
+                self.all_instructions.append(
+                    (index, insturction, circuit_info)
+                )
 
     @staticmethod
     def count_step(path_id: str) -> int:
@@ -464,8 +464,8 @@ class RandomwalkModel():
         max_step = self.max_step
         path_per_node = self.path_per_node
 
-        if 'path_indexs' in circuit_info:
-            return circuit_info
+        # if 'path_indexs' in circuit_info:
+        #     return circuit_info
 
 
         neighbor_info = self.backend.neighbor_info

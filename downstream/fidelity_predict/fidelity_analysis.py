@@ -115,8 +115,6 @@ class FidelityModel():
         circuit_devices = []
         for gate in circuit_info['gates']:
             device = extract_device(gate)
-            if not isinstance(device,tuple):
-                device = (device, -1)
             device_index = device_list.index(device)
             circuit_devices.append(device_index)
         circuit_devices = np.array(circuit_devices)

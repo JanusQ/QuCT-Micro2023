@@ -5,7 +5,7 @@ import copy
 import itertools as it
 
 
-def get_zhuan_topology(n_qubit):
+def gen_washington_topology(n_qubit):
     topology = {0: [1, 14], 1: [0, 2], 2: [1, 3], 3: [2, 4], 4: [3, 5, 15], 5: [4, 6], 6: [5, 7], 7: [6, 8], 8: [7, 9, 16], 9: [10],
                 10: [9, 11], 11: [10, 12], 12: [11, 13, 17], 13: [12], 14: [0, 18], 15: [4, 22], 16: [8, 26], 17: [12, 30], 18: [14, 19], 19: [18, 20],
                 20: [19, 21, 33], 21: [20, 22], 22: [15, 21, 23], 23: [22, 24], 24: [23, 25, 34], 25: [24, 26], 26: [16, 25, 27], 27: [26, 28], 28: [27, 29, 35], 29: [28, 30],
@@ -20,16 +20,17 @@ def get_zhuan_topology(n_qubit):
                 110: [100, 118], 111: [104, 122], 112: [108, 126], 113: [114], 114: [109, 113, 115], 115: [114, 116], 116: [115, 117], 117: [116, 118], 118: [110, 117, 119], 119: [118, 120],
                 120: [119, 121], 121: [120, 122], 122: [111, 121, 123], 123: [122, 124], 124: [123, 125], 125: [124, 126], 126: [112, 125]}
     assert n_qubit <= 127
-    
-    new_topology  = defaultdict(list)
-    for qubit in  topology.keys():
+
+    new_topology = defaultdict(list)
+    for qubit in topology.keys():
         if qubit < n_qubit:
             for ele in topology[qubit]:
-                if ele <  n_qubit:
+                if ele < n_qubit:
                     new_topology[qubit].append(ele)
     return new_topology
 
-def get_zhuan_neighbor_info(topology, max_distance):
+
+def get_washington_neighbor_info(topology, max_distance):
 
     neigh_info = copy.deepcopy(topology)
     if max_distance == 1:
@@ -48,7 +49,8 @@ def get_zhuan_neighbor_info(topology, max_distance):
         neigh_info[qubit].remove(qubit)
     return neigh_info
 
-def get_sycamore_topology(size):
+
+def gen_sycamore_topology(size):
     '''
     Example:
     0   1   2 
@@ -193,6 +195,62 @@ def topology_to_coupling_map(topology: dict) -> list:
     ]
 
 
+def get_devide_qubit(topology, max_qubit):
+    qubits = topology.keys()
+    trevel_node, devide_qubits = [], []
+
+    while len(trevel_node) != len(qubits):
+        sub_qubits = []
+        head = random.choice(list(qubits-trevel_node))
+
+        fommer_step = topology[head]
+        trevel_node.append(head)
+        sub_qubits.append(head)
+        t = 1
+        while t < max_qubit:
+            new_fommer_step = []
+            for fommer_qubit in fommer_step:
+                if t == max_qubit:
+                    break
+                if fommer_qubit in trevel_node:
+                    continue
+                sub_qubits.append(fommer_qubit)
+                trevel_node.append(fommer_qubit)
+                new_fommer_step+= topology[fommer_qubit]
+                t += 1
+            if len(new_fommer_step) == 0:
+                break
+            fommer_step = list(set(new_fommer_step))
+            if head in fommer_step:
+                fommer_step.remove(head)
+            
+
+        devide_qubits.append(sub_qubits)
+
+    return devide_qubits
+
+
+def devide_chip(backend, max_qubit):
+    ret_backend = copy.deepcopy(backend)
+
+    n_qubits = backend.n_qubits
+
+    # devide_qubits = [i for i in range(n_qubits)]
+    # devide_qubits = devide_qubits[offset:] + devide_qubits[:offset]
+    # devide_qubits = [devide_qubits[i:i+max_qubit] for i in range(0,n_qubits,max_qubit)]
+
+    devide_qubits = get_devide_qubit(ret_backend.topology,  max_qubit)
+    print(devide_qubits)
+
+    coupling_map = copy.deepcopy(ret_backend.coupling_map)
+    for e1, e2 in coupling_map:
+        for i in range(len(devide_qubits)):
+            if (e1 in devide_qubits[i] and e2 not in devide_qubits[i]) or (e1 not in devide_qubits[i] and e2 in devide_qubits[i]):
+                ret_backend.coupling_map.remove([e1, e2])
+                break
+    return ret_backend
+
+
 class Backend():
     '''
     Example:
@@ -266,7 +324,7 @@ class Backend():
     def get_subgraph(self, location):
         """Returns the sub_coupling_graph with qubits in location."""
         subgraph = []
-        for q0, q1 in self.coupling_graph:
+        for q0, q1 in self.coupling_map:
             if q0 in location and q1 in location:
                 subgraph.append((q0, q1))
         return subgraph
@@ -330,5 +388,5 @@ class FullyConnectedBackend(Backend):
 
 
 if __name__ == "__main__":
-    topology = get_sycamore_topology(4)
-    neigh_info = get_sycamore_neighbor_info(topology, 2)
+    topology = gen_grid_topology(4)
+    neigh_info = get_grid_neighbor_info(4, 1)

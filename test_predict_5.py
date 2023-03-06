@@ -13,31 +13,35 @@ import pickle
 import numpy as np
 
 
-n_qubits = 5
-topology= {0: [1, 3], 1: [0, 2, 4], 2: [1], 3: [0, 4], 4: [1, 3]}
-coupling_map= [[0, 1], [1, 2], [3, 4], [0, 3], [1, 4]]
-neigh_info= {0: [1, 3], 1: [0, 2, 4], 2: [1], 3: [0, 4], 4: [1, 3]}
+# n_qubits = 5
+# topology= {0: [1, 3], 1: [0, 2, 4], 2: [1], 3: [0, 4], 4: [1, 3]}
+# coupling_map= [[0, 1], [1, 2], [3, 4], [0, 3], [1, 4]]
+# neigh_info= {0: [1, 3], 1: [0, 2, 4], 2: [1], 3: [0, 4], 4: [1, 3]}
 
 with open("5qubit_data/dataset_split.pkl", "rb") as f:
     train_dataset, test_dataset = pickle.load(f)
 
-backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basis_single_gates = default_basis_single_gates,
-                  basis_two_gates = default_basis_two_gates, divide = False, decoupling=False)
-upstream_model = RandomwalkModel(3, 20, backend = backend) ### step
-upstream_model.train(train_dataset, multi_process = True)
+# backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basis_single_gates = default_basis_single_gates,
+#                   basis_two_gates = default_basis_two_gates, divide = False, decoupling=False)
+# upstream_model = RandomwalkModel(2, 20, backend = backend, travel_directions=('parallel', 'former')) ### step
+# upstream_model.train(train_dataset, multi_process = True)
 
 
-with open("upstream_model_5_step3.pkl", "wb") as f: ### step
-    pickle.dump(upstream_model, f)
+# with open("upstream_model_5_step2.pkl", "wb") as f: ### step
+#     pickle.dump(upstream_model, f)
 
 
     
-downstream_model = FidelityModel(upstream_model)
-downstream_model.train(upstream_model.dataset)
+# downstream_model = FidelityModel(upstream_model)
+# downstream_model.train(upstream_model.dataset)
 
-with open("downstream_model_5_step3.pkl", "wb") as f:### step
-    pickle.dump(downstream_model, f)
+# with open("downstream_model_5_step2.pkl", "wb") as f:### step
+#     pickle.dump(downstream_model, f)
 
+with open("downstream_model_5_step2.pkl", 'rb') as  f:
+    downstream_model = pickle.load(f)
+    
+upstream_model = downstream_model.upstream_model
 for idx,cir in enumerate(test_dataset):
     cir = upstream_model.vectorize(cir)
     if idx % 100 == 0:
@@ -46,5 +50,7 @@ for idx,cir in enumerate(test_dataset):
     
 from plot.plot import plot_duration_fidelity
 
-fig, axes, duration_X, duration2circuit_index  = plot_duration_fidelity(test_dataset,500,0) 
-fig.savefig("duration_fidelity_step3.svg") ### step
+import matplotlib.pyplot as plt
+fig, axes = plt.subplots(figsize=(20,6)) # 创建一个图形对象和一个子图对象
+duration_X, duration2circuit_index  = plot_duration_fidelity(fig, axes,test_dataset,1000,18000)
+fig.savefig("duration_fidelity_step2.svg") ### step
