@@ -15,6 +15,7 @@ import optax
 from upstream.sparse_dimensionality_reduction import sp_mds_reduce, sp_MDS, pad_to
 from utils.backend import Backend
 from circuit.formatter import layered_circuits_to_qiskit
+from utils.ray_func import wait
 
 # 利用随机游走来采样的方法
 
@@ -24,11 +25,14 @@ from circuit.formatter import layered_circuits_to_qiskit
 # 可能可以用 https://github.com/kerighan/graph-walker 来加速，但是看上去似乎没法指定节点
 
 # 对于noise来说似乎需不需要label，直接区分单比特
+
+
 class Step():
     '''A step contains (source gate, edge_type, target gate)'''
 
     def __init__(self, source, edge, target):
-        self.source = instruction2str(source)  # it should not be changed in the future
+        # it should not be changed in the future
+        self.source = instruction2str(source)
         self.edge = edge
         self.target = instruction2str(target)
 
@@ -61,28 +65,7 @@ class Path():
     def __str__(self): return '-'.join([str(step) for step in self.steps])
 
 
-# def travel_gates(circuit_info, head_gate, path_per_node, max_step, neighbor_info, directions = ('parallel', 'former', 'next')):
-#     traveled_paths = set()
-#     for _ in range(path_per_node):
-#         paths = randomwalk(circuit_info, head_gate, neighbor_info, max_step, directions = directions)
-#         for path in paths:
-#             # print(path)
-#             path_id = path._path_id
-#             if path_id in traveled_paths:
-#                 continue
-#             traveled_paths.add(path_id)
-
-#     # op_qubits = [qubit for qubit in head_gate['qubits']]
-
-#     # op_name = head_gate['name']
-#     # traveled_paths.add(f'#Q{op_qubits_str}')  # 加一个比特自己的信息
-#     op_qubits_str = instruction2str(head_gate) #"-".join([str(_q) for _q in op_qubits])
-#     traveled_paths.add(op_qubits_str) 
-
-#     return traveled_paths
-
-
-def BFS(traveled_paths, traveled_gates, path, circuit_info: dict, now_gate: dict, neighbor_info: dict, max_step: int,
+def BFS(traveled_paths, traveled_gates, path, circuit_info: dict, now_gate: dict, head_gate: dict, neighbor_info: dict, max_step: int,
         path_per_node: int, directions: list):
     if len(traveled_paths) > path_per_node:
         return
@@ -96,25 +79,28 @@ def BFS(traveled_paths, traveled_gates, path, circuit_info: dict, now_gate: dict
     now_layer = gate2layer[now_node_index]
     parallel_gates = layer2gates[now_layer]
     former_gates = [] if now_layer == 0 else layer2gates[now_layer - 1]  # TODO: 暂时只管空间尺度的
-    later_gates = [] if now_layer == len(layer2gates) - 1 else layer2gates[now_layer + 1]
+    later_gates = [] if now_layer == len(
+        layer2gates) - 1 else layer2gates[now_layer + 1]
 
     '''TODO: 可以配置是否只要前后啥的'''
     candidates = []
     if 'parallel' in directions:
-        candidates += [('parallel', gate) for gate in parallel_gates if gate != now_gate]
+        candidates += [('parallel', gate)
+                       for gate in parallel_gates if gate != now_gate]
     if 'former' in directions:
         candidates += [('former', gate) for gate in former_gates]
     if 'next' in directions:
         candidates += [('next', gate) for gate in later_gates]
 
-    ''' update: 对于gate只能到对应qubit周围的比特的门上 (neighbor_info)'''
+    ''' 对于gate只能到对应qubit周围的比特的门上 (neighbor_info)'''
     candidates = [
         (step_type, candidate)
         for step_type, candidate in candidates
-        if candidate not in traveled_gates and 
+        if candidate not in traveled_gates and
         any([(q1 in neighbor_info[q2] or q1 == q2) for q2 in now_gate['qubits'] for q1 in candidate['qubits']]) and
-        any([(q1 in neighbor_info[q2] or q1 == q2) for q2 in traveled_gates[0]['qubits'] for q1 in candidate['qubits']])
-        ]
+        any([(q1 in neighbor_info[q2] or q1 == q2)
+            for q2 in traveled_gates[0]['qubits'] for q1 in candidate['qubits']])
+    ]
 
     for step_type, next_gate in candidates:
         path_app = deepcopy(path)
@@ -123,7 +109,8 @@ def BFS(traveled_paths, traveled_gates, path, circuit_info: dict, now_gate: dict
         if path_id not in traveled_paths:
             traveled_paths.add(path_id)
         traveled_gates.append(next_gate)
-        BFS(traveled_paths, traveled_gates, path_app, circuit_info, next_gate, neighbor_info, max_step - 1, path_per_node, directions)
+        BFS(traveled_paths, traveled_gates, path_app, circuit_info, next_gate,
+            head_gate, neighbor_info, max_step - 1, path_per_node, directions)
         traveled_gates.remove(next_gate)
 
 
@@ -132,7 +119,7 @@ def travel_gates_BFS(circuit_info, head_gate, path_per_node, max_step, neighbor_
     traveled_paths = set()
 
     traveled_gates = [head_gate]
-    BFS(traveled_paths, traveled_gates, Path([]), circuit_info, head_gate, neighbor_info, max_step, path_per_node,
+    BFS(traveled_paths, traveled_gates, Path([]), circuit_info, head_gate, head_gate, neighbor_info, max_step, path_per_node,
         directions)
 
     op_qubits_str = instruction2str(head_gate)
@@ -195,7 +182,8 @@ class RandomwalkModel():
         # 这里的device可以是device也可以是coupler
         self.device2path_table = defaultdict(dict)  # 存了路径(Path)到向量化后的index的映射
 
-        self.device2reverse_path_table = defaultdict(dict)  # qubit -> path -> index
+        self.device2reverse_path_table = defaultdict(
+            dict)  # qubit -> path -> index
         self.device2reverse_path_table_size = defaultdict(int)
         self.max_step = max_step
         self.path_per_node = path_per_node
@@ -225,7 +213,6 @@ class RandomwalkModel():
 
     def train(self, dataset, multi_process: bool = False, process_num: int = 10):
         # 改成一种device一个path table
-
         '''TODO: 可以枚举来生成所有的path table'''
 
         assert self.dataset is None
@@ -253,31 +240,67 @@ class RandomwalkModel():
 
         all_gate_paths = []
 
-        for future in futures:
-            if multi_process:
-                result = ray.get(future)
-            else:
-                result = future
+        futures = wait(futures)
 
+        for result in futures:
             for gate_paths in result:
                 assert len(gate_paths) != 0
 
             all_gate_paths += result
 
+        device2path_coexist_count = {}
+        # device2path_count = defaultdict(lambda : defaultdict(int))
+
+        print('count path')
         path_count = defaultdict(lambda: defaultdict(int))
-        for circuit_info, gate_paths in zip(dataset, all_gate_paths):
+        for index, (circuit_info, gate_paths ) in enumerate(zip(dataset, all_gate_paths)):
+            print(index, '/', len(dataset))
             for gate_index, traveled_paths in enumerate(gate_paths):
+                traveled_paths = list(traveled_paths)
                 device = extract_device(circuit_info['gates'][gate_index])
                 for path_id in traveled_paths:
                     path_count[device][path_id] += 1
+                circuit_info['gate_paths'] = gate_paths
+                
+                for i1, p1 in enumerate(traveled_paths):
+                    for p2 in traveled_paths[i1+1:]:
+                        if device not in device2path_coexist_count:
+                            device2path_coexist_count[device] = {}
+                        if p1 not in device2path_coexist_count[device]:
+                            device2path_coexist_count[device][p1] =  defaultdict(int)
+                        device2path_coexist_count[device][p1][p2] += 1
 
-            assert len(gate_paths) == len(circuit_info['gates'])
+            # assert len(gate_paths) == len(circuit_info['gates'])
             circuit_info['gate_paths'] = gate_paths
+
+        '''TODO: 去掉冗余的, 要不直接算correlation吧'''
+        '''很慢'''
+        print('remove redundancy')
+        device2redundant_path = defaultdict(set)
+        for device, _path_count in path_count.items():
+            print('before removment', len(_path_count))
+            redundant_path = device2redundant_path[device]
+            _paths = list(_path_count.keys())
+            for i1, p1 in enumerate(_paths):
+                if p1 in redundant_path:
+                    continue
+                for i2, p2 in enumerate(_paths[i1+1:]):
+                    if p2 in redundant_path or device2path_coexist_count[device][p1][p2] == 0:
+                        continue
+                    if device2path_coexist_count[device][p1][p2] / _path_count[p1] > 0.9 and _path_count[p1] / _path_count[p2] > 0.9 and _path_count[p2] / _path_count[p1] > 0.9:
+                        # print(
+                        #     device, p1, p2, device2path_coexist_count[device][p1][p2], _path_count[p1], _path_count[p1], 'is redundant')
+                        if _path_count[p1] > _path_count[p2]:
+                            redundant_path.add(p1)
+                        else:
+                            redundant_path.add(p2)
+            print('after removment', len(_path_count) - len(redundant_path))
+
 
         # unusual paths are not added to the path table
         for device in path_count:
             for path_id, count in path_count[device].items():
-                if count >= 10:
+                if count >= 10 and path_id not in device2redundant_path[device]:
                     self.path_index(device, path_id)
 
         print('random walk finish device size = ', len(self.device2path_table))
@@ -286,7 +309,7 @@ class RandomwalkModel():
         for device, path_table in self.device2path_table.items():
             # self.device2reverse_path_table_size[device] = len(path_table)
             print(device, 'path table size = ', len(path_table))
-
+            # print(path_table.keys())
             if len(path_table) > self.max_table_size:
                 self.max_table_size = len(path_table)
 
@@ -319,8 +342,10 @@ class RandomwalkModel():
         path_values = []
         for index in path_indexs:
             path = self.reverse_hash_table[index]
-            path_values.append(1 * self.reduced_scaling * (0.4 ** self.count_step(path)))
-        return pad_to(path_indexs, path_values, self.path_per_node * (self.max_step + 1))  # 直接pad到最大长度安全一些
+            path_values.append(1 * self.reduced_scaling *
+                               (0.4 ** self.count_step(path)))
+        # 直接pad到最大长度安全一些
+        return pad_to(path_indexs, path_values, self.path_per_node * (self.max_step + 1))
 
     def load_vecs(self):
         vecs = []
@@ -367,7 +392,8 @@ class RandomwalkModel():
             for instruction in circuit_info['gates']:
                 circuit_reduced_vecs.append(all_reduced_vecs[point])
                 point += 1
-            circuit_info['reduced_vecs'] = np.array(circuit_reduced_vecs, dtype=np.float)
+            circuit_info['reduced_vecs'] = np.array(
+                circuit_reduced_vecs, dtype=np.float)
 
         return all_reduced_vecs
 
@@ -438,8 +464,8 @@ class RandomwalkModel():
         max_step = self.max_step
         path_per_node = self.path_per_node
 
-        # if 'path_indexs' in circuit_info:
-        #     return circuit_info
+        if 'path_indexs' in circuit_info:
+            return circuit_info
 
 
         neighbor_info = self.backend.neighbor_info
@@ -450,9 +476,8 @@ class RandomwalkModel():
             paths = travel_gates_BFS(circuit_info, gate, path_per_node, max_step, neighbor_info,
                                      directions=self.travel_directions)
             device = extract_device(gate)
-            if not isinstance(device,tuple):
-                device = (device, -1)
-            _path_index = [self.path_index(device, path_id) for path_id in paths if self.has_path(device, path_id)]
+            _path_index = [self.path_index(
+                device, path_id) for path_id in paths if self.has_path(device, path_id)]
             _path_index.sort()
             circuit_info['path_indexs'].append(_path_index)
 
@@ -461,16 +486,16 @@ class RandomwalkModel():
             circuit_info['vecs'].append(vec)
 
         return circuit_info
-    
+
     def extract_paths_from_vec(self, device, gate_vector: np.array) -> list:
         # device = extract_device(gate)
-        inclued_path_indexs = np.argwhere(gate_vector==1)[:,0]
+        inclued_path_indexs = np.argwhere(gate_vector == 1)[:, 0]
         paths = [
             self.device2reverse_path_table[device][index]
             for index in inclued_path_indexs
         ]
-        return paths 
-    
+        return paths
+
     def reconstruct(self, device, gate_vector: np.array) -> list:
         paths = self.extract_paths_from_vec(device, gate_vector)
 
@@ -482,10 +507,12 @@ class RandomwalkModel():
                 'qubits': [int(qubit) for qubit in elms[1:]]
             }
             if elms[0] in ('rx', 'ry', 'rz'):
-                # gate['params'] = 
-                gate['params'] = np.random.rand(1) * 2 * np.pi  # np.array([np.pi])  #np.zeros((1,)) #
-            if elms[0] in ('u'): 
-                gate['params'] = np.random.rand(3) * 2 * np.pi # np.array([np.pi] * 3)  #np.zeros((3,)) #
+                # gate['params'] =
+                # np.array([np.pi])  #np.zeros((1,)) #
+                gate['params'] = np.random.rand(1) * 2 * np.pi
+            if elms[0] in ('u'):
+                # np.array([np.pi] * 3)  #np.zeros((3,)) #
+                gate['params'] = np.random.rand(3) * 2 * np.pi
             elif elms[0] in ('cx', 'cz'):
                 gate['params'] = []
 
@@ -500,11 +527,12 @@ class RandomwalkModel():
                 # assert all([qubit not in other_gate['qubits'] for qubit in gate['qubits']])
             layer2gates[layer].append(gate)
             return
-        
+
         head_gate = {
             'name': 'u',
             'qubits': [random.randint(0, self.n_qubits-1)],
-            'params':  np.ones((3,)) * np.pi * 2 #[random.random() * 2 *jnp.pi for _ in range(3)],
+            # [random.random() * 2 *jnp.pi for _ in range(3)],
+            'params':  np.ones((3,)) * np.pi * 2
         }
         # [head_gate]
         layer2gates = [
