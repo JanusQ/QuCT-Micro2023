@@ -63,6 +63,7 @@ from qiskit.quantum_info import Operator
 # neigh_info = get_grid_neighbor_info(grid_num, 1)
 # n_qubits = grid_num ** 2
 
+# init_unitary_mat = unitary_group.rvs(2**2)
 
 n_qubits = 2
 layer2gates = [
