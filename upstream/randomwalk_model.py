@@ -313,20 +313,19 @@ class RandomwalkModel():
             if len(path_table) > self.max_table_size:
                 self.max_table_size = len(path_table)
 
-        for index, circuit_info in enumerate(dataset):
-            circuit_info['path_indexs'] = []
-            circuit_info['vecs'] = []
+        # for index, circuit_info in enumerate(dataset):
+        #     circuit_info['path_indexs'] = []
+        #     circuit_info['vecs'] = []
 
-            for gate, paths in zip(circuit_info['gates'], circuit_info['gate_paths']):
-                device = extract_device(gate)
-                _path_index = [self.path_index(
-                    device, path_id) for path_id in paths if self.has_path(device, path_id)]
-                _path_index.sort()
-                circuit_info['path_indexs'].append(_path_index)
+        #     for gate, paths in zip(circuit_info['gates'], circuit_info['gate_paths']):
+        #         device = extract_device(gate)
+        #         _path_index = [self.path_index(device, path_id) for path_id in paths if self.has_path(device, path_id)]
+        #         _path_index.sort()
+        #         circuit_info['path_indexs'].append(_path_index)
 
-                vec = np.zeros(self.max_table_size, dtype=np.float32)
-                vec[np.array(_path_index)] = 1.
-                circuit_info['vecs'].append(vec)
+        #         vec = np.zeros(self.max_table_size, dtype=np.float32)
+        #         vec[np.array(_path_index)] = 1.
+        #         circuit_info['vecs'].append(vec)
 
         # self.all_instructions = []
         # for circuit_info in self.dataset:
@@ -467,6 +466,7 @@ class RandomwalkModel():
 
         if 'path_indexs' in circuit_info:
             return circuit_info
+
 
         neighbor_info = self.backend.neighbor_info
         circuit_info['path_indexs'] = []

@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 def get_duration2circuit_infos(durations,step,max_duration):
     durations = np.array(durations)
     if max_duration == 0:
@@ -18,7 +17,7 @@ def get_duration2circuit_infos(durations,step,max_duration):
 
     return duration_X, duration2circuit_index
 
-def plot_duration_fidelity(dataset,step,max_duration):
+def plot_duration_fidelity(fig, axes,dataset,step,max_duration):
     predicts,reals, durations = [],[],[]
     for cir in dataset:
         predicts.append(cir['circuit_predict'])
@@ -35,11 +34,10 @@ def plot_duration_fidelity(dataset,step,max_duration):
         real_y.append(reals[circuit_index].mean())
         predict_y.append(predicts[circuit_index].mean())
         
-    fig, axes = plt.subplots(figsize=(20,6)) # 创建一个图形对象和一个子图对象
     axes.plot(duration_X, real_y ,markersize = 12,linewidth = 2, label='real',marker = '^' )
     axes.plot(duration_X, predict_y ,markersize = 12,linewidth = 2, label='predict',marker = '^' )
     axes.set_xlabel('duration ')
     axes.set_ylabel('fidelity')
     axes.legend() # 添加图例
     fig.show()
-    return fig, axes, duration_X, duration2circuit_index
+    return  duration_X, duration2circuit_index
