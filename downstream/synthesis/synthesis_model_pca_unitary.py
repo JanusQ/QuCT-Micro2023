@@ -39,7 +39,7 @@ from qiskit.quantum_info import Operator
 import math
 from utils.backend import Backend
 from utils.ray_func import *
-
+from random import randint
 config.update("jax_enable_x64", True)
 
 
@@ -212,7 +212,7 @@ class SynthesisModel():
                 if len(layer_gates) == 0:
                     continue
                 for _ in range(30):
-                    target_gate_index = random.randint(0, len(layer_gates)-1)
+                    target_gate_index = randint(0, len(layer_gates)-1)
                     target_gate_index = layer_gates[target_gate_index]['id']
                     target_gate = circuit_info['gates'][target_gate_index]
 
@@ -349,6 +349,7 @@ class SynthesisModel():
 
 
 def find_parmas(n_qubits, layer2gates, U, lr=1e-1, max_epoch=1000, allowed_dist=1e-2, n_iter_no_change=10, no_change_tolerance=1e-2, random_params=True, verbose = False):
+    np.random.RandomState()
     param_size = 0
     params = []
     for layer in layer2gates:
@@ -363,7 +364,7 @@ def find_parmas(n_qubits, layer2gates, U, lr=1e-1, max_epoch=1000, allowed_dist=
 
     if random_params:
         params = jax.random.normal(jax.random.PRNGKey(
-            random.randint(0, 100)), (param_size,), dtype=jnp.float64)
+            np.random.randint(0, 100)), (param_size,), dtype=jnp.float64)
     else:
         params = jnp.array(params, dtype=jnp.float64)
 
