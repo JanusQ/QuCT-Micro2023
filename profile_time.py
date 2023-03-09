@@ -24,16 +24,16 @@ backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info
                   basis_two_gates = default_basis_two_gates, divide = False, decoupling=False)
 
 dataset = []
-dataset += gen_random_circuits(min_gate=10, max_gate=20, n_circuits=1,
+dataset += gen_random_circuits(min_gate=10, max_gate=30, n_circuits=4,
                                    two_qubit_gate_probs=[4, 8], backend=backend, multi_process=True)
 upstream_model = RandomwalkModel(1, 20, backend = backend, travel_directions=('parallel', 'former'))
 upstream_model.train(dataset, multi_process = True)
 
 simulator = NoiseSimulator(backend)
 
-start2 = time.time()
-erroneous_pattern = simulator.get_error_results(dataset, upstream_model, multi_process=False)
-execute_time2 = time.time() - start2
+# start2 = time.time()
+# erroneous_pattern = simulator.get_error_results(dataset, upstream_model, multi_process=False)
+# execute_time2 = time.time() - start2
 
 start = time.time()
 erroneous_pattern = simulator.get_error_results(dataset, upstream_model, multi_process=True)
