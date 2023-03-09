@@ -60,10 +60,11 @@ class FidelityModel():
                         circuit_devices = []
                         for gate in circuit_info['gates']:
                             device = extract_device(gate)
-                            if isinstance(device,tuple):
-                                device = (circuit_info['map'][device[0]],circuit_info['map'][device[1]])
-                            else:
-                                device = circuit_info['map'][device]
+                            if 'map' in circuit_info:
+                                if isinstance(device,tuple):
+                                    device = (circuit_info['map'][device[0]],circuit_info['map'][device[1]])
+                                else:
+                                    device = circuit_info['map'][device]
                             device_index = list(upstream_model.device2path_table.keys()).index(device)
                             circuit_devices.append(device_index)
                         devices.append(circuit_devices)
@@ -119,10 +120,11 @@ class FidelityModel():
         circuit_devices = []
         for gate in circuit_info['gates']:
             device = extract_device(gate)
-            if isinstance(device,tuple):
-                device = (circuit_info['map'][device[0]],circuit_info['map'][device[1]])
-            else:
-                device = circuit_info['map'][device]
+            if 'map' in circuit_info:
+                if isinstance(device,tuple):
+                    device = (circuit_info['map'][device[0]],circuit_info['map'][device[1]])
+                else:
+                    device = circuit_info['map'][device]
             device_index = device_list.index(device)
             circuit_devices.append(device_index)
         circuit_devices = np.array(circuit_devices)

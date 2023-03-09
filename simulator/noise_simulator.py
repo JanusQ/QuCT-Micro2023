@@ -12,7 +12,7 @@ from qiskit.quantum_info.analysis import hellinger_fidelity
 from numpy import pi
 
 from upstream.randomwalk_model import extract_device
-
+import ray
 
 # https://qiskit.org/documentation/tutorials/simulators/3_building_noise_models.html
 
@@ -96,16 +96,26 @@ class NoiseSimulator():
 
             # noise_model.add_quantum_error(errors_thermal, basis_two_gates, [qubit1, qubit2])
 
-    def get_error_results(self, dataset, model, erroneous_pattern=None):
+    def get_error_results(self, dataset, model, erroneous_pattern=None, multi_process=False):
         if erroneous_pattern is None:
             erroneous_pattern = get_random_erroneous_pattern(model)
 
+        futures = []
         for idx, circuit_info in enumerate(dataset):
             if idx % 100 == 0:
-                print(idx,"simulate finish!")
-            self.get_error_result(circuit_info, model, erroneous_pattern)
-        
+                print(idx, "simulate finish!")
+            if multi_process:
+                futures.append(get_error_result_remote.remote(self, circuit_info, model, erroneous_pattern))
+            else:
+                self.get_error_result(circuit_info, model, erroneous_pattern)
+
+        for idx, future in enumerate(futures):
+            cir = ray.get(future)
+            dataset[idx] = cir
+
         return erroneous_pattern
+
+
 
     def get_error_result(self, circuit_info, model, erroneous_pattern=None):
         if 'qiskit_circuit' not in circuit_info or circuit_info['qiskit_circuit'] is None:
@@ -136,6 +146,9 @@ class NoiseSimulator():
                          noise_model=self.noise_model, shots=n_samples, optimization_level=0).result()
         return result.get_counts()
 
+@ray.remote
+def get_error_result_remote(noiseSimulator, circuit_info, model, erroneous_pattern=None):
+    return noiseSimulator.get_error_result(circuit_info, model, erroneous_pattern)
 
 # https://qiskit.org/documentation/apidoc/aer_noise.html
 
@@ -187,10 +200,11 @@ def add_pattern_error_path(circuit, n_qubits, model, device2erroneous_pattern): 
         qubits = gate['qubits']
         params = gate['params']
         device = extract_device(gate)
-        if isinstance(device,tuple):
-            device = (circuit_info['map'][device[0]],circuit_info['map'][device[1]])
-        else:
-            device = circuit_info['map'][device]
+        if 'map' in circuit_info:
+            if isinstance(device,tuple):
+                device = (circuit_info['map'][device[0]],circuit_info['map'][device[1]])
+            else:
+                device = circuit_info['map'][device]
         erroneous_pattern_index = device2erroneous_pattern_index[device]
         if name in ('rx', 'ry', 'rz'):
             assert len(params) == 1 and len(qubits) == 1
