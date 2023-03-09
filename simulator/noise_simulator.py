@@ -108,12 +108,12 @@ class NoiseSimulator():
         return erroneous_pattern
 
     def get_error_result(self, circuit_info, model, erroneous_pattern=None):
-        if 'qiskit_circuit' not in circuit_info:
-            circuit_info['qiskit_circuit'] = layered_circuits_to_qiskit(self.n_qubits, circuit_info['layer2gates'])
+        if 'qiskit_circuit' not in circuit_info or circuit_info['qiskit_circuit'] is None:
+            circuit_info['qiskit_circuit'] = layered_circuits_to_qiskit(circuit_info['num_qubits'], circuit_info['layer2gates'])
         if erroneous_pattern is None:
             erroneous_pattern = get_random_erroneous_pattern(model)
 
-        error_circuit, n_erroneous_patterns = add_pattern_error_path(circuit_info, self.n_qubits, model,
+        error_circuit, n_erroneous_patterns = add_pattern_error_path(circuit_info, circuit_info['num_qubits'], model,
                                                                      erroneous_pattern)
         error_circuit.measure_all()
         noisy_count = self.simulate_noise(error_circuit, 1000)
@@ -187,6 +187,10 @@ def add_pattern_error_path(circuit, n_qubits, model, device2erroneous_pattern): 
         qubits = gate['qubits']
         params = gate['params']
         device = extract_device(gate)
+        if isinstance(device,tuple):
+            device = (circuit_info['map'][device[0]],circuit_info['map'][device[1]])
+        else:
+            device = circuit_info['map'][device]
         erroneous_pattern_index = device2erroneous_pattern_index[device]
         if name in ('rx', 'ry', 'rz'):
             assert len(params) == 1 and len(qubits) == 1

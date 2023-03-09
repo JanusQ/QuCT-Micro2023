@@ -464,8 +464,8 @@ class RandomwalkModel():
         max_step = self.max_step
         path_per_node = self.path_per_node
 
-        # if 'path_indexs' in circuit_info:
-        #     return circuit_info
+        if 'vecs' in circuit_info and circuit_info['vecs'] is not None and len(circuit_info['vecs'][0]) == self.max_table_size:
+            return circuit_info
 
 
         neighbor_info = self.backend.neighbor_info

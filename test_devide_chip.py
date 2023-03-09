@@ -13,7 +13,7 @@ n_qubits = 36
 backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basis_single_gates = default_basis_single_gates,
                   basis_two_gates = default_basis_two_gates, divide = False, decoupling=False)
 
-ret_backend = devide_chip(backend,10)
+ret_backend = devide_chip(backend,5)
 
-dataset = gen_random_circuits(min_gate = 50, max_gate = 150, n_circuits = 10, two_qubit_gate_probs=[4, 8],backend = ret_backend,multi_process=False)
+dataset = gen_random_circuits(min_gate = 120, max_gate = 150, n_circuits = 10, two_qubit_gate_probs=[4, 8],backend = ret_backend,multi_process=False)
 print("")

@@ -58,7 +58,7 @@ def _gen_random_circuits(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backen
         except Exception as e:
             traceback.print_exc()
 
-        print(circuit)
+        # print(circuit)
         
         circuit_info = {
             'id': f'rc_{n_qubits}_{n_gates}_{two_qubit_prob}_{_}',
@@ -77,7 +77,10 @@ def _gen_random_circuits(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backen
         circuit_info['duration'] = get_circuit_duration(
             circuit_info['layer2gates'], backend.single_qubit_gate_time, backend.two_qubit_gate_time)
         circuit_info['gate_num'] = len(circuit_info['gates'])
-
+        circuit_info['devide_qubits'] = backend.devide_qubits
+        
+        # fig = circuit_info['qiskit_circuit'].draw('mpl')
+        # fig.savefig("devide_figure/"+str(_circuit_info['id'])+".svg")
         # 减少模型大小
         circuit_info['qiskit_circuit'] = None
 
