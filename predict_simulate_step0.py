@@ -92,9 +92,9 @@ def cut_circuit(circuit):
     
     return result
         
-size = 14
-n_qubits = size ** 2
-topology = gen_grid_topology(size)  # 3x3 9 qubits
+# size = 6
+# n_qubits = 18
+# topology = gen_grid_topology(size)  # 3x3 9 qubits
 # new_topology = defaultdict(list)
 # for qubit in topology.keys():
 #     if qubit < n_qubits:
@@ -102,63 +102,73 @@ topology = gen_grid_topology(size)  # 3x3 9 qubits
 #             if ele < n_qubits:
 #                 new_topology[qubit].append(ele)
 # topology =  new_topology      
-neigh_info = copy.deepcopy(topology)
-coupling_map = topology_to_coupling_map(topology)      
+# neigh_info = copy.deepcopy(topology)
+# coupling_map = topology_to_coupling_map(topology)      
 
 
 
-backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basis_single_gates=default_basis_single_gates,
-                  basis_two_gates=default_basis_two_gates, divide=False, decoupling=False)
+# backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basis_single_gates=default_basis_single_gates,
+#                   basis_two_gates=default_basis_two_gates, divide=False, decoupling=False)
 
-covered_couplng_map = set()
-dataset = []
-while True:
-    ret_backend = devide_chip(backend, max_qubit=5)
-    before = len(covered_couplng_map)
-    for ele in ret_backend.coupling_map:
-        covered_couplng_map.add(tuple(ele))
-    if before == len(covered_couplng_map):
-        continue
-    dataset += gen_random_circuits(min_gate=20, max_gate=160, n_circuits=4,
-                                   two_qubit_gate_probs=[4, 8], backend=ret_backend, multi_process=True)
-    # dataset_copy = copy.deepcopy(dataset)
-    # make_circuitlet(dataset)
-    if len(covered_couplng_map) == len(coupling_map):
-        break
+# covered_couplng_map = set()
+# dataset = []
+# while True:
+#     ret_backend = devide_chip(backend, max_qubit=5)
+#     before = len(covered_couplng_map)
+#     for ele in ret_backend.coupling_map:
+#         covered_couplng_map.add(tuple(ele))
+#     if before == len(covered_couplng_map):
+#         continue
+#     dataset += gen_random_circuits(min_gate=20, max_gate=160, n_circuits=4,
+#                                    two_qubit_gate_probs=[4, 8], backend=ret_backend, multi_process=True)
+#     # dataset_copy = copy.deepcopy(dataset)
+#     # make_circuitlet(dataset)
+#     if len(covered_couplng_map) == len(coupling_map):
+#         break
 
-upstream_model = RandomwalkModel(1, 20, backend=backend, travel_directions=('parallel', 'former'))
-print(len(dataset), "circuit generated")
+
+with open("upstream_model_18.pkl","rb")as f:
+    step1 = pickle.load(f)
+
+
+    
+dataset = step1.dataset
+backend = step1.backend
+
+upstream_model = RandomwalkModel(0, 20, backend=backend, travel_directions=('parallel', 'former'))
 upstream_model.train(dataset, multi_process=True)
 
-with open("upstream_model_18.pkl","wb")as f:
+upstream_model.erroneous_pattern = step1.erroneous_pattern
+with open("upstream_model_18_step0.pkl","wb")as f:
     pickle.dump(upstream_model,f)
 
-print("original",len(dataset))
-dataset = make_circuitlet(dataset)
-print("cutted",len(dataset))
+# print("original",len(dataset))
+# dataset = make_circuitlet(dataset)
+# print("cutted",len(dataset))
 
 
-simulator = NoiseSimulator(backend)
-erroneous_pattern = simulator.get_error_results(dataset, upstream_model, multi_process=True)
-upstream_model.erroneous_pattern = erroneous_pattern
-with open("upstream_model_18.pkl","wb")as f:
-    pickle.dump(upstream_model,f)
+# simulator = NoiseSimulator(backend)
+# erroneous_pattern = simulator.get_error_results(dataset, upstream_model, multi_process=True)
+# upstream_model.erroneous_pattern = erroneous_pattern
+# with open("upstream_model_18.pkl","wb")as f:
+#     pickle.dump(upstream_model,f)
     
 
-index = np.arange(len(dataset))
-random.shuffle(index)
-train_index, test_index = index[:-1500], index[-1500:]
-train_dataset, test_dataset = np.array(dataset)[train_index], np.array(dataset)[test_index]
-with open("split_dataset_18.pkl","wb")as f:
-    pickle.dump((train_dataset, test_dataset),f)
+# index = np.arange(len(dataset))
+# random.shuffle(index)
+# train_index, test_index = index[:-1500], index[-1500:]
+# train_dataset, test_dataset = np.array(dataset)[train_index], np.array(dataset)[test_index]
+# with open("split_dataset_18.pkl","wb")as f:
+#     pickle.dump((train_dataset, test_dataset),f)
 
 
-# with open("split_dataset_18.pkl","rb")as f:
-#     train_dataset, test_dataset = pickle.load(f)
-# with open("upstream_model_18.pkl","rb")as f:
-#     upstream_model = pickle.load(f)
+with open("split_dataset_18.pkl","rb")as f:
+    train_dataset, test_dataset = pickle.load(f)
 # upstream_model = downstream_model.upstream_model
     
+for idx, cir in enumerate(train_dataset):
+    cir = upstream_model.vectorize(cir)
+
 downstream_model = FidelityModel(upstream_model)
 downstream_model.train(train_dataset)
 
@@ -170,7 +180,7 @@ for idx, cir in enumerate(test_dataset):
     predict = downstream_model.predict_fidelity(cir)
     
     # print(predict)
-with open("error_params_predicts_18.pkl","wb")as f:
+with open("error_params_predicts_18_step0.pkl","wb")as f:
     pickle.dump((downstream_model.error_params, predicts), f)
     
 find_error_path(upstream_model, downstream_model.error_params)
@@ -178,4 +188,4 @@ find_error_path(upstream_model, downstream_model.error_params)
 
 fig, axes = plt.subplots(figsize=(20, 6))  # 创建一个图形对象和一个子图对象
 duration_X, duration2circuit_index = plot_duration_fidelity(fig, axes, test_dataset)
-fig.savefig("duration_fidelity_18.svg")  # step
+fig.savefig("duration_fidelity_18_step0.svg")  # step
