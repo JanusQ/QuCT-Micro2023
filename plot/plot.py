@@ -17,7 +17,7 @@ def get_duration2circuit_infos(durations,step,max_duration):
 
     return duration_X, duration2circuit_index
 
-def plot_duration_fidelity(fig, axes,dataset,step,max_duration):
+def plot_duration_fidelity(fig, axes,dataset, step, max_duration):
     predicts,reals, durations = [],[],[]
     for cir in dataset:
         predicts.append(cir['circuit_predict'])

@@ -58,7 +58,7 @@ def _gen_random_circuits(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backen
         except Exception as e:
             traceback.print_exc()
 
-        # print(circuit)
+        print(circuit)
         
         circuit_info = {
             'id': f'rc_{n_qubits}_{n_gates}_{two_qubit_prob}_{_}',

@@ -36,15 +36,19 @@ class Step():
         self.edge = edge
         self.target = instruction2str(target)
 
-        self._path_id = str(self)
+        # self._path_id = str(self)
 
         # self.  #label for noise simulation
         return
 
-    def __hash__(self): return hash(self._path_id)
+    def __hash__(self): return hash(str(self))
 
     # self.source,
-    def __str__(self): return f'{self.edge}-{self.target}'
+    def __str__(self): 
+        if self.edge == 'loop':
+            return str(self.target)
+        else:
+            return f'{self.edge}-{self.target}'
 
 
 # TODO: there should be a step factory in the future for saving memory
@@ -54,6 +58,9 @@ class Path():
     def __init__(self, steps):
         self.steps = steps
         self._path_id = str(self)
+        # temp = 0
+        # if self._path_id == 'cz,2,3-cz,2,3':
+        #     temp = 0
 
     def add(self, step):
         steps = list(self.steps)
@@ -119,12 +126,30 @@ def travel_gates_BFS(circuit_info, head_gate, path_per_node, max_step, neighbor_
     traveled_paths = set()
 
     traveled_gates = [head_gate]
-    BFS(traveled_paths, traveled_gates, Path([]), circuit_info, head_gate, head_gate, neighbor_info, max_step, path_per_node,
+    BFS(traveled_paths, traveled_gates, Path([Step(head_gate,'loop',head_gate)]), circuit_info, head_gate, head_gate, neighbor_info, max_step, path_per_node,
         directions)
 
     op_qubits_str = instruction2str(head_gate)
     traveled_paths.add(op_qubits_str)
+    
+    # 单独加一个idle的next的
+    # 给fidelity用的
+    
+    # TODO: 检查下写对了没有
+    layer2gates = circuit_info['layer2gates']
+    gate2layer = circuit_info['gate2layer']
 
+    now_node_index = head_gate['id']  # hard code in the mycircuit_to_dag
+    now_layer = gate2layer[now_node_index]
+    for qubit in head_gate['qubits']:
+        n_idle = 0
+        for n_idle, layer_gates in enumerate(layer2gates[now_layer+1:now_layer+6]):
+            if any([qubit in gate['qubits'] for gate in layer_gates]):
+                break
+        if n_idle > 0:
+            # print(f'{op_qubits_str}-idle{n_idle},{qubit}')
+            traveled_paths.add(f'{op_qubits_str}-idle{n_idle},{qubit}')
+    
     return traveled_paths
 
 
@@ -218,6 +243,7 @@ class RandomwalkModel():
         assert self.dataset is None
         self.dataset = dataset
 
+        backend: Backend = self.backend
         neighbor_info = self.backend.neighbor_info
         max_step = self.max_step
         path_per_node = self.path_per_node
@@ -252,7 +278,13 @@ class RandomwalkModel():
         # device2path_count = defaultdict(lambda : defaultdict(int))
 
         print('count path')
-        path_count = defaultdict(lambda: defaultdict(int))
+        # path_count = defaultdict(lambda: defaultdict(int))
+        path_count = {} # defaultdict(lambda: defaultdict(int))
+        for qubit in range(backend.n_qubits):
+            path_count[qubit] = defaultdict(int)
+        for coupling in backend.coupling_map:
+            path_count[tuple(coupling)] = defaultdict(int)
+        
         for index, (circuit_info, gate_paths ) in enumerate(zip(dataset, all_gate_paths)):
             # print(index, '/', len(dataset))
             for gate_index, traveled_paths in enumerate(gate_paths):
@@ -316,7 +348,7 @@ class RandomwalkModel():
             if len(path_table) > self.max_table_size:
                 self.max_table_size = len(path_table)
 
-        for index, circuit_info in enumerate(dataset):
+        for circuit_info in dataset:
             circuit_info['path_indexs'] = []
             circuit_info['vecs'] = []
 
@@ -341,65 +373,6 @@ class RandomwalkModel():
     def count_step(path_id: str) -> int:
         return len(path_id.split(','))
 
-    def _construct_sparse_vec(self, path_indexs):
-        path_values = []
-        for index in path_indexs:
-            path = self.reverse_hash_table[index]
-            path_values.append(1 * self.reduced_scaling *
-                               (0.4 ** self.count_step(path)))
-        # 直接pad到最大长度安全一些
-        return pad_to(path_indexs, path_values, self.path_per_node * (self.max_step + 1))
-
-    def load_vecs(self):
-        vecs = []
-        print('vec...')
-
-        for circuit_info in self.dataset:  # 每一个电路
-            sparse_vecs = []
-            for path_indexs in circuit_info['path_indexs']:  # 每一个节点
-                sparse_vec = self._construct_sparse_vec(path_indexs)
-                sparse_vecs.append(sparse_vec)
-                vecs.append(sparse_vec)
-            circuit_info['sparse_vecs'] = np.array(sparse_vecs, dtype=np.int64)
-        vecs = np.array(vecs, dtype=np.int64)
-        self.all_vecs = vecs
-        print('load vec finish')
-        return vecs
-
-    reduced_scaling = 1000
-
-    def load_reduced_vecs(self):
-        '''come from  verify_randomwalk.ipynb'''
-        vecs = self.load_vecs()
-
-        print('len(vecs) = ', len(vecs))
-
-        reudced_vecs = np.array(vecs, dtype=np.int64)
-        random.shuffle(reudced_vecs)
-        reudced_vecs = reudced_vecs[:200000]
-        print('mds', len(reudced_vecs))
-        print('reduced_dim', self.reduced_dim)
-
-        vec_size = len(self.hash_table)
-        reduced_params, _ = sp_MDS(reudced_vecs, vec_size, self.reduced_dim, epoch_num=12, print_interval=1,
-                                   batch_size=10)
-        self.reduced_params = reduced_params
-
-        all_reduced_vecs = vmap(sp_mds_reduce, in_axes=(None, 0), out_axes=0)(reduced_params,
-                                                                              vecs) / self.reduced_scaling
-
-        point = 0
-        print('reducing...')
-        for i, circuit_info in enumerate(self.dataset):
-            circuit_reduced_vecs = []
-            for instruction in circuit_info['gates']:
-                circuit_reduced_vecs.append(all_reduced_vecs[point])
-                point += 1
-            circuit_info['reduced_vecs'] = np.array(
-                circuit_reduced_vecs, dtype=np.float)
-
-        return all_reduced_vecs
-
     @staticmethod
     def load(path):
         path = os.path.join('model', path, )
@@ -419,41 +392,7 @@ class RandomwalkModel():
         file.close()
         return
 
-    # def vectorize(self, circuit):
-    #     # assert circuit.num_qubits <=
-    #     if isinstance(circuit, QuantumCircuit):
-    #         circuit_info = qiskit_to_layered_circuits(circuit)
-    #         circuit_info['qiskit_circuit'] = circuit
-    #     elif isinstance(circuit, dict) :# and 'qiskit_circuit' in circuit
-    #         circuit_info = circuit
-    #     else:
-    #         raise Exception(circuit, 'is a unexpected input')
-    #     max_step = self.max_step
-    #     path_per_node = self.path_per_node
-    #
-    #     assert 'path_indexs' not in circuit_info
-    #
-    #     circuit_info['path_indexs'] = []
-    #     circuit_info['sparse_vecs'] = []
-    #     for index, head_instruction in enumerate(circuit_info['gates']):
-    #         traveled_paths = travel_instructions(circuit_info, head_instruction, path_per_node, max_step)
-    #         path_indexs = [self.path_index(path) for path in traveled_paths if self.has_path(path)]
-    #         path_indexs.sort()
-    #         circuit_info['path_indexs'].append(path_indexs)
-    #         circuit_info['sparse_vecs'].append(self._construct_sparse_vec(path_indexs))
-    #
-    #     circuit_info['sparse_vecs'] = np.array(circuit_info['sparse_vecs'], dtype=np.int64)
-    #
-    #     if 'reduced_params' in self.__dict__:
-    #         scaling = self.reduced_scaling
-    #         reduced_params = self.reduced_params
-    #
-    #         vecs = circuit_info['sparse_vecs']
-    #         # vecs = [vec.tolist() for vec in vecs]
-    #         # vecs = make_same_size(vecs)
-    #         # vecs = np.array(vecs)
-    #         circuit_info['reduced_vecs'] = np.array(vmap(sp_mds_reduce, in_axes=(None, 0), out_axes=0)(reduced_params, vecs)/scaling, dtype=np.float)
-    #     return circuit_info
+
 
     def vectorize(self, circuit, gates=None):
 
@@ -467,8 +406,8 @@ class RandomwalkModel():
         max_step = self.max_step
         path_per_node = self.path_per_node
 
-        if 'path_indexs' in circuit_info:
-            return circuit_info
+        # if 'path_indexs' in circuit_info:
+        #     return circuit_info
 
         neighbor_info = self.backend.neighbor_info
         circuit_info['path_indexs'] = []

@@ -12,4 +12,11 @@ screenlog.0
 temp_data/
 *.pkl
 screenlog.*
+<<<<<<< HEAD
 *__pycache__
+=======
+5qubit_data
+9qubit_data
+table_size
+*.xlsx
+>>>>>>> ffc93034a1b5e4789b1abf8e6f3df16f4b3c6f0b
