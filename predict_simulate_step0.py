@@ -178,6 +178,9 @@ for idx, cir in enumerate(test_dataset):
     if idx % 100 == 0:
         print(idx, "predict finished!")
     predict = downstream_model.predict_fidelity(cir)
+    predicts.append(predict)
+    print(predict, cir['ground_truth_fidelity'])
+    
     
     # print(predict)
 with open("error_params_predicts_18_step0.pkl","wb")as f:

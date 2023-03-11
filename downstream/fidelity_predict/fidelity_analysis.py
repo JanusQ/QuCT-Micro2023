@@ -106,7 +106,7 @@ class FidelityModel():
 
         print(f'taining error params finishs')
 
-        self.error_params = params
+        self.error_params = np.array(params)
         # _error_params = {}
         # for device, error_param in error_params.items():
         #     _error_params[device] = np.array(error_params[device])
