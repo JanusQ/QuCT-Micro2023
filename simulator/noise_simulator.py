@@ -12,7 +12,7 @@ from qiskit.quantum_info.analysis import hellinger_fidelity
 from numpy import pi
 
 from upstream.randomwalk_model import extract_device
-
+import ray
 
 # https://qiskit.org/documentation/tutorials/simulators/3_building_noise_models.html
 
@@ -96,33 +96,49 @@ class NoiseSimulator():
 
             # noise_model.add_quantum_error(errors_thermal, basis_two_gates, [qubit1, qubit2])
 
-    def get_error_results(self, dataset, model, erroneous_pattern=None):
+    def get_error_results(self, dataset, model, erroneous_pattern=None, multi_process=False):
         if erroneous_pattern is None:
             erroneous_pattern = get_random_erroneous_pattern(model)
 
-        for idx, circuit_info in enumerate(dataset):
-            if idx % 100 == 0:
-                print(idx,"simulate finish!")
-            self.get_error_result(circuit_info, model, erroneous_pattern)
+        futures = []
+        fidelities = []
+        step = 100
+        for start in range(0,len(dataset),step):
+            sub_dataset = dataset[start:start + step]
+            if multi_process:
+                futures.append(get_error_result_remote.remote(self, sub_dataset, start, model, erroneous_pattern))
+            else:
+                fidelities += self.get_error_result(sub_dataset, start, model, erroneous_pattern)
+
+        for future in futures:
+            fidelities += ray.get(future)
         
+        for idx, cir in enumerate(dataset):
+            cir['ground_truth_fidelity'] = fidelities[idx]
         return erroneous_pattern
 
-    def get_error_result(self, circuit_info, model, erroneous_pattern=None):
-        if 'qiskit_circuit' not in circuit_info:
-            circuit_info['qiskit_circuit'] = layered_circuits_to_qiskit(self.n_qubits, circuit_info['layer2gates'])
-        if erroneous_pattern is None:
-            erroneous_pattern = get_random_erroneous_pattern(model)
 
-        error_circuit, n_erroneous_patterns = add_pattern_error_path(circuit_info, self.n_qubits, model,
-                                                                     erroneous_pattern)
-        error_circuit.measure_all()
-        noisy_count = self.simulate_noise(error_circuit, 1000)
-        circuit_info['error_result'] = noisy_count
-        true_result = {
-            '0' * circuit_info['num_qubits']: 2000
-        }
-        circuit_info['ground_truth_fidelity'] = hellinger_fidelity(circuit_info['error_result'], true_result)
-        return circuit_info
+
+    def get_error_result(self, sub_dataset, start, model, erroneous_pattern=None):
+        fidelities = []
+        for circuit_info in sub_dataset:
+            if 'qiskit_circuit' not in circuit_info or circuit_info['qiskit_circuit'] is None:
+                circuit_info['qiskit_circuit'] = layered_circuits_to_qiskit(circuit_info['num_qubits'], circuit_info['layer2gates'])
+            if erroneous_pattern is None:
+                erroneous_pattern = get_random_erroneous_pattern(model)
+
+            error_circuit, n_erroneous_patterns = add_pattern_error_path(circuit_info, circuit_info['num_qubits'], model,
+                                                                        erroneous_pattern)
+            error_circuit.measure_all()
+            noisy_count = self.simulate_noise(error_circuit, 1000)
+            # circuit_info['error_result'] = noisy_count
+            true_result = {
+                '0' * circuit_info['num_qubits']: 2000
+            }
+            fidelities.append(hellinger_fidelity(noisy_count, true_result))
+            
+        print(start+len(sub_dataset),'finished')
+        return fidelities
 
     def simulate_noise(self, circuit, n_samples=2000):
         n_qubits = circuit.num_qubits
@@ -136,6 +152,9 @@ class NoiseSimulator():
                          noise_model=self.noise_model, shots=n_samples, optimization_level=0).result()
         return result.get_counts()
 
+@ray.remote
+def get_error_result_remote(noiseSimulator, sub_dataset, start, model, erroneous_pattern=None):
+    return noiseSimulator.get_error_result(sub_dataset, start, model, erroneous_pattern)
 
 # https://qiskit.org/documentation/apidoc/aer_noise.html
 
@@ -187,6 +206,11 @@ def add_pattern_error_path(circuit, n_qubits, model, device2erroneous_pattern): 
         qubits = gate['qubits']
         params = gate['params']
         device = extract_device(gate)
+        if 'map' in circuit_info:
+            if isinstance(device,tuple):
+                device = (circuit_info['map'][device[0]],circuit_info['map'][device[1]])
+            else:
+                device = circuit_info['map'][device]
         erroneous_pattern_index = device2erroneous_pattern_index[device]
         if name in ('rx', 'ry', 'rz'):
             assert len(params) == 1 and len(qubits) == 1

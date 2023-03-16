@@ -1,3 +1,4 @@
+import time
 from utils.backend_info import *
 from collections import defaultdict
 import math
@@ -199,10 +200,11 @@ def get_devide_qubit(topology, max_qubit):
     qubits = topology.keys()
     trevel_node, devide_qubits = [], []
 
+    random.seed(time.time())
     while len(trevel_node) != len(qubits):
         sub_qubits = []
         head = random.choice(list(qubits-trevel_node))
-
+        
         fommer_step = topology[head]
         trevel_node.append(head)
         sub_qubits.append(head)
@@ -224,24 +226,23 @@ def get_devide_qubit(topology, max_qubit):
             if head in fommer_step:
                 fommer_step.remove(head)
             
-
+        sub_qubits.sort()
         devide_qubits.append(sub_qubits)
 
     return devide_qubits
 
 
-def devide_chip(backend, max_qubit):
+def devide_chip(backend, max_qubit, devide_qubits = None):
     ret_backend = copy.deepcopy(backend)
 
-    n_qubits = backend.n_qubits
-
+    # n_qubits = backend.n_qubits
     # devide_qubits = [i for i in range(n_qubits)]
     # devide_qubits = devide_qubits[offset:] + devide_qubits[:offset]
     # devide_qubits = [devide_qubits[i:i+max_qubit] for i in range(0,n_qubits,max_qubit)]
-
-    devide_qubits = get_devide_qubit(ret_backend.topology,  max_qubit)
+    if not devide_qubits:
+        devide_qubits = get_devide_qubit(ret_backend.topology,  max_qubit)
     print(devide_qubits)
-
+    ret_backend.devide_qubits = devide_qubits
     coupling_map = copy.deepcopy(ret_backend.coupling_map)
     for e1, e2 in coupling_map:
         for i in range(len(devide_qubits)):
@@ -320,7 +321,8 @@ class Backend():
         ]
 
         self.cache = {}
-
+        self.devide_qubits = None
+        
     def get_subgraph(self, location):
         """Returns the sub_coupling_graph with qubits in location."""
         subgraph = []

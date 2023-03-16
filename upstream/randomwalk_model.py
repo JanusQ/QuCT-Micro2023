@@ -136,19 +136,19 @@ def travel_gates_BFS(circuit_info, head_gate, path_per_node, max_step, neighbor_
     # 给fidelity用的
     
     # TODO: 检查下写对了没有
-    layer2gates = circuit_info['layer2gates']
-    gate2layer = circuit_info['gate2layer']
+    # layer2gates = circuit_info['layer2gates']
+    # gate2layer = circuit_info['gate2layer']
 
-    now_node_index = head_gate['id']  # hard code in the mycircuit_to_dag
-    now_layer = gate2layer[now_node_index]
-    for qubit in head_gate['qubits']:
-        n_idle = 0
-        for n_idle, layer_gates in enumerate(layer2gates[now_layer+1:now_layer+6]):
-            if any([qubit in gate['qubits'] for gate in layer_gates]):
-                break
-        if n_idle > 0:
-            # print(f'{op_qubits_str}-idle{n_idle},{qubit}')
-            traveled_paths.add(f'{op_qubits_str}-idle{n_idle},{qubit}')
+    # now_node_index = head_gate['id']  # hard code in the mycircuit_to_dag
+    # now_layer = gate2layer[now_node_index]
+    # for qubit in head_gate['qubits']:
+    #     n_idle = 0
+    #     for n_idle, layer_gates in enumerate(layer2gates[now_layer+1:now_layer+6]):
+    #         if any([qubit in gate['qubits'] for gate in layer_gates]):
+    #             break
+    #     if n_idle > 0:
+    #         # print(f'{op_qubits_str}-idle{n_idle},{qubit}')
+    #         traveled_paths.add(f'{op_qubits_str}-idle{n_idle},{qubit}')
     
     return traveled_paths
 
@@ -406,8 +406,8 @@ class RandomwalkModel():
         max_step = self.max_step
         path_per_node = self.path_per_node
 
-        # if 'path_indexs' in circuit_info:
-        #     return circuit_info
+        if 'vecs' in circuit_info and circuit_info['vecs'] is not None and len(circuit_info['vecs'][0]) == self.max_table_size:
+            return circuit_info
 
         neighbor_info = self.backend.neighbor_info
         circuit_info['path_indexs'] = []

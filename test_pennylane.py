@@ -7,16 +7,13 @@ import jax
 import optax
 from jax.config import config
 from downstream.synthesis.pennylane_op import layer_circuit_to_pennylane_circuit, layer_circuit_to_pennylane_tape
-<<<<<<< HEAD
 from downstream.synthesis.tensor_network_op import layer_circuit_to_matrix
 from scipy.stats import unitary_group
 import random
-=======
 from scipy.stats import unitary_group
 import time
 import random
 import scipy
->>>>>>> 5b937f28b4496c8c6a3bb93447f300feb293a2bc
 config.update("jax_enable_x64", True)
 
 

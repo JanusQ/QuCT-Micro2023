@@ -1,4 +1,5 @@
 from cmath import pi
+from collections import defaultdict
 from qiskit import QuantumCircuit
 import random
 # from utils.backend_info import default_basis_two_gates, default_basis_single_gates
@@ -33,7 +34,10 @@ def random_circuit(n_qubits, n_gates, two_qubit_prob = 0.5, reverse = True, coup
         else:
             raise Exception('Unknown gate type', gate_type)
 
-    for _ in range(n_gates):
+    pre_single = defaultdict(str)
+    pre_couple = defaultdict(lambda:-1)
+    cnt = 0
+    while cnt < n_gates:
         if random.random() < two_qubit_prob:
             gate_type = basis_two_gates[0]
             assert len(basis_two_gates) == 1
@@ -49,20 +53,61 @@ def random_circuit(n_qubits, n_gates, two_qubit_prob = 0.5, reverse = True, coup
         
         if gate_type == 'cz':
             # 没有控制和非控制的区别
-            circuit.cz(control_qubit, target_qubit)
             # if control_qubit == 1 and target_qubit == 2:
             #     print(circuit)
+            if pre_couple[control_qubit] == target_qubit and pre_couple[target_qubit] == control_qubit:
+                continue
+            else:
+                circuit.cz(control_qubit, target_qubit)
+                pre_couple[control_qubit] = target_qubit 
+                pre_couple[target_qubit] = control_qubit
+                pre_single[control_qubit] = ''
+                pre_single[target_qubit] = ''
+                
         elif gate_type == 'cx':
             random.shuffle(operated_qubits)
-            circuit.cx(operated_qubits[0], operated_qubits[1])
+            control_qubit = operated_qubits[0]
+            target_qubit = operated_qubits[1]
+            if pre_couple[control_qubit] == target_qubit and pre_couple[target_qubit] != control_qubit:
+                continue
+            else:
+                circuit.cx(control_qubit, target_qubit)
+                pre_couple[control_qubit] = target_qubit
+                pre_couple[target_qubit] = -1
+                pre_single[control_qubit] = ''
+                pre_single[target_qubit] = '' 
+            
         elif gate_type in ('h',):
-            circuit.h(random.choice(qubits))
+            selected_qubit = random.choice(qubits)
+            circuit.h(selected_qubit)
+            pre_single[selected_qubit] = ''
+            if pre_couple[pre_couple[selected_qubit]] == selected_qubit:
+                pre_couple[pre_couple[selected_qubit]] = -1 
+            pre_couple[selected_qubit] = -1
         elif gate_type in ('rx', 'rz', 'ry'):
-            getattr(circuit, gate_type)(random_pi(), random.choice(qubits))
+            selected_qubit = random.choice(qubits)
+            if gate_type == pre_single[selected_qubit]:
+                continue
+            else:
+                getattr(circuit, gate_type)(random_pi(), selected_qubit)
+                pre_single[selected_qubit] = gate_type
+                if pre_couple[pre_couple[selected_qubit]] == selected_qubit:
+                    pre_couple[pre_couple[selected_qubit]] = -1 
+                pre_couple[selected_qubit] = -1
+                
         elif gate_type in ('u',):
-            getattr(circuit, gate_type)(random_pi(), random_pi(), random_pi(), random.choice(qubits))
+            selected_qubit = random.choice(qubits)
+            if gate_type == pre_single[selected_qubit]:
+                continue
+            else:
+                getattr(circuit, gate_type)(random_pi(), random_pi(), random_pi(), selected_qubit)
+                pre_single[selected_qubit] = gate_type
+                if pre_couple[pre_couple[selected_qubit]] == selected_qubit:
+                    pre_couple[pre_couple[selected_qubit]] = -1 
+                pre_couple[selected_qubit] = -1
         else:
             raise Exception('Unknown gate type', gate_type)
+        cnt += 1
 
     if reverse:
         circuit = circuit.compose(circuit.inverse())
