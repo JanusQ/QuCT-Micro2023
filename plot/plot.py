@@ -9,7 +9,9 @@ def get_duration2circuit_infos(durations,step,max_duration):
     duration2circuit_index = []
     duration_X = []
     while right <= max_duration:
-        duration_index = np.where( (durations>left)&(durations<=right))
+        duration_index = np.where( (durations>left)&(durations<=right))[0]
+        if len(duration_index) == 0:
+            continue
         duration2circuit_index.append(duration_index)
         duration_X.append((left+right)/2)
         left+= step

@@ -413,15 +413,27 @@ class RandomwalkModel():
         circuit_info['path_indexs'] = []
 
         circuit_info['vecs'] = []
+        circuit_info['gate_paths'] = []
+        path_map = {str(k): str(v) for k,v in circuit_info['map'].items()}
         for gate in (gates if gates is not None else circuit_info['gates']):
             paths = travel_gates_BFS(circuit_info, gate, path_per_node, max_step, neighbor_info,
                                      directions=self.travel_directions)
             device = extract_device(gate)
+            if 'map' in circuit_info:
+                maped_paths = []
+                if isinstance(device,tuple):
+                    device = (circuit_info['map'][device[0]],circuit_info['map'][device[1]])
+                else:
+                    device = circuit_info['map'][device]
+                for path in paths:
+                    maped_paths.append(path.translate(path.maketrans(path_map)))
+                paths = maped_paths
             _path_index = [self.path_index(
                 device, path_id) for path_id in paths if self.has_path(device, path_id)]
             _path_index.sort()
             circuit_info['path_indexs'].append(_path_index)
-
+            circuit_info['gate_paths'].append(paths)
+            
             vec = np.zeros(self.max_table_size, dtype=np.float32)
             vec[np.array(_path_index)] = 1.
             circuit_info['vecs'].append(vec)
