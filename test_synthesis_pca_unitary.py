@@ -158,7 +158,7 @@ model_name = f'q{n_qubits}_02204_dnn_unitary_eval_data' #f'q{n_qubits}_0220_pca_
 # TODO: 一个model的放到一个文件夹
 
 # while True:
-# circuit = gen_random_circuits(min_gate=500, max_gate=501, gate_num_step=1, n_circuits=1, two_qubit_gate_probs=[
+# circuit = gen_random_circuits(min_gate=20, max_gate=30, gate_num_step=1, n_circuits=1, two_qubit_gate_probs=[
 #                             3, 4], backend=backend, reverse=False, optimize=True, multi_process=False)[0]
 
 # qiskit_circuit = layered_circuits_to_qiskit(
@@ -171,7 +171,7 @@ model_name = f'q{n_qubits}_02204_dnn_unitary_eval_data' #f'q{n_qubits}_0220_pca_
 
 init_unitary_mat = unitary_group.rvs(2**n_qubits)
 start_time = time.time()
-synthesized_circuit = synthesize(init_unitary_mat, backend = backend, allowed_dist=1e-2, multi_process = True, heuristic_model=None, verbose=True)
+synthesized_circuit = synthesize(init_unitary_mat, backend = backend, allowed_dist=1e-2, multi_process = True, heuristic_model=None, verbose=True, lagre_block_penalty = 4)
 # print(synthesized_circuit)
 print('Synthesis costs', time.time() - start_time, 's')
 

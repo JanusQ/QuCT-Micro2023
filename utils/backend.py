@@ -349,8 +349,8 @@ class Backend():
         Returns a list of qubit sets that complies with the topology.
         """
 
-        assert n_qubit_set < self.n_qubits and n_qubit_set > 0
-
+        assert n_qubit_set < self.n_qubits and n_qubit_set > 0, (n_qubit_set, self.n_qubits)
+        
         if n_qubit_set in self.cache:
             return self.cache[n_qubit_set]
 
