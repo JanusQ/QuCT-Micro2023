@@ -39,7 +39,9 @@ def get_cir(n, b_str):
     dj_circuit.h(n)
 
     # Add oracle
-    dj_circuit += get_balanced_oracle(n, b_str)
+    
+    dj_circuit = dj_circuit.compose(get_balanced_oracle(n, b_str))
+    # dj_circuit += get_balanced_oracle(n, b_str)
 
     # Repeat H-gates
     for qubit in range(n):

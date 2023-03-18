@@ -42,8 +42,8 @@ class FidelityModel():
         n_instruction2circuit_infos, gate_nums = get_n_instruction2circuit_infos(train_dataset)
         print(gate_nums)
         for gate_num in gate_nums:
-            if(gate_num > 150):
-                continue
+            # if(gate_num > 150):
+            #     continue
             best_loss_value = 1e10
             best_params = None
             for epoch in range(epoch_num):

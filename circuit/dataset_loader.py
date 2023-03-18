@@ -89,5 +89,5 @@ def _gen_random_circuits(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backen
     return new_dataset
 
 
-def gen_algorithms(n_qubits):
-    return get_dataset_bug_detection(n_qubits, n_qubits+1)
+def gen_algorithms(n_qubits,coupling_map,mirror):
+    return get_dataset_bug_detection(n_qubits, n_qubits+1,coupling_map,mirror)

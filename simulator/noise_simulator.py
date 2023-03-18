@@ -100,8 +100,11 @@ class NoiseSimulator():
         if erroneous_pattern is None:
             erroneous_pattern = get_random_erroneous_pattern(model)
 
+        model.erroneous_pattern = erroneous_pattern
+        
         futures = []
         fidelities = []
+        n_erroneous_patterns = []
         step = 100
         for start in range(0,len(dataset),step):
             sub_dataset = dataset[start:start + step]
@@ -111,23 +114,27 @@ class NoiseSimulator():
                 fidelities += self.get_error_result(sub_dataset, start, model, erroneous_pattern)
 
         for future in futures:
-            fidelities += ray.get(future)
+            _fidelities, _n_erroneous_patterns = ray.get(future)
+            fidelities += _fidelities
+            n_erroneous_patterns += _n_erroneous_patterns
         
         for idx, cir in enumerate(dataset):
             cir['ground_truth_fidelity'] = fidelities[idx]
+            cir['n_erroneous_patterns'] = n_erroneous_patterns[idx]
         return erroneous_pattern
 
 
 
     def get_error_result(self, sub_dataset, start, model, erroneous_pattern=None):
         fidelities = []
+        n_erroneous_patterns = []
         for circuit_info in sub_dataset:
-            if 'qiskit_circuit' not in circuit_info or circuit_info['qiskit_circuit'] is None:
-                circuit_info['qiskit_circuit'] = layered_circuits_to_qiskit(circuit_info['num_qubits'], circuit_info['layer2gates'])
-            if erroneous_pattern is None:
-                erroneous_pattern = get_random_erroneous_pattern(model)
+            # if 'qiskit_circuit' not in circuit_info or circuit_info['qiskit_circuit'] is None:
+            #     circuit_info['qiskit_circuit'] = layered_circuits_to_qiskit(circuit_info['num_qubits'], circuit_info['layer2gates'])
+            # if erroneous_pattern is None:
+            #     erroneous_pattern = get_random_erroneous_pattern(model)
 
-            error_circuit, n_erroneous_patterns = add_pattern_error_path(circuit_info, circuit_info['num_qubits'], model,
+            error_circuit, _n_erroneous_patterns = add_pattern_error_path(circuit_info, circuit_info['num_qubits'], model,
                                                                         erroneous_pattern)
             error_circuit.measure_all()
             noisy_count = self.simulate_noise(error_circuit, 1000)
@@ -136,9 +143,10 @@ class NoiseSimulator():
                 '0' * circuit_info['num_qubits']: 2000
             }
             fidelities.append(hellinger_fidelity(noisy_count, true_result))
+            n_erroneous_patterns.append(_n_erroneous_patterns)
             
         print(start+len(sub_dataset),'finished')
-        return fidelities
+        return fidelities, n_erroneous_patterns
 
     def simulate_noise(self, circuit, n_samples=2000):
         n_qubits = circuit.num_qubits
@@ -186,7 +194,7 @@ def add_pattern_error_path(circuit, n_qubits, model, device2erroneous_pattern): 
         circuit_info = model.vectorize(circuit)
     else:
         circuit_info = circuit
-        circuit = circuit_info['qiskit_circuit']
+        # circuit = circuit_info['qiskit_circuit']
 
     device2erroneous_pattern_index = {}
     for device, erroneous_pattern in device2erroneous_pattern.items():
@@ -233,12 +241,33 @@ def add_pattern_error_path(circuit, n_qubits, model, device2erroneous_pattern): 
     return error_circuit, n_erroneous_patterns
 
 
-def get_random_erroneous_pattern(model):
-    error_pattern_num_per_device = 3
+def get_random_erroneous_pattern(model ,error_pattern_num_per_device = 6):
+    model.error_pattern_num_per_device = error_pattern_num_per_device
     device2erroneous_pattern = defaultdict(list)
     for device, path_table in model.device2path_table.items():
         paths = list(path_table.keys())
         random.shuffle(paths)
         erroneous_pattern = paths[:error_pattern_num_per_device]
         device2erroneous_pattern[device] = erroneous_pattern
+    return device2erroneous_pattern
+
+def get_uneven_erroneous_pattern(model ,total_error_pattern_num = 50):
+    model.total_error_pattern_num = total_error_pattern_num
+    device2erroneous_pattern = defaultdict(list)
+    
+    all_path_num = 0
+    for device, path_table in model.device2path_table.items():
+        all_path_num += len(path_table.keys())
+
+    p =  total_error_pattern_num / all_path_num
+    
+    cnt = 0
+    for device, path_table in model.device2path_table.items():
+        paths = list(path_table.keys())
+        for path in paths:
+            if random.random() <= p:
+                device2erroneous_pattern[device] += path
+                cnt += 1 
+    
+    print(total_error_pattern_num, cnt)        
     return device2erroneous_pattern

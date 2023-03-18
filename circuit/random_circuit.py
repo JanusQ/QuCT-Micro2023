@@ -14,7 +14,7 @@ randomly generate various circuit for noise analysis
 def random_pi(): 
     rand = round(random.random(), 1)
     if rand == 0: return 0.1 * pi
-    return rand * pi
+    return rand * 2 *  pi
 
 # 没从从coupling map里面挑两比特门
 def random_circuit(n_qubits, n_gates, two_qubit_prob = 0.5, reverse = True, coupling_map = None, basis_single_gates = None, basis_two_gates = None,):
