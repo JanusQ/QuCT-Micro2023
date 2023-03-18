@@ -37,7 +37,7 @@ def gen_validate_dataset(n_qubits, topology, neighbor_info, coupling_map):
     with open('execute_18bits_validate_more_info.pkl','wb')as f:
         pickle.dump(dataset, f)
 
-def gen_train_dataset(n_qubits, topology, neighbor_info, coupling_map, dataset_size):
+def gen_train_dataset(n_qubits, topology, neighbor_info, coupling_map, dataset_size, devide_size = 5):
     covered_couplng_map = set()
     dataset = []
     
@@ -47,10 +47,10 @@ def gen_train_dataset(n_qubits, topology, neighbor_info, coupling_map, dataset_s
     all_devide_qubits = []
     while True:
         before = len(covered_couplng_map)
-        devide_qubits = get_devide_qubit(topology, 5)
+        devide_qubits = get_devide_qubit(topology, devide_size)
         has_1_qubit = False
         for devide_qubit in devide_qubits:
-            if len(devide_qubit) < 5:
+            if len(devide_qubit) < devide_size:
                 has_1_qubit = True
         if has_1_qubit:
             continue
