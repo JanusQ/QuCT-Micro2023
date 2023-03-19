@@ -413,7 +413,6 @@ def find_parmas(n_qubits, layer2gates, U, lr=1e-1, max_epoch=1000, allowed_dist=
     best_params = None
 
     loss_decrease_history = []
-    former_loss = 0
     epoch = 0
     # start_time = time.time()
     while True:
@@ -428,12 +427,13 @@ def find_parmas(n_qubits, layer2gates, U, lr=1e-1, max_epoch=1000, allowed_dist=
             matrix_dist = matrix_distance_squared(circuit_U, U)
             print('Epoch: {:5d} | Loss: {:.5f}  | Dist: {:.5f}'.format(epoch, loss_value, matrix_dist))
 
+
+        loss_decrease_history.append(min_loss - loss_value)
+        
         if min_loss > loss_value:
             min_loss = loss_value
             best_params = params
 
-        loss_decrease_history.append(former_loss-min_loss)
-        former_loss = loss_value
         if epoch < n_iter_no_change:
             loss_no_change = False
         else:
@@ -443,9 +443,10 @@ def find_parmas(n_qubits, layer2gates, U, lr=1e-1, max_epoch=1000, allowed_dist=
                     loss_no_change = False
         if loss_no_change or epoch > max_epoch or loss_value < allowed_dist:
             break
+        
 
         epoch += 1
-    # print('Epoch: {:5d} | Loss: {:.5f} '.format(epoch, loss_value))
+    print('Epoch: {:5d} | Loss: {:.5f} '.format(epoch, loss_value))
     # print('time per itr = ', (time.time() - start_time)/epoch, 's')
     return best_params, min_loss
 
@@ -457,6 +458,36 @@ def find_parmas_remote(n_qubits, layer2gates, U, max_epoch, allowed_dist, n_iter
 
 
 from random import choice as random_choice
+
+
+def _optimize(total_layers, new_layers, n_optimized_layers, U, lr, n_iter_no_change, n_qubits, allowed_dist):
+    '''找到当前的最优参数'''
+    total_layers = total_layers + new_layers
+    unchanged_total_layer2gates, total_layers = total_layers[:-n_optimized_layers], total_layers[-n_optimized_layers:]
+    unchanged_part_matrix = layer_circuit_to_matrix(unchanged_total_layer2gates, n_qubits)
+
+    '''TODO: 将连续的两个操作同一组qubits的unitary合并'''
+    params, qml_dist = find_parmas(n_qubits, total_layers, U @ unchanged_part_matrix.T.conj(), max_epoch=1000, allowed_dist=allowed_dist,
+                                    n_iter_no_change=n_iter_no_change, no_change_tolerance=0, random_params=False, lr=lr, verbose = False)
+    # allowed_dist/100
+    
+    total_layers = assign_params(params, total_layers)
+    circuit_U: jnp.array = layer_circuit_to_matrix(
+        total_layers, n_qubits)
+
+    circuit_U = circuit_U @ unchanged_part_matrix  # TODO: 放在电路里面可能算快一些
+
+    total_layers = unchanged_total_layer2gates + total_layers
+    
+    now_dist = matrix_distance_squared(circuit_U, U)
+
+    remained_U =  U @ circuit_U.T.conj()  # 加上这个remained_U之后circuit_U就等于U了
+    return remained_U, total_layers, qml_dist, now_dist
+
+@ray.remote
+def _optimize_remote(total_layers, new_layers, n_optimized_layers, invU, lr, n_iter_no_change, n_qubits, allowed_dist):
+    return _optimize(total_layers, new_layers, n_optimized_layers, invU, lr, n_iter_no_change, n_qubits, allowed_dist)
+
 
 def synthesize(U, backend: Backend, allowed_dist=1e-10, heuristic_model: SynthesisModel = None, multi_process=True, verbose = False, lagre_block_penalty = 2):
     if verbose:
@@ -486,34 +517,7 @@ def synthesize(U, backend: Backend, allowed_dist=1e-10, heuristic_model: Synthes
     former_device_gate_vec = None
 
 
-    def _optimize(total_layers, new_layers, n_optimized_layers, U, lr, n_iter_no_change):
-        '''找到当前的最优参数'''
-        total_layers = total_layers + new_layers
-        unchanged_total_layer2gates, total_layers = total_layers[:-n_optimized_layers], total_layers[-n_optimized_layers:]
-        unchanged_part_matrix = layer_circuit_to_matrix(unchanged_total_layer2gates, n_qubits)
-
-        '''TODO: 将连续的两个操作同一组qubits的unitary合并'''
-        params, qml_dist = find_parmas(n_qubits, total_layers, U @ unchanged_part_matrix.T.conj(), max_epoch=1000, allowed_dist=allowed_dist,
-                                        n_iter_no_change=n_iter_no_change, no_change_tolerance=allowed_dist/10, random_params=False, lr=lr)
-
-        total_layers = assign_params(params, total_layers)
-        circuit_U: jnp.array = layer_circuit_to_matrix(
-            total_layers, n_qubits)
-
-        circuit_U = circuit_U @ unchanged_part_matrix  # TODO: 放在电路里面可能算快一些
-
-        total_layers = unchanged_total_layer2gates + total_layers
-        
-        now_dist = matrix_distance_squared(circuit_U, U)
-
-        remained_U =  U @ circuit_U.T.conj()  # 加上这个remained_U之后circuit_U就等于U了
-        return remained_U, total_layers, qml_dist, now_dist
-
-    @ray.remote
-    def _optimize_remote(total_layers, new_layers, n_optimized_layers, invU, lr, n_iter_no_change):
-        return _optimize(total_layers, new_layers, n_optimized_layers, invU, lr, n_iter_no_change)
-
-    while now_dist > 1e-2:
+    while now_dist > 1e-3:
         '''TODO: 有些电路要是没有优化动就不插了'''
         canditate_layers = []
 
@@ -537,11 +541,12 @@ def synthesize(U, backend: Backend, allowed_dist=1e-10, heuristic_model: Synthes
             '''TODO: 这个函数是要试几次的'''
             max_n_subset_qubits = max([3, n_qubits - 1])
             max_n_subset_qubits_step = max([1, (max_n_subset_qubits-3)//2])
-            for n_subset_qubits in [2,3] + list(range(max_n_subset_qubits, 3, -max_n_subset_qubits_step)): # TODO: 可能后面要设置成关于n_qubits的函数
+            for n_subset_qubits in [2, 3] + list(range(max_n_subset_qubits, 3, -max_n_subset_qubits_step)): # TODO: 可能后面要设置成关于n_qubits的函数
                 if n_qubits <= n_subset_qubits:  # 不会生成大于自己的比特数的子电路
                     continue
 
                 for subset_qubits in backend.get_connected_qubit_sets(n_subset_qubits):
+                    # for _ in range(3): # 多来两次会不会效果好一些, 不会
                     canditate_layers.append([[create_unitary_gate(subset_qubits)]])
         
         former_device_gate_vec = device_gate_vec
@@ -561,10 +566,10 @@ def synthesize(U, backend: Backend, allowed_dist=1e-10, heuristic_model: Synthes
             lr = max([now_dist/5, 1e-2]) #TODO: 需要尝试的超参数
             if multi_process:
                 futures.append(_optimize_remote.remote(
-                    total_layers, candidate_layer, n_optimized_layers, U, lr, n_iter_no_change))
+                    total_layers, candidate_layer, n_optimized_layers, U, lr, n_iter_no_change, n_qubits, allowed_dist))
             else:
                 futures.append(
-                    _optimize(total_layers, candidate_layer, n_optimized_layers, U, lr, n_iter_no_change))
+                    _optimize(total_layers, candidate_layer, n_optimized_layers, U, lr, n_iter_no_change, n_qubits, allowed_dist))
 
         futures = wait(futures)
         max_dist_decrement = 0
@@ -612,7 +617,8 @@ def synthesize(U, backend: Backend, allowed_dist=1e-10, heuristic_model: Synthes
                     
     if now_dist > min_dist:
         params, qml_dist = find_parmas(n_qubits, total_layers, U, max_epoch=1000, allowed_dist=allowed_dist,
-                                        n_iter_no_change=20, no_change_tolerance=allowed_dist/100, random_params=False, verbose = True)
+                                        n_iter_no_change=20, no_change_tolerance=0, random_params=False, verbose = True)
+        # allowed_dist/100
         total_layers = assign_params(params, total_layers)
 
     # multi_process = False
@@ -682,6 +688,7 @@ def synthesize_unitary_gate(gate: dict, backend: Backend, allowed_dist=1e-10, la
     unitary_params = (unitary_params[0: 4**len(gate_qubits)] + 1j * unitary_params[4**len(
         gate_qubits):]).reshape((2**len(gate_qubits), 2**len(gate_qubits)))
     unitary = to_unitary(unitary_params)
+    
     if len(gate_qubits) <= 2:
         qiskit_circuit = QuantumCircuit(len(gate_qubits))
         gate = Operator(unitary)
@@ -701,7 +708,6 @@ def synthesize_unitary_gate(gate: dict, backend: Backend, allowed_dist=1e-10, la
                     len(gate_qubits) - _qubit - 1
                     for _qubit in _gate['qubits']
                 ]
-            
     else:  # len(gate_qubits) >= 3
         # 重新映射backend
         '''TODO: 三比特的可以换成qfast'''
