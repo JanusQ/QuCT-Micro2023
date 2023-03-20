@@ -34,6 +34,8 @@ def gen_validate_dataset(n_qubits, topology, neighbor_info, coupling_map):
     with open('execute_18bits_validate.pkl','wb')as f:
         pickle.dump(dataset_machine, f)
 
+
+
     with open('execute_18bits_validate_more_info.pkl','wb')as f:
         pickle.dump(dataset, f)
 

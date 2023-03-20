@@ -97,10 +97,10 @@ class NoiseSimulator():
             # noise_model.add_quantum_error(errors_thermal, basis_two_gates, [qubit1, qubit2])
 
     def get_error_results(self, dataset, model, erroneous_pattern=None, multi_process=False):
-        if erroneous_pattern is None:
-            erroneous_pattern = get_random_erroneous_pattern(model)
+        # if erroneous_pattern is None:
+        #     erroneous_pattern = get_random_erroneous_pattern(model)
 
-        model.erroneous_pattern = erroneous_pattern
+        erroneous_pattern = model.erroneous_pattern
         
         futures = []
         fidelities = []
