@@ -241,7 +241,7 @@ class RandomwalkModel():
         '''TODO: 可以枚举来生成所有的path table'''
 
         assert self.dataset is None
-        self.dataset = dataset
+        # self.dataset = dataset
 
         backend: Backend = self.backend
         neighbor_info = self.backend.neighbor_info

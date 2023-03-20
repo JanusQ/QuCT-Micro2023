@@ -24,7 +24,7 @@ class FidelityModel():
         return
 
     # device2reverse_path_table_size去掉，从backend拿
-    def train(self, train_dataset, test_dataset = None, epoch_num = 50, ):
+    def train(self, train_dataset, test_dataset = None, epoch_num = 100, ):
         upstream_model = self.upstream_model
         # backend = self.upstream_model.backend
         
@@ -41,32 +41,48 @@ class FidelityModel():
         self.path_count = defaultdict(int)
         n_instruction2circuit_infos, gate_nums = get_n_instruction2circuit_infos(train_dataset)
         print(gate_nums)
-        random_gate_nums = list(gate_nums) + list(gate_nums)
-        random.shuffle(random_gate_nums)
-        for gate_num in gate_nums + random_gate_nums:
-            if(gate_num > 150):
-                continue
-            best_loss_value = 1e10
-            best_params = None
+
+        terminate_num_gate  = 150
+        for gate_num in gate_nums:
+            if(gate_num >= terminate_num_gate):
+                break
             
-            n_iter_no_change=10
-            no_change_tolerance=1e-3
-            former_loss = 1
-            loss_decrease_history = []
-            
+            real_fidelities = []
             for circuit_info in n_instruction2circuit_infos[gate_num]:
+                real_fidelities.append(circuit_info['ground_truth_fidelity'])
+                
                 for gate_paths in circuit_info['gate_paths']:
                     for path in gate_paths:
                         self.path_count[path] += 1
-                        
-            for epoch in range(epoch_num):
-                loss_values = []
-                # print(n_instruction2circuit_infos[gate_num])
-                n_instruction2circuit_infos[gate_num] = np.array(n_instruction2circuit_infos[gate_num])
-                            
+            
+            mean_real_fidelity = sum(real_fidelities) / len(real_fidelities)
+            
+            if mean_real_fidelity < 0.2:  # 再小的质量太低了，可能没用
+                terminate_num_gate = gate_num
+                break
+            
+            print(f'n_instruction2circuit_infos[{gate_num}] has', len(n_instruction2circuit_infos[gate_num]))
+        
+        gate_nums = [gate_num for gate_num in gate_nums if gate_num <= terminate_num_gate]
+        for gate_num in gate_nums:
+            n_instruction2circuit_infos[gate_num] = np.array(n_instruction2circuit_infos[gate_num])
+            
+        min_loss = 1e10
+        best_params = None
+        loss_decrease_history = []
+        n_iter_no_change = 5
+        no_change_tolerance  = .5
+        
+        for epoch in range(epoch_num):
+
+            loss_values = []
+            
+            random_gate_nums = list(gate_nums) # + list(gate_nums)
+            random.shuffle(random_gate_nums)
+
+            for gate_num in gate_nums + random_gate_nums:                
+                      
                 for circuit_infos in batch(n_instruction2circuit_infos[gate_num], batch_size=100, should_shuffle = True):
-                    # print(circuit_infos[0].keys())
-                                
                     X = np.array([circuit_info['vecs'] for circuit_info in circuit_infos], dtype=np.float32)
                     Y = np.array([circuit_info['ground_truth_fidelity'] for circuit_info in circuit_infos], dtype=np.float32)
                     devices = []
@@ -83,7 +99,7 @@ class FidelityModel():
                             circuit_devices.append(device_index)
                         devices.append(circuit_devices)
                     devices = jnp.array(devices, dtype=jnp.int32)
-                         
+                        
                     loss_value, gradient = jax.value_and_grad(batch_loss)(params, X, Y, devices)
                     updates, opt_state = optimizer.update(gradient, opt_state, params)
                     params = optax.apply_updates(params, updates)
@@ -92,30 +108,24 @@ class FidelityModel():
                     params = params.at[params < 0].set(0)
 
                     loss_values.append(loss_value)
-
-                mean_loss = np.array(loss_values).mean()
-
-                loss_decrease_history.append(best_loss_value-mean_loss)
-                # former_loss = mean_loss
-                if epoch < n_iter_no_change:
-                    loss_no_change = False
-                else:
-                    loss_no_change = True
-                    for loss_decrement in loss_decrease_history[-n_iter_no_change:]:
-                        if loss_decrement > no_change_tolerance:
-                            loss_no_change = False
+                    
+            epoch_loss  = sum(loss_values) / len(loss_values)
+            
+            loss_decrease_history.append(min_loss - epoch_loss)
+            if epoch > n_iter_no_change:
+                loss_no_change = True
+                for loss_decrement in loss_decrease_history[-n_iter_no_change:]:
+                    if loss_decrement > no_change_tolerance:
+                        loss_no_change = False
                 if loss_no_change:
                     break
-                
-                if mean_loss < best_loss_value:
-                    best_loss_value = mean_loss
-                    best_params = params
-
-                if epoch % 10 == 0:
-                    print(f'gate num: {gate_num}, epoch: {epoch}, circuit num: {len(n_instruction2circuit_infos[gate_num])}, train mean loss: {mean_loss}')
-
-            params = best_params
             
+            if epoch_loss < min_loss:
+                min_loss = epoch_loss
+                best_params = params
+
+            print(f'epoch: {epoch}, \t epoch_loss = {epoch_loss}')
+
             if test_dataset is not None:
                 test_loss = 0 
                 for circuit_info in test_dataset[:2000]:
@@ -134,8 +144,10 @@ class FidelityModel():
                 if test_loss < min_test_loss:
                     min_test_loss = test_loss
                     best_test_params = params
-                
+                    
 
+            params = best_params
+            
         print(f'taining error params finishs')
 
         if test_dataset is not None:
@@ -187,7 +199,7 @@ def loss_func(device2params, vecs, true_fidelity, devices):
 
 def batch_loss(params, X, Y, devices):
     losses = vmap(loss_func, in_axes=(None, 0, 0, 0), out_axes=0)(params, X, Y, devices)
-    return jnp.array(losses).mean()
+    return jnp.array(losses).sum()
 
 
 def get_n_instruction2circuit_infos(dataset):

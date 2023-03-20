@@ -98,22 +98,40 @@ def gen_train_dataset(n_qubits, topology, neighbor_info, coupling_map, dataset_s
     for cut_backends, devide_qubits, maps,  reverse_maps in zip(devide_cut_backends, all_devide_qubits, devide_maps,  deivde_reverse_maps):
         cut_datasets = []
         for cut_backend in cut_backends:
-            if cut_backend.n_qubits == 3:
-                _dataset = gen_random_circuits(min_gate=14, max_gate=144, n_circuits=n_circuits, two_qubit_gate_probs=[
-                                               1, 5], gate_num_step=10, backend=cut_backend, multi_process=True)
-                cut_datasets.append(_dataset)
-                # dataset_5qubit += _dataset
-            elif cut_backend.n_qubits == 4:
-                _dataset = gen_random_circuits(min_gate=12, max_gate=142, n_circuits=n_circuits, two_qubit_gate_probs=[
-                                               1, 5], gate_num_step=10, backend=cut_backend, multi_process=True)
-                cut_datasets.append(_dataset)
-                # dataset_5qubit += _dataset
-            else:
-                _dataset = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=n_circuits, two_qubit_gate_probs=[
-                                               1, 5], gate_num_step=10, backend=cut_backend, multi_process=True)
-                cut_datasets.append(_dataset)
+            # if cut_backend.n_qubits == 3:
+            #     _dataset = gen_random_circuits(min_gate=14, max_gate=144, n_circuits=n_circuits, two_qubit_gate_probs=[
+            #                                    1, 5], gate_num_step=10, backend=cut_backend, multi_process=True)
+            #     cut_datasets.append(_dataset)
+            #     # dataset_5qubit += _dataset
+            # elif cut_backend.n_qubits == 4:
+            #     _dataset = gen_random_circuits(min_gate=12, max_gate=142, n_circuits=n_circuits, two_qubit_gate_probs=[
+            #                                    1, 5], gate_num_step=10, backend=cut_backend, multi_process=True)
+            #     cut_datasets.append(_dataset)
+            #     # dataset_5qubit += _dataset
+            # else:
+            _dataset = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=n_circuits, two_qubit_gate_probs=[
+                                            1, 5], gate_num_step=10, backend=cut_backend, multi_process=True)
+            cut_datasets.append(_dataset)
                 # dataset_5qubit += _dataset
 
+
+        # def get_n_instruction2circuit_infos(dataset):
+        #     n_instruction2circuit_infos = defaultdict(list)
+        #     for circuit_info in dataset:
+        #         # qiskit_circuit = circuit_info['qiskit_circuit']
+        #         gate_num = len(circuit_info['gates'])
+        #         n_instruction2circuit_infos[gate_num].append(circuit_info)
+
+        #     # print(n_instruction2circuit_infos[gate_num])
+        #     gate_nums = list(n_instruction2circuit_infos.keys())
+        #     gate_nums.sort()
+
+        #     return n_instruction2circuit_infos, gate_nums
+
+        # n_instruction2circuit_infos, gate_nums = get_n_instruction2circuit_infos(cut_datasets[0])
+        # for gate in gate_nums:
+        #     print(gate, len(n_instruction2circuit_infos[gate]))
+        
         dataset += stitching(n_qubits, cut_datasets,
                              devide_qubits, maps, reverse_maps)
 

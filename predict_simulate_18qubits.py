@@ -16,60 +16,65 @@ from utils.backend import devide_chip, gen_grid_topology, get_grid_neighbor_info
 from utils.backend import default_basis_single_gates, default_basis_two_gates
 import pickle
 
-  
-size = 3
-n_qubits = 3**2
-topology = gen_grid_topology(size)  # 3x3 9 qubits
-new_topology = defaultdict(list)
-for qubit in topology.keys():
-    if qubit < n_qubits:
-        for ele in topology[qubit]:
-            if ele < n_qubits:
-                new_topology[qubit].append(ele)
-topology =  new_topology      
-neighbor_info = copy.deepcopy(topology)
-coupling_map = topology_to_coupling_map(topology)      
+
+size = 5
+n_qubits = 18
+# topology = gen_grid_topology(size)  # 3x3 9 qubits
+# new_topology = defaultdict(list)
+# for qubit in topology.keys():
+#     if qubit < n_qubits:
+#         for ele in topology[qubit]:
+#             if ele < n_qubits:
+#                 new_topology[qubit].append(ele)
+# topology =  new_topology      
+# neighbor_info = copy.deepcopy(topology)
+# coupling_map = topology_to_coupling_map(topology)      
 
 
 
-backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neighbor_info, basis_single_gates=default_basis_single_gates,
-                  basis_two_gates=default_basis_two_gates, divide=False, decoupling=False)
+# backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neighbor_info, basis_single_gates=default_basis_single_gates,
+#                   basis_two_gates=default_basis_two_gates, divide=False, decoupling=False)
 
-dataset = gen_train_dataset(n_qubits, topology, neighbor_info, coupling_map, 6000)
+# dataset = gen_train_dataset(n_qubits, topology, neighbor_info, coupling_map, 6000)
 
-upstream_model = RandomwalkModel(1, 20, backend=backend, travel_directions=('parallel', 'former'))
-print(len(dataset), "circuit generated")
-upstream_model.train(dataset, multi_process=True)
+# upstream_model = RandomwalkModel(1, 20, backend=backend, travel_directions=('parallel', 'former'))
+# print(len(dataset), "circuit generated")
+# upstream_model.train(dataset, multi_process=True)
 
-with open(f"upstream_model_{n_qubits}.pkl","wb")as f:
-    pickle.dump(upstream_model,f)
+# with open(f"upstream_model_{n_qubits}.pkl","wb")as f:
+#     pickle.dump(upstream_model,f)
 
-print("original",len(dataset))
-dataset = make_circuitlet(dataset)
-print("cutted",len(dataset))
+# print("original",len(dataset))
+# dataset = make_circuitlet(dataset)
+# print("cutted",len(dataset))
 
 
-simulator = NoiseSimulator(backend)
-erroneous_pattern = simulator.get_error_results(dataset, upstream_model, multi_process=True)
-upstream_model.erroneous_pattern = erroneous_pattern
-with open(f"upstream_model_{n_qubits}.pkl","wb")as f:
-    pickle.dump(upstream_model,f)
+# simulator = NoiseSimulator(backend)
+# erroneous_pattern = simulator.get_error_results(dataset, upstream_model, multi_process=True)
+# upstream_model.erroneous_pattern = erroneous_pattern
+# with open(f"upstream_model_{n_qubits}.pkl","wb")as f:
+#     pickle.dump(upstream_model,f)
     
 
-index = np.arange(len(dataset))
-random.shuffle(index)
-n = -200 * n_qubits
-train_index, test_index = index[:n], index[n:]
-train_dataset, test_dataset = np.array(dataset)[train_index], np.array(dataset)[test_index]
-with open(f"split_dataset_{n_qubits}.pkl","wb")as f:
-    pickle.dump((train_dataset, test_dataset),f)
+# index = np.arange(len(dataset))
+# random.shuffle(index)
+# n = -200 * n_qubits
+# train_index, test_index = index[:n], index[n:]
+# train_dataset, test_dataset = np.array(dataset)[train_index], np.array(dataset)[test_index]
+# with open(f"split_dataset_{n_qubits}.pkl","wb")as f:
+#     pickle.dump((train_dataset, test_dataset),f)
 
 
-# with open(f"split_dataset_{n_qubits}.pkl","rb")as f:
-#     train_dataset, test_dataset = pickle.load(f)
-# with open(f"upstream_model_{n_qubits}.pkl","rb")as f:
-#     upstream_model = pickle.load(f)
-# upstream_model = downstream_model.upstream_model
+
+
+
+with open(f"18qubit_data/split_dataset_18_rerun.pkl","rb")as f:
+    train_dataset, test_dataset = pickle.load(f)
+with open(f"18qubit_data/upstream_model_18_rerun.pkl","rb")as f:
+    upstream_model = pickle.load(f)
+with open(f"18qubit_data/upstream_model_18_rerun_step0.pkl","rb")as f:
+    upstream_model = pickle.load(f)    
+
     
 downstream_model = FidelityModel(upstream_model)
 downstream_model.train(train_dataset)

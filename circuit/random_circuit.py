@@ -33,6 +33,8 @@ def random_circuit(n_qubits, n_gates, two_qubit_prob = 0.5, reverse = True, coup
             getattr(circuit, gate_type)(random_pi(), random_pi(), random_pi(), qubit)
         else:
             raise Exception('Unknown gate type', gate_type)
+        
+    n_gates -= len(qubits)
 
     pre_single = defaultdict(str)
     pre_couple = defaultdict(lambda:-1)

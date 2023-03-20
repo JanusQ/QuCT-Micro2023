@@ -211,7 +211,7 @@ def stitching(n_qubits, cut_datasets, devide_qubits, maps, reverse_maps):
         circuit_info['num_qubits'] = n_qubits
         
         circuit_info['layer2gates'].reverse()
-        max_layer = len(circuit_info['layer2gates'])
+        max_layer = len(circuit_info['layer2gates']) -1 
         circuit_info['gate2layer'] = [max_layer - layer for layer in circuit_info['gate2layer'] ] 
         circuit_info['max_layer'] = max_layer
         

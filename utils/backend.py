@@ -311,12 +311,12 @@ class Backend():
 
         # 随机了一个噪音
         self.single_qubit_fidelity = [
-            1 - random.random() / 1000
+            1 - random.random() / 10000 / 3
             for q in range(n_qubits)
         ]
 
         self.two_qubit_fidelity = [
-            1 - random.random() / 500
+            1 - random.random() / 5000  / 3
             for i, coupler in enumerate(self.coupling_map)
         ]
 
@@ -326,7 +326,7 @@ class Backend():
         ]
 
         self.qubit2T2 = [
-            7 - random.random() * 3
+            110 - random.random() * 3
             for q in range(n_qubits)
         ]
 
