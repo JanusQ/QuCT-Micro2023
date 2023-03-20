@@ -320,7 +320,7 @@ class RandomwalkModel():
                     if p1 in redundant_path:
                         continue
                     for i2, p2 in enumerate(_paths[i1+1:]):
-                        if p2 in redundant_path or p1 not in device2path_coexist_count[device] or device2path_coexist_count[device][p1][p2] == 0:
+                        if p2 in redundant_path or device not in device2path_coexist_count or   p1 not in device2path_coexist_count[device] or device2path_coexist_count[device][p1][p2] == 0:
                             continue
                         if device2path_coexist_count[device][p1][p2] / _path_count[p1] > 0.9 and _path_count[p1] / _path_count[p2] > 0.9 and _path_count[p2] / _path_count[p1] > 0.9:
                             # print(

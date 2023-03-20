@@ -28,12 +28,12 @@ upstream_model = RandomwalkModel(0, 20, backend=backend, travel_directions=('par
 upstream_model.train(dataset, multi_process=True)
 
 upstream_model.erroneous_pattern = step1.erroneous_pattern
-with open(f"upstream_model_{n_qubits}_step0.pkl","wb")as f:
+with open(f"upstream_model_{n_qubits}_step0_error.pkl","wb")as f:
     pickle.dump(upstream_model,f)
 
 
 
-with open(f"split_dataset_{n_qubits}.pkl","rb")as f:
+with open(f"dataset_6error.pkl","rb")as f:
     train_dataset, test_dataset = pickle.load(f)
 # upstream_model = downstream_model.upstream_model
     
@@ -51,13 +51,13 @@ for idx, cir in enumerate(test_dataset):
     predict = downstream_model.predict_fidelity(cir)
 
     predicts.append(cir['circuit_predict'])
-    reals.append(cir['ground_truth_fidelity'])
+    # reals.append(cir['ground_truth_fidelity'])
     durations.append(cir['duration'])
     # print(predict, cir['ground_truth_fidelity'])
     
     
     # print(predict)
-with open(f"error_params_predicts_{n_qubits}_step0.pkl","wb")as f:
+with open(f"error_params_predicts_{n_qubits}_step0_error.pkl","wb")as f:
     pickle.dump((downstream_model.error_params, predicts, reals, durations), f)
     
 find_error_path(upstream_model, downstream_model.error_params)
@@ -65,4 +65,4 @@ find_error_path(upstream_model, downstream_model.error_params)
 
 fig, axes = plt.subplots(figsize=(20, 6))  # 创建一个图形对象和一个子图对象
 duration_X, duration2circuit_index = plot_duration_fidelity(fig, axes, test_dataset)
-fig.savefig(f"duration_fidelity_{n_qubits}_step0.svg")  # step
+fig.savefig(f"duration_fidelity_{n_qubits}_step0_6error.svg")  # step
