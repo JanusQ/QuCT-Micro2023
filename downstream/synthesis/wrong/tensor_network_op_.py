@@ -3,9 +3,11 @@ import numpy as np
 from numpy import e, pi, cos
 import pennylane as qml
 import jax
-from downstream.synthesis.pennylane_op import to_unitary, layer_circuit_to_pennylane_tape
+from downstream.synthesis.wrong.pennylane_op import layer_circuit_to_pennylane_tape
 from jax import numpy as jnp
 K = tc.set_backend("jax")
+
+assert False, '有bug'
 
 # @jax.jit
 def layer_circuit_to_matrix(layer2gates, n_qubits, params = None) -> jax.numpy.array:

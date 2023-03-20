@@ -12,8 +12,8 @@ from circuit.formatter import layered_circuits_to_qiskit, to_unitary
 from circuit.parser import qiskit_to_layered_circuits
 from circuit import gen_random_circuits
 from upstream import RandomwalkModel
-from downstream.synthesis.pennylane_op import layer_circuit_to_pennylane_circuit, layer_circuit_to_pennylane_tape
-from downstream.synthesis.tensor_network_op import layer_circuit_to_matrix
+from downstream.synthesis.pennylane_op_jax import layer_circuit_to_pennylane_circuit, layer_circuit_to_pennylane_tape
+from downstream.synthesis.tensor_network_op_jax import layer_circuit_to_matrix
 from sklearn.neural_network import MLPRegressor as DNN  # MLPClassifier as DNN
 # from sklearn.decomposition import IncrementalPCA as PCA
 from jax import numpy as jnp
@@ -40,6 +40,8 @@ import math
 from utils.backend import Backend
 from utils.ray_func import *
 from random import randint
+from bqskit import compile
+
 config.update("jax_enable_x64", True)
 
 
@@ -357,11 +359,6 @@ def find_parmas(n_qubits, layer2gates, U, lr=1e-1, max_epoch=1000, allowed_dist=
             param_size += len(gate['params'])
             params += list(gate['params'])
 
-    # if verbose:
-    #     circuit_U: jnp.array = layer_circuit_to_matrix(layer2gates, n_qubits, params)
-    #     matrix_dist = matrix_distance_squared(circuit_U, U)
-    #     print('Dist: {:.5f}'.format(matrix_dist))
-
     if random_params:
         params = jax.random.normal(jax.random.PRNGKey(
             np.random.randint(0, 100)), (param_size,), dtype=jnp.float64)
@@ -444,9 +441,8 @@ def find_parmas(n_qubits, layer2gates, U, lr=1e-1, max_epoch=1000, allowed_dist=
         if loss_no_change or epoch > max_epoch or loss_value < allowed_dist:
             break
         
-
         epoch += 1
-    print('Epoch: {:5d} | Loss: {:.5f} '.format(epoch, loss_value))
+    # print('Epoch: {:5d} | Loss: {:.5f} '.format(epoch, loss_value))
     # print('time per itr = ', (time.time() - start_time)/epoch, 's')
     return best_params, min_loss
 
@@ -468,7 +464,7 @@ def _optimize(total_layers, new_layers, n_optimized_layers, U, lr, n_iter_no_cha
 
     '''TODO: 将连续的两个操作同一组qubits的unitary合并'''
     params, qml_dist = find_parmas(n_qubits, total_layers, U @ unchanged_part_matrix.T.conj(), max_epoch=1000, allowed_dist=allowed_dist,
-                                    n_iter_no_change=n_iter_no_change, no_change_tolerance=0, random_params=False, lr=lr, verbose = False)
+                                    n_iter_no_change=n_iter_no_change, no_change_tolerance=allowed_dist/20, random_params=False, lr=lr, verbose = False)
     # allowed_dist/100
     
     total_layers = assign_params(params, total_layers)
@@ -494,6 +490,14 @@ def synthesize(U, backend: Backend, allowed_dist=1e-10, heuristic_model: Synthes
         print('start synthesis')
         
     n_qubits = int(math.log2(len(U)))
+    
+    if n_qubits <= 3:
+        gate = {
+            'qubits': list(range(n_qubits)),
+            'unitary': U,
+        }
+        return synthesize_unitary_gate(gate, backend, allowed_dist, lagre_block_penalty, multi_process)
+    
     use_heuristic = heuristic_model is not None
 
     if use_heuristic:
@@ -553,7 +557,7 @@ def synthesize(U, backend: Backend, allowed_dist=1e-10, heuristic_model: Synthes
 
         for candidate_layer in canditate_layers:
             # TODO: 每隔一段时间进行一次finetune
-            if (iter_count+1)%10 == 0: #TODO: 需要尝试的超参数
+            if (iter_count+1)%10 == 0 or now_dist < 1e-2: #TODO: 需要尝试的超参数
                 n_optimized_layers = len(total_layers) + len(candidate_layer)
             else:
                 n_optimized_layers = 10 #TODO: 需要尝试的超参数
@@ -623,6 +627,9 @@ def synthesize(U, backend: Backend, allowed_dist=1e-10, heuristic_model: Synthes
 
     # multi_process = False
     
+    if verbose:
+        print('synthesize decomposed unitaries')
+    
     # 大于3比特的先放到别的进程去跑
     for layer_gates in total_layers:
         for gate in layer_gates:
@@ -664,6 +671,9 @@ def synthesize(U, backend: Backend, allowed_dist=1e-10, heuristic_model: Synthes
 
     '''最后finetune一下，反而变差了感觉像是hl_test对global phase也敏感的原因'''
 
+    if verbose:
+        print('compose')
+        
     qiskit_circuit: QuantumCircuit = layered_circuits_to_qiskit(
         n_qubits, new_total_layers, barrier=False)
 
@@ -684,12 +694,19 @@ from circuit.formatter import get_layered_instructions, qiskit_to_my_format_circ
 
 def synthesize_unitary_gate(gate: dict, backend: Backend, allowed_dist=1e-10, lagre_block_penalty = 2, multi_process=True):
     gate_qubits: list = gate['qubits']
-    unitary_params = gate['params']
-    unitary_params = (unitary_params[0: 4**len(gate_qubits)] + 1j * unitary_params[4**len(
-        gate_qubits):]).reshape((2**len(gate_qubits), 2**len(gate_qubits)))
-    unitary = to_unitary(unitary_params)
+    
+    if 'params' in gate:
+        unitary_params = gate['params']
+        unitary_params = (unitary_params[0: 4**len(gate_qubits)] + 1j * unitary_params[4**len(
+            gate_qubits):]).reshape((2**len(gate_qubits), 2**len(gate_qubits)))
+        unitary = to_unitary(unitary_params)
+    elif 'unitary' in gate:
+        unitary = gate['unitary']
+    else:
+        raise Exception('no params or unitary')
     
     if len(gate_qubits) <= 2:
+        # start_time = time.time()
         qiskit_circuit = QuantumCircuit(len(gate_qubits))
         gate = Operator(unitary)
         qiskit_circuit.append(gate, list(range(len(gate_qubits))))
@@ -700,7 +717,6 @@ def synthesize_unitary_gate(gate: dict, backend: Backend, allowed_dist=1e-10, la
         layer2instructions, _, _, _, _ = get_layered_instructions(qiskit_circuit)
         synthesized_circuit, _, _ = qiskit_to_my_format_circuit(layer2instructions)
         
-    
         '''特别注意qiskit和pennylane的大小端是不一样的'''
         for _layer_gates in synthesized_circuit:
             for _gate in _layer_gates:
@@ -708,7 +724,8 @@ def synthesize_unitary_gate(gate: dict, backend: Backend, allowed_dist=1e-10, la
                     len(gate_qubits) - _qubit - 1
                     for _qubit in _gate['qubits']
                 ]
-    else:  # len(gate_qubits) >= 3
+        # print('2q', time.time() -  start_time)
+    else:
         # 重新映射backend
         '''TODO: 三比特的可以换成qfast'''
         remap_topology = {
@@ -722,7 +739,14 @@ def synthesize_unitary_gate(gate: dict, backend: Backend, allowed_dist=1e-10, la
 
         backend_3q = Backend(n_qubits=len(gate_qubits), topology=remap_topology, neighbor_info=None, basis_single_gates=['u'],
                              basis_two_gates=['cz'], divide=False, decoupling=False)
-        synthesized_circuit = synthesize(unitary, backend_3q, allowed_dist, multi_process=multi_process, lagre_block_penalty = lagre_block_penalty)
+        
+        if len(gate_qubits) <= 3:
+            synthesized_circuit = compile(unitary, max_synthesis_size=len(gate_qubits))
+            qasm = synthesized_circuit.to('qasm')
+            qiskit_circuit =  QuantumCircuit.from_qasm_str(qasm)
+            qiskit_circuit = transpile(qiskit_circuit, optimization_level=3, basis_gates=backend.basis_gates, coupling_map = backend.coupling_map, initial_layout=[qubit for qubit in range(len(gate_qubits))])
+        else:
+            synthesized_circuit = synthesize(unitary, backend_3q, allowed_dist, multi_process=multi_process, lagre_block_penalty = lagre_block_penalty, verbose = False)
 
     '''需要映射回去'''   
     for _layer_gates in synthesized_circuit:

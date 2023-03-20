@@ -10,12 +10,13 @@ def get_duration2circuit_infos(durations,step,max_duration):
     duration_X = []
     while right <= max_duration:
         duration_index = np.where( (durations>left)&(durations<=right))[0]
+        left+= step
+        right += step
         if len(duration_index) == 0:
             continue
         duration2circuit_index.append(duration_index)
         duration_X.append((left+right)/2)
-        left+= step
-        right += step
+        
         
 
     return duration_X, duration2circuit_index
@@ -57,7 +58,7 @@ def plot_top_ratio(upstream_model, erroneous_pattern_weight):
                 if  pattern_weight[1] < top * path_table_size:
                     total_find += 1
 
-        find_ratio = total_find / (len(upstream_model.erroneous_pattern.keys()) * 3)
+        find_ratio = total_find / (len(upstream_model.erroneous_pattern.keys()) * upstream_model.error_pattern_num_per_device)
         print(top,find_ratio)
         x.append(top)
         y.append(find_ratio)
@@ -70,7 +71,8 @@ def plot_top_ratio(upstream_model, erroneous_pattern_weight):
     axes.set_ylabel('find_ratio')
     axes.legend() # 添加图例
     fig.show()
-    fig.savefig("find_ratio.svg")
+    num_qubits = upstream_model.dataset[0]['num_qubits']
+    fig.savefig(f"find_ratio_{num_qubits}.svg")
 
 def find_error_path(upstream_model, error_params):
     error_params = np.array(error_params)

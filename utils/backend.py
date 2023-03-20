@@ -166,6 +166,14 @@ def get_grid_neighbor_info(size, max_distance):
     return neigh_info
 
 
+
+def gen_fulllyconnected_topology(n_qubits):
+    return {
+        q1: [q2  for q2 in range(n_qubits) if q1 != q2]
+        for q1 in range(n_qubits)
+    }
+
+
 def gen_linear_topology(n_qubits):
     return {
         q1: [q2 for q2 in [q1-1, q1+1] if q2 >= 0 and q2 < n_qubits]
@@ -241,7 +249,6 @@ def devide_chip(backend, max_qubit, devide_qubits = None):
     # devide_qubits = [devide_qubits[i:i+max_qubit] for i in range(0,n_qubits,max_qubit)]
     if not devide_qubits:
         devide_qubits = get_devide_qubit(ret_backend.topology,  max_qubit)
-    print(devide_qubits)
     ret_backend.devide_qubits = devide_qubits
     coupling_map = copy.deepcopy(ret_backend.coupling_map)
     for e1, e2 in coupling_map:
@@ -266,7 +273,7 @@ class Backend():
     neigh_info: {0: [1, 3], 1: [0, 3], 2: [1], 3: [1, 4, 7], 4: [1, 3, 5, 7], 5: [1, 4, 7], 6: [7], 7: [5, 8], 8: [5, 7]})  
     '''
 
-    def __init__(self, n_qubits, topology=None, neighbor_info=None, basis_single_gates: list = None,
+    def __init__(self, n_qubits, topology=None, neighbor_info=None, coupling_map = None, basis_single_gates: list = None,
                  basis_two_gates: list = None,
                  divide: bool = True, decoupling: bool = True, single_qubit_gate_time=30, two_qubit_gate_time=60):
         self.n_qubits = n_qubits
@@ -278,7 +285,10 @@ class Backend():
             }
 
         self.topology = topology
-        self.coupling_map = topology_to_coupling_map(topology)
+        if coupling_map is None:
+            self.coupling_map = topology_to_coupling_map(topology)
+        else:
+            self.coupling_map = coupling_map
         self.true_coupling_map = list(self.coupling_map)
         # describe qubits that have mutual interactions
         self.neighbor_info = neighbor_info  # TODO: rename to 'adjlist'

@@ -183,9 +183,9 @@ def instruction2str(instruction):
         op_name = instruction['name']
     return f'{op_name},{",".join([str(_) for _ in qubits])}'
 
-def layered_circuits_to_executable_code(layer2instructions):
+def layered_circuits_to_executable_code(circuit_info):
     req_data = [{
-        "seq": convert_circuit(layer2instructions),
+        "seq": convert_circuit(circuit_info),
         "stats": 1000,
     }]
     return req_data
@@ -232,27 +232,27 @@ def convert_layer(level):
     }
 
     for instruction in level:
-        if instruction.operation.num_qubits == 2:
-            q0_id, q1_id = instruction.qubits[0].index, instruction.qubits[1].index
+        if len(instruction['qubits']) == 2:
+            q0_id, q1_id = instruction['qubits'][0], instruction['qubits'][1]
             level_result['TwoQ'].append((QUBIT_NAME[q0_id], QUBIT_NAME[q1_id]))
             level_result['TwoQType'].append(
-                GATE_NAME_MAP[instruction.operation.name])
+                GATE_NAME_MAP[instruction['name']])
             level_result['TwoAngle'].append(0)
         else:
-            q0_id = instruction.qubits[0].index
-            if instruction.operation.name == 'h':
+            q0_id = instruction['qubits'][0]
+            if instruction['name'] == 'h':
                 angle = 0.0
-                assert len(instruction.operation.params) == 0
+                assert len(instruction['params']) == 0
             else:
-                angle = instruction.operation.params[0]
-                assert len(instruction.operation.params) == 1
+                angle = instruction['params'][0]
+                assert len(instruction['params']) == 1
 
             if not isinstance(angle, float):
                 angle = float(angle)
 
             level_result['SingleQ'].append(QUBIT_NAME[q0_id])
             level_result['SingleQType'].append(
-                GATE_NAME_MAP[instruction.operation.name])
+                GATE_NAME_MAP[instruction['name']])
             level_result['SingleAngle'].append(angle)
 
     return level_result
