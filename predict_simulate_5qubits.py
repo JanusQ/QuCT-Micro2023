@@ -46,10 +46,10 @@ regen = True
 if regen:
     # dataset = gen_train_dataset(
     #     n_qubits, topology, neighbor_info, coupling_map, 2000)
-    dataset = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=25, two_qubit_gate_probs=[
+    dataset = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=250, two_qubit_gate_probs=[
         3, 7], gate_num_step=20, backend=backend, multi_process=True)
 
-    test_dataset = gen_random_circuits(min_gate=20, max_gate=3000, n_circuits=1, two_qubit_gate_probs=[
+    test_dataset = gen_random_circuits(min_gate=20, max_gate=3000, n_circuits=10, two_qubit_gate_probs=[
         3, 7], gate_num_step=60, backend=backend, multi_process=True)
 
     print('train dataset size = ', len(dataset))

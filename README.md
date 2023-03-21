@@ -33,3 +33,5 @@ screen -r yourname
 
 ctrl-a + d 推出不杀死
 ctrl-a + k 关闭
+
+screen -L -S q5_random python predict_simulate_5qubits.py 
