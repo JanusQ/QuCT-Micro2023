@@ -57,8 +57,8 @@ from utils.unitaries import qft_U, grover_U
 
 # model_name = f'q{n_qubits}_02204_dnn_unitary_eval_data' #f'q{n_qubits}_0220_pca_unitary'
         
-for n_qubits in range(4, 7):
-    for index in range(10):
+for n_qubits in range(3, 4):
+    for index in range(5):
         # n_qubits = 5
         
         topology = gen_fulllyconnected_topology(n_qubits)
@@ -73,7 +73,7 @@ for n_qubits in range(4, 7):
         init_unitary_mat = unitary_group.rvs(2**n_qubits)
         # init_unitary_mat = qft_U(n_qubits)
         start_time = time.time()
-        synthesized_circuit = synthesize(init_unitary_mat, backend = backend, allowed_dist=1e-3, multi_process = True, heuristic_model=None, verbose=True, lagre_block_penalty = 5)
+        synthesized_circuit = synthesize(init_unitary_mat, backend = backend, allowed_dist=0.5, multi_process = True, heuristic_model=None, verbose=True, lagre_block_penalty = 4)
         # print(synthesized_circuit)
         
         synthesis_time = time.time() - start_time
@@ -88,13 +88,11 @@ for n_qubits in range(4, 7):
                 return count_ops['cx']
             return 0
 
-
         def cz_count(qc: QuantumCircuit):
             count_ops = qc.count_ops()
             if 'cz' in count_ops:
                 return count_ops['cz']
             return 0
-
 
         # layer_U: jnp.array = layer_circuit_to_matrix(layer2gates, n_qubits)
         print(qiskit_circuit)

@@ -229,7 +229,10 @@ class QubitDependentModel():
 
         circuit_info['vecs'] = []
         circuit_info['gate_paths'] = []
-        path_map = {str(k): str(v) for k,v in circuit_info['map'].items()}
+        
+        if 'map' in circuit_info:
+            path_map = {str(k): str(v) for k,v in circuit_info['map'].items()}
+            
         for gate in (gates if gates is not None else circuit_info['gates']):
             paths = travel_gates_BFS(circuit_info, gate, path_per_node, max_step, neighbor_info,
                                      directions=self.travel_directions)

@@ -1,7 +1,7 @@
 from circuit.algorithm.get_data import get_dataset_bug_detection
 from circuit.formatter import layered_circuits_to_qiskit
 from circuit.parser import get_circuit_duration, qiskit_to_layered_circuits
-from circuit.random_circuit import random_circuit
+from circuit.random_circuit import random_circuit, random_circuit_cycle
 from utils.backend import Backend
 from qiskit import transpile
 import ray
@@ -48,6 +48,8 @@ def _gen_random_circuits(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backen
     for _ in range(n_circuits):
         circuit = random_circuit(n_qubits, n_gates, two_qubit_prob, reverse=reverse, coupling_map=coupling_map,
                                  basis_single_gates=basis_single_gates, basis_two_gates=basis_two_gates)
+        # circuit = random_circuit_cycle(n_qubits, n_gates, two_qubit_prob, reverse=reverse, coupling_map=coupling_map,
+        #                          basis_single_gates=basis_single_gates, basis_two_gates=basis_two_gates)
 
         # print()
         # print(circuit)
@@ -78,6 +80,7 @@ def _gen_random_circuits(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backen
             circuit_info['layer2gates'], backend.single_qubit_gate_time, backend.two_qubit_gate_time)
         circuit_info['gate_num'] = len(circuit_info['gates'])
         circuit_info['devide_qubits'] = backend.devide_qubits
+        circuit_info['two_qubit_prob'] = two_qubit_prob
         
         # fig = circuit_info['qiskit_circuit'].draw('mpl')
         # fig.savefig("devide_figure/"+str(_circuit_info['id'])+".svg")

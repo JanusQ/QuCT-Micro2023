@@ -1,4 +1,6 @@
 import numpy as np
+import matplotlib.pyplot as plt
+
 def get_duration2circuit_infos(durations,step,max_duration):
     durations = np.array(durations)
     if max_duration == 0:
@@ -17,8 +19,6 @@ def get_duration2circuit_infos(durations,step,max_duration):
         duration2circuit_index.append(duration_index)
         duration_X.append((left+right)/2)
         
-        
-
     return duration_X, duration2circuit_index
 
 def plot_duration_fidelity(fig, axes,dataset,step = 100 ,max_duration =0):
@@ -37,7 +37,9 @@ def plot_duration_fidelity(fig, axes,dataset,step = 100 ,max_duration =0):
     for circuit_index in duration2circuit_index:
         real_y.append(reals[circuit_index].mean())
         predict_y.append(predicts[circuit_index].mean())
-        
+    
+    
+    axes.scatter(duration_X, real_y)
     axes.plot(duration_X, real_y ,markersize = 12,linewidth = 2, label='real',marker = '^' )
     axes.plot(duration_X, predict_y ,markersize = 12,linewidth = 2, label='predict',marker = '^' )
     axes.set_xlabel('duration ')
@@ -47,9 +49,31 @@ def plot_duration_fidelity(fig, axes,dataset,step = 100 ,max_duration =0):
     return  duration_X, duration2circuit_index
 
 
+def plot_real_predicted_fidelity(fig, axes, dataset,step = 100 ,max_duration =0):
+    predicts,reals, durations = [],[],[]
+    for cir in dataset:
+        predicts.append(cir['circuit_predict'])
+        reals.append(cir['ground_truth_fidelity'])
+        durations.append(cir['duration'])
+        
+    plt.axis(xmin, xmax, ymin, ymax)
+    axes.scatter(reals, predicts)
+    axes.set_xlabel('real ')
+    axes.set_ylabel('predict')
+    fig.show()
+    return fig
+
+
 def plot_top_ratio(upstream_model, erroneous_pattern_weight):
     x ,y = [],[]
-    for top in range(1,100,1):
+    
+    erroneous_pattern_num = 0
+    for device, erroneous_patterns in upstream_model.erroneous_pattern.items():
+        erroneous_pattern_num += len(erroneous_patterns)
+        
+    total_path_num = sum([len(upstream_model.device2path_table[device]) for device in upstream_model.device2path_table])
+        
+    for top in range(1, 100,1):
         top /= 100
         total_find = 0
         for device, pattern_weights in erroneous_pattern_weight.items():
@@ -58,17 +82,23 @@ def plot_top_ratio(upstream_model, erroneous_pattern_weight):
                 if  pattern_weight[1] < top * path_table_size:
                     total_find += 1
 
-        find_ratio = total_find / (len(upstream_model.erroneous_pattern.keys()) * upstream_model.error_pattern_num_per_device)
-        print(top,find_ratio)
-        x.append(top)
-        y.append(find_ratio)
+        find_ratio = total_find / erroneous_pattern_num
+        find_path = total_find
+        # print(top, find_ratio)
+        
+        # x.append(top)
+        # y.append(find_ratio)
+        
+        x.append(total_path_num * top)
+        y.append(total_find)
         
         
     import matplotlib.pyplot as plt
     fig, axes = plt.subplots(figsize=(20,6)) # 创建一个图形对象和一个子图对象
     axes.plot(x, y ,markersize = 12,linewidth = 2, label='ratio',marker = '^' )
-    axes.set_xlabel('top ')
-    axes.set_ylabel('find_ratio')
+    axes.set_xlabel('top')
+    axes.set_ylabel('#find_path')
+    # axes.set_ylabel('find_ratio')
     axes.legend() # 添加图例
     fig.show()
     num_qubits = upstream_model.dataset[0]['num_qubits']
@@ -111,3 +141,13 @@ def find_error_path(upstream_model, error_params):
         erroneous_pattern_weight[device] = device_erroneous_pattern_weight
         
     plot_top_ratio(upstream_model, erroneous_pattern_weight)
+
+import pandas as pd
+import seaborn as sns
+def plot_correlation(data, feature_names, color_feature = None, name = 'correlation'):
+    df = pd.DataFrame(data, columns=feature_names)
+    # df["class"] = pd.Series(data[:,color_feature_index])
+    sns_plot = sns.pairplot(df, hue=color_feature, palette="tab10")
+    # fig = sns_plot.get_figure()
+    sns_plot.savefig(f"{name}.png")
+    return

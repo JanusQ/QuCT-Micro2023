@@ -109,8 +109,10 @@ def gen_train_dataset(n_qubits, topology, neighbor_info, coupling_map, dataset_s
             #     cut_datasets.append(_dataset)
             #     # dataset_5qubit += _dataset
             # else:
-            _dataset = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=n_circuits, two_qubit_gate_probs=[
-                                            1, 5], gate_num_step=10, backend=cut_backend, multi_process=True)
+            # _dataset = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=n_circuits, two_qubit_gate_probs=[
+            #                                 1, 5], gate_num_step=10, backend=cut_backend, multi_process=True)
+            _dataset = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=n_circuits*2, two_qubit_gate_probs=[
+                                            3, 7], gate_num_step=20, backend=cut_backend, multi_process=True)
             cut_datasets.append(_dataset)
                 # dataset_5qubit += _dataset
 

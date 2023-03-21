@@ -205,6 +205,7 @@ def stitching(n_qubits, cut_datasets, devide_qubits, maps, reverse_maps):
                 layer += 1
             else:
                 break
+            
         circuit_info['devide_qubits'] = devide_qubits
         circuit_info['gate_num'] = len(circuit_info['gates'])
         circuit_info['duration'] = get_circuit_duration(circuit_info['layer2gates'])

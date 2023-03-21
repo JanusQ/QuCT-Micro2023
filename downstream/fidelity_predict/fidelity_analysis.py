@@ -12,6 +12,7 @@ import optax
 
 from upstream.randomwalk_model import extract_device
 from upstream import RandomwalkModel
+from sklearn.model_selection import train_test_split
 
 error_param_rescale = 10000
 
@@ -33,11 +34,12 @@ class FidelityModel():
         
         optimizer = optax.adamw(learning_rate=1e-2)
         opt_state = optimizer.init(params)
-
-        if test_dataset is not None:
-            min_test_loss = 1e10
-            best_test_params = None
-
+        
+        min_test_loss = 1e10
+        best_test_params = None
+        if test_dataset is None:
+            train_dataset, test_dataset  = train_test_split(train_dataset, test_size = 0.1)
+        
         self.path_count = defaultdict(int)
         n_instruction2circuit_infos, gate_nums = get_n_instruction2circuit_infos(train_dataset)
         print(gate_nums)
@@ -57,9 +59,9 @@ class FidelityModel():
             
             mean_real_fidelity = sum(real_fidelities) / len(real_fidelities)
             
-            if mean_real_fidelity < 0.2:  # 再小的质量太低了，可能没用
-                terminate_num_gate = gate_num
-                break
+            # if mean_real_fidelity < 0.2:  # 再小的质量太低了，可能没用
+            #     terminate_num_gate = gate_num
+            #     break
             
             print(f'n_instruction2circuit_infos[{gate_num}] has', len(n_instruction2circuit_infos[gate_num]))
         
@@ -108,8 +110,26 @@ class FidelityModel():
                     params = params.at[params < 0].set(0)
 
                     loss_values.append(loss_value)
+
+            # if test_dataset is not None:
+            test_loss = 0 
+            for circuit_info in test_dataset: #[:2000]:
+                # if circuit_info['ground_truth_fidelity'] < 0.2:
+                #     continue
+                circuit_devices = []
+                for gate in circuit_info['gates']:
+                    device = extract_device(gate)
+                    device_index = list(upstream_model.device2path_table.keys()).index(device)
+                    circuit_devices.append(device_index)
+                circuit_devices = jnp.array(circuit_devices, dtype=jnp.int32)
+                test_loss += loss_func(params, np.array(circuit_info['vecs'], dtype=np.float32), circuit_info['ground_truth_fidelity'], circuit_devices)
+
+            # print('', test_loss)
+            # if test_loss < min_test_loss:
+            #     min_test_loss = test_loss
+            #     best_test_params = params
                     
-            epoch_loss  = sum(loss_values) / len(loss_values)
+            epoch_loss  = test_loss #sum(loss_values) / len(loss_values)
             
             loss_decrease_history.append(min_loss - epoch_loss)
             if epoch > n_iter_no_change:
@@ -123,42 +143,23 @@ class FidelityModel():
             if epoch_loss < min_loss:
                 min_loss = epoch_loss
                 best_params = params
-
-            print(f'epoch: {epoch}, \t epoch_loss = {epoch_loss}')
-
-            if test_dataset is not None:
-                test_loss = 0 
-                for circuit_info in test_dataset[:2000]:
-                    if circuit_info['ground_truth_fidelity'] < 0.2:
-                        continue
-                    
-                    circuit_devices = []
-                    for gate in circuit_info['gates']:
-                        device = extract_device(gate)
-                        device_index = list(upstream_model.device2path_table.keys()).index(device)
-                        circuit_devices.append(device_index)
-                    circuit_devices = jnp.array(circuit_devices, dtype=jnp.int32)
-                    test_loss += loss_func(best_params, np.array(circuit_info['vecs'], dtype=np.float32), circuit_info['ground_truth_fidelity'], circuit_devices)
-
-                print('test loss:', test_loss)
-                if test_loss < min_test_loss:
-                    min_test_loss = test_loss
-                    best_test_params = params
-                    
-
-            params = best_params
-            
+                
+            print(f'epoch: {epoch}, \t epoch_loss = {sum(loss_values) / len(loss_values)}, \t test loss = {test_loss}')
+                
+            # params = best_params
+        
+        self.error_params = best_params
         print(f'taining error params finishs')
-
-        if test_dataset is not None:
-            self.error_params = best_test_params
-        else:
-            self.error_params = params
+        return best_params
+    
+        # if test_dataset is not None:
+        #     self.error_params = best_test_params
+        # else:
+        #     self.error_params = params
 
 
     def predict_fidelity(self, circuit_info):
         error_params = self.error_params
-
 
         device_list = list(self.upstream_model.device2path_table.keys())
         circuit_devices = []

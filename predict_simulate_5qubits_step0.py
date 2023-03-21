@@ -42,7 +42,7 @@ for idx, cir in enumerate(train_dataset):
     cir = upstream_model.vectorize(cir)
 
 downstream_model = FidelityModel(upstream_model)
-downstream_model.train(train_dataset, epoch_num = 1000)
+downstream_model.train(train_dataset, epoch_num = 200)
 
 predicts, reals, durations = [], [], []
 for idx, cir in enumerate(test_dataset):
