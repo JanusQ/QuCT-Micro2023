@@ -153,23 +153,27 @@ class NoiseSimulator():
             # if erroneous_pattern is None:
             #     erroneous_pattern = get_random_erroneous_pattern(model)
 
-            error_circuit, _n_erroneous_patterns = add_pattern_error_path(circuit_info, circuit_info['num_qubits'], model,
-                                                                          erroneous_pattern)
+            
             true_result = {
                 '0' * circuit_info['num_qubits']: 2000
             }
             
             '''TODO: 加多个单层的算fidelity'''
             _fidelities = []
-            for samle_time in range(10):
+            for _ in range(5):
                 layer_1q = random_1q_layer(n_qubits, self.backend.basis_single_gates)
+                simulate_circuit = QuantumCircuit(n_qubits)
                 simulate_circuit = simulate_circuit.compose(layer_1q)
+                error_circuit, _ = add_pattern_error_path(circuit_info, circuit_info['num_qubits'], model,
+                                                                                    erroneous_pattern)      
                 simulate_circuit = simulate_circuit.compose(error_circuit)
-                simulate_circuit = simulate_circuit.compose(layer_1q.reverse())
+                simulate_circuit = simulate_circuit.compose(layer_1q.inverse())
                 simulate_circuit.measure_all()
                 noisy_count = self.simulate_noise(simulate_circuit, n_samples)
                 _fidelities.append(hellinger_fidelity(noisy_count, true_result))
                 
+            error_circuit, _n_erroneous_patterns = add_pattern_error_path(circuit_info, circuit_info['num_qubits'], model,
+                                                                                    erroneous_pattern)                
             error_circuit.measure_all()
             noisy_count = self.simulate_noise(error_circuit, n_samples)
             # circuit_info['error_result'] = noisy_count
@@ -179,11 +183,12 @@ class NoiseSimulator():
             
             independent_error_circuit, _ = add_pattern_error_path(circuit_info, circuit_info['num_qubits'], model, defaultdict(list))
             _fidelities = []
-            for samle_time in range(10):
+            for _ in range(5):
                 layer_1q = random_1q_layer(n_qubits, self.backend.basis_single_gates)
+                simulate_circuit = QuantumCircuit(n_qubits)
                 simulate_circuit = simulate_circuit.compose(layer_1q)
                 simulate_circuit = simulate_circuit.compose(independent_error_circuit)
-                simulate_circuit = simulate_circuit.compose(layer_1q.reverse())
+                simulate_circuit = simulate_circuit.compose(layer_1q.inverse())
                 simulate_circuit.measure_all()
                 independent_noisy_count = self.simulate_noise(simulate_circuit, n_samples)
                 _fidelities.append(hellinger_fidelity(independent_noisy_count, true_result))
@@ -292,7 +297,7 @@ def add_pattern_error_path(circuit, n_qubits, model, device2erroneous_pattern): 
             if _index in erroneous_pattern_index:
                 for qubit in gate['qubits']:
                     error_circuit.rx(
-                        pi / 20 * random.random() + pi / 20, qubit)  # pi / 20
+                        pi / 20 * random.random(), qubit)  # pi / 20 + pi / 20
                     # error_circuit.rx(pi/10, qubit)  #pi / 20
                 n_erroneous_patterns += 1
                 # break
