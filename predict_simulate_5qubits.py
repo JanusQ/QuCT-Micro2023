@@ -42,81 +42,77 @@ backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neighbor_i
 dir_size = 'temp_data'
 dataset_path = os.path.join(dir_size, f"dataset_{n_qubits}.pkl")
 upstream_model_path = os.path.join(dir_size, f"upstream_model_{n_qubits}.pkl")
-regen = False
+regen = True
 if regen:
     # dataset = gen_train_dataset(
     #     n_qubits, topology, neighbor_info, coupling_map, 2000)
     dataset = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=250, two_qubit_gate_probs=[
         3, 7], gate_num_step=20, backend=backend, multi_process=True)
 
+    test_dataset = gen_random_circuits(min_gate=20, max_gate=3000, n_circuits=10, two_qubit_gate_probs=[
+        3, 7], gate_num_step=60, backend=backend, multi_process=True)
+
+    print('train dataset size = ', len(dataset))
+    print('test dataset size = ', len(test_dataset))
+
     upstream_model = RandomwalkModel(
         n_steps, 20, backend=backend, travel_directions=('parallel', 'former'))
-    print(len(dataset), "circuit generated")
-    upstream_model.train(dataset, multi_process=True,
+    
+    upstream_model.train(dataset + test_dataset, multi_process=True,
                          remove_redundancy=n_steps > 1)
-
-    with open(upstream_model_path, "wb")as f:
-        pickle.dump(upstream_model, f)
 
     print("original", len(dataset))
     # dataset = make_circuitlet(dataset)
     print("cutted", len(dataset))
+    
 
     simulator = NoiseSimulator(backend)
     erroneous_pattern = get_random_erroneous_pattern(
-        upstream_model, error_pattern_num_per_device=3)
+        upstream_model, error_pattern_num_per_device=2)
+    
+    # 每个subcircuit是单独的NoiseSimulator，backend对应不对
     erroneous_pattern = simulator.get_error_results(
-        dataset, upstream_model, multi_process=True, erroneous_pattern=erroneous_pattern)
+        dataset + test_dataset, upstream_model, multi_process=True, erroneous_pattern=erroneous_pattern)
     upstream_model.erroneous_pattern = erroneous_pattern
 
     with open(upstream_model_path, "wb")as f:
         pickle.dump(upstream_model, f)
 
-    index = np.arange(len(dataset))
-    random.shuffle(index)
-    n = len(dataset)//5 #-200 * n_qubits
-    train_index, test_index = index[:n], index[n:]
-    train_dataset, test_dataset = np.array(
-        dataset)[train_index], np.array(dataset)[test_index]
+    train_dataset, validation_dataset = train_test_split(dataset, test_size = 500)
+    
+    test_dataset = np.array(test_dataset)
 
     with open(dataset_path, "wb")as f:
-        pickle.dump((train_dataset, test_dataset), f)
+        pickle.dump((train_dataset, validation_dataset, test_dataset), f)
 
 else:
     with open(dataset_path, "rb")as f:
-        train_dataset, test_dataset = pickle.load(f)
+        train_dataset, validation_dataset, test_dataset = pickle.load(f)
 
     with open(upstream_model_path, "rb")as f:
         upstream_model = pickle.load(f)
 
-dataset = np.concatenate([train_dataset, test_dataset])
+total_dataset = np.concatenate([train_dataset, validation_dataset, test_dataset])
 error_data = []
-for circuit_info in dataset:
-    # print(circuit_info['n_erroneous_patterns'], len(circuit_info['gates']), circuit_info['n_erroneous_patterns'] / len(circuit_info['gates']), circuit_info['two_qubit_prob'])
+for circuit_info in total_dataset:
     error_data.append([circuit_info['n_erroneous_patterns'], len(circuit_info['gates']),
                       circuit_info['n_erroneous_patterns'] / len(circuit_info['gates']), circuit_info['two_qubit_prob'],
                       circuit_info['ground_truth_fidelity'], circuit_info['independent_fidelity'], circuit_info['ground_truth_fidelity'] - circuit_info['independent_fidelity']
                     ])
-    
-    # if circuit_info['ground_truth_fidelity'] - circuit_info['independent_fidelity'] < -0.6:
-    #     pass
-    
 
-# 'ground_truth_fidelity - independent_fidelity'
 error_data = np.array(error_data)
 plot_correlation(error_data, ['n_erroneous_patterns',
                  'n_gates', 'error_prop', 'two_qubit_prob', 'ground_truth_fidelity', 'independent_fidelity', 'ground_truth_fidelity - independent_fidelity'], None)
 
+print('erroneous patterns = ', upstream_model.erroneous_pattern)
 
-print(upstream_model.erroneous_pattern)
-
-retrain = False
+retrain = True
 # # TODO: 要用fidelity 大于 0.5的阶段
 if retrain:
     downstream_model = FidelityModel(upstream_model)
     downstream_model.train(
-        train_dataset, test_dataset=test_dataset[:500], epoch_num=200)
-
+        train_dataset, validation_dataset, epoch_num=200)
+    
     predicts, reals, durations = [], [], []
     for idx, cir in enumerate(test_dataset):
         cir = upstream_model.vectorize(cir)
@@ -140,6 +136,8 @@ else:
     with open(f"error_params_predicts_{n_qubits}.pkl", "rb")as f:
         downstream_model, predicts, reals, durations, test_dataset = pickle.load(f)
     upstream_model = downstream_model.upstream_model
+    
+print('average inaccuracy = ', np.abs(predicts - reals).mean())
 
 # 画找到path的数量
 find_error_path(upstream_model, downstream_model.error_params)
@@ -150,20 +148,15 @@ duration_X, duration2circuit_index = plot_duration_fidelity(
 fig.savefig(f"duration_fidelity_{n_qubits}_step1.svg")  # step
 plt.close(fig)
 
+# 画x: real fidelity, y: predicted fidelity
 fig, axes = plt.subplots(figsize=(10, 10))  # 创建一个图形对象和一个子图对象
 plot_real_predicted_fidelity(fig, axes, test_dataset)
 fig.savefig(f"real_predictedy_{n_qubits}_step1.svg")  # step
 
-# 画inaccuracy
+# 画x: real fidelity, y: inaccuracy
 fig, axes = plt.subplots(figsize=(20, 6))  # 创建一个图形对象和一个子图对象
 duration_X, duration2circuit_index = get_duration2circuit_infos(
     durations, 100, 0)
-
-reals = np.array(reals)
-predicts = np.array(predicts)
-durations = np.array(durations)
-
-print('average inaccuracy = ', np.abs(predicts - reals).mean())
 
 delta = []
 for circuit_index in duration2circuit_index:
@@ -176,7 +169,8 @@ axes.legend()  # 添加图例
 fig.savefig(f"inaccuracy_fidelity_{n_qubits}_step1.svg")
 print(np.array(delta).mean())
 
-# 存excel
+
+# 存path error 到 excel
 error_params = downstream_model.error_params
 device_index2device = {}
 for device  in upstream_model.device2path_table.keys():

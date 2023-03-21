@@ -25,7 +25,7 @@ class FidelityModel():
         return
 
     # device2reverse_path_table_size去掉，从backend拿
-    def train(self, train_dataset, test_dataset = None, epoch_num = 100, ):
+    def train(self, train_dataset, validation_dataset = None, epoch_num = 100, ):
         upstream_model = self.upstream_model
         # backend = self.upstream_model.backend
         
@@ -37,8 +37,8 @@ class FidelityModel():
         
         min_test_loss = 1e10
         best_test_params = None
-        if test_dataset is None:
-            train_dataset, test_dataset  = train_test_split(train_dataset, test_size = 0.1)
+        if validation_dataset is None:
+            train_dataset, validation_dataset  = train_test_split(train_dataset, test_size = 0.1)
         
         self.path_count = defaultdict(int)
         n_instruction2circuit_infos, gate_nums = get_n_instruction2circuit_infos(train_dataset)
@@ -111,9 +111,9 @@ class FidelityModel():
 
                     loss_values.append(loss_value)
 
-            # if test_dataset is not None:
+            # if validation_dataset is not None:
             test_loss = 0 
-            for circuit_info in test_dataset: #[:2000]:
+            for circuit_info in validation_dataset: #[:2000]:
                 # if circuit_info['ground_truth_fidelity'] < 0.2:
                 #     continue
                 circuit_devices = []
@@ -152,7 +152,7 @@ class FidelityModel():
         print(f'taining error params finishs')
         return best_params
     
-        # if test_dataset is not None:
+        # if validation_dataset is not None:
         #     self.error_params = best_test_params
         # else:
         #     self.error_params = params

@@ -56,7 +56,7 @@ def plot_real_predicted_fidelity(fig, axes, dataset,step = 100 ,max_duration =0)
         reals.append(cir['ground_truth_fidelity'])
         durations.append(cir['duration'])
         
-    plt.axis(xmin, xmax, ymin, ymax)
+    axes.axis([0, 1, 0, 1])
     axes.scatter(reals, predicts)
     axes.set_xlabel('real ')
     axes.set_ylabel('predict')

@@ -13,6 +13,7 @@ from numpy import pi
 
 from upstream.randomwalk_model import extract_device, RandomwalkModel
 import ray
+from circuit.random_circuit import random_1q_layer
 
 # https://qiskit.org/documentation/tutorials/simulators/3_building_noise_models.html
 
@@ -143,6 +144,7 @@ class NoiseSimulator():
         fidelities = []
         n_erroneous_patterns = []
         independent_fidelities = []
+        n_qubits = self.n_qubits
         
         n_samples = 1000 
         for circuit_info in sub_dataset:
@@ -153,19 +155,45 @@ class NoiseSimulator():
 
             error_circuit, _n_erroneous_patterns = add_pattern_error_path(circuit_info, circuit_info['num_qubits'], model,
                                                                           erroneous_pattern)
-            error_circuit.measure_all()
-            noisy_count = self.simulate_noise(error_circuit, n_samples)
-            # circuit_info['error_result'] = noisy_count
             true_result = {
                 '0' * circuit_info['num_qubits']: 2000
             }
-            fidelities.append(hellinger_fidelity(noisy_count, true_result))
+            
+            '''TODO: 加多个单层的算fidelity'''
+            _fidelities = []
+            for samle_time in range(10):
+                layer_1q = random_1q_layer(n_qubits, self.backend.basis_single_gates)
+                simulate_circuit = simulate_circuit.compose(layer_1q)
+                simulate_circuit = simulate_circuit.compose(error_circuit)
+                simulate_circuit = simulate_circuit.compose(layer_1q.reverse())
+                simulate_circuit.measure_all()
+                noisy_count = self.simulate_noise(simulate_circuit, n_samples)
+                _fidelities.append(hellinger_fidelity(noisy_count, true_result))
+                
+            error_circuit.measure_all()
+            noisy_count = self.simulate_noise(error_circuit, n_samples)
+            # circuit_info['error_result'] = noisy_count
+            _fidelities.append(hellinger_fidelity(noisy_count, true_result))
+            
+            fidelities.append(sum(_fidelities)/len(_fidelities))
             
             independent_error_circuit, _ = add_pattern_error_path(circuit_info, circuit_info['num_qubits'], model, defaultdict(list))
-            assert _ == 0
+            _fidelities = []
+            for samle_time in range(10):
+                layer_1q = random_1q_layer(n_qubits, self.backend.basis_single_gates)
+                simulate_circuit = simulate_circuit.compose(layer_1q)
+                simulate_circuit = simulate_circuit.compose(independent_error_circuit)
+                simulate_circuit = simulate_circuit.compose(layer_1q.reverse())
+                simulate_circuit.measure_all()
+                independent_noisy_count = self.simulate_noise(simulate_circuit, n_samples)
+                _fidelities.append(hellinger_fidelity(independent_noisy_count, true_result))
+                
             independent_error_circuit.measure_all()
             independent_noisy_count = self.simulate_noise(independent_error_circuit, n_samples)
-            independent_fidelities.append(hellinger_fidelity(independent_noisy_count, true_result))
+            _fidelities.append(hellinger_fidelity(independent_noisy_count, true_result))
+            independent_fidelities.append(sum(_fidelities)/len(_fidelities))
+            
+            # independent_fidelities.append(hellinger_fidelity(independent_noisy_count, true_result))
             
             n_erroneous_patterns.append(_n_erroneous_patterns)
 

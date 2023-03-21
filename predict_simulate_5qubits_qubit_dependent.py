@@ -67,7 +67,7 @@ else:
     with open(f"error_params_predicts_{n_qubits}_qubit_dependent_error.pkl","rb")as f:
         downstream_model, predicts, reals, durations, test_dataset = pickle.load(f)
         # downstream_model.error_params, predicts, reals, durations = pickle.load(f)
-    upstream_model = downstream_model.upstream_model
+    # upstream_model = downstream_model.upstream_model
         
 print('average inaccuracy = ', np.abs(predicts - reals).mean())
 
