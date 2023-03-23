@@ -23,15 +23,13 @@ with open("5qubit_data/dataset_split.pkl", "rb") as f:
 
 backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basis_single_gates = default_basis_single_gates,
                   basis_two_gates = default_basis_two_gates, divide = False, decoupling=False)
-upstream_model = RandomwalkModel(3, 20, backend = backend) ### step
+upstream_model = RandomwalkModel(1, 20, backend = backend) ### step
 upstream_model.train(train_dataset, multi_process = True)
-
 
 with open("upstream_model_5_step3.pkl", "wb") as f: ### step
     pickle.dump(upstream_model, f)
 
 
-    
 downstream_model = FidelityModel(upstream_model)
 downstream_model.train(upstream_model.dataset)
 
