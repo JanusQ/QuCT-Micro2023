@@ -7,7 +7,7 @@ from qiskit import transpile
 import ray
 
 
-def gen_random_circuits(min_gate: int, max_gate: int, n_circuits: int, two_qubit_gate_probs: list, backend: Backend, gate_num_step: int = 1, reverse=True, optimize=False, multi_process=False):
+def gen_random_circuits(min_gate: int, max_gate: int, n_circuits: int, two_qubit_gate_probs: list, backend: Backend, gate_num_step: int = 1, reverse=True, optimize=False, multi_process=False, circuit_type = 'random'):
     dataset = []
     futures = []
     assert two_qubit_gate_probs[0] < two_qubit_gate_probs[1]
@@ -17,11 +17,11 @@ def gen_random_circuits(min_gate: int, max_gate: int, n_circuits: int, two_qubit
             if multi_process:
                 futures.append(_gen_random_circuits_remote.remote(n_gates=n_gates, two_qubit_prob=prob,
                                                                   n_circuits=n_circuits, backend=backend, reverse=reverse,
-                                                                  optimize=optimize))
+                                                                  optimize=optimize, circuit_type = circuit_type))
             else:
                 dataset += _gen_random_circuits(n_gates=n_gates, two_qubit_prob=prob,
                                                 n_circuits=n_circuits, backend=backend, reverse=reverse,
-                                                optimize=optimize)
+                                                optimize=optimize, circuit_type = circuit_type)
 
     for future in futures:
         dataset += ray.get(future)
@@ -31,25 +31,30 @@ def gen_random_circuits(min_gate: int, max_gate: int, n_circuits: int, two_qubit
 
 
 @ray.remote
-def _gen_random_circuits_remote(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backend: Backend = None, reverse=True, optimize=False):
+def _gen_random_circuits_remote(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backend: Backend = None, reverse=True, optimize=False, circuit_type = 'random'):
     return _gen_random_circuits(n_gates=n_gates, two_qubit_prob=two_qubit_prob,
                                 n_circuits=n_circuits, backend=backend, reverse=reverse,
-                                optimize=optimize)
+                                optimize=optimize, circuit_type = circuit_type)
 
 
 import traceback
-def _gen_random_circuits(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backend: Backend = None, reverse=True, optimize=False):
+def _gen_random_circuits(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backend: Backend = None, reverse=True, optimize=False, circuit_type = 'random'):
 
     divide, decoupling, coupling_map, n_qubits = backend.divide, backend.decoupling, backend.coupling_map, backend.n_qubits
     basis_single_gates, basis_two_gates = backend.basis_single_gates, backend.basis_two_gates
 
+    assert circuit_type in ('random', 'cycle')
+    
     # print(circuit)
     dataset = []
     for _ in range(n_circuits):
-        circuit = random_circuit(n_qubits, n_gates, two_qubit_prob, reverse=reverse, coupling_map=coupling_map,
+        
+        if circuit_type == 'random':
+            circuit = random_circuit(n_qubits, n_gates, two_qubit_prob, reverse=reverse, coupling_map=coupling_map,
+                                     basis_single_gates=basis_single_gates, basis_two_gates=basis_two_gates)
+        else:
+            circuit = random_circuit_cycle(n_qubits, n_gates, two_qubit_prob, reverse=reverse, coupling_map=coupling_map,
                                  basis_single_gates=basis_single_gates, basis_two_gates=basis_two_gates)
-        # circuit = random_circuit_cycle(n_qubits, n_gates, two_qubit_prob, reverse=reverse, coupling_map=coupling_map,
-        #                          basis_single_gates=basis_single_gates, basis_two_gates=basis_two_gates)
 
         # print()
         # print(circuit)

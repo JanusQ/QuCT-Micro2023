@@ -14,7 +14,7 @@ from upstream.randomwalk_model import extract_device
 from upstream import RandomwalkModel
 from sklearn.model_selection import train_test_split
 
-error_param_rescale = 10000
+error_param_rescale = 10000  # TODO: 再大一些
 
 
 class FidelityModel():
@@ -29,14 +29,17 @@ class FidelityModel():
         upstream_model = self.upstream_model
         # backend = self.upstream_model.backend
         
-        params = jnp.zeros(shape=(len(upstream_model.device2path_table), upstream_model.max_table_size))
+        '''TODO: 加一个bias'''
+        params = {
+            'gate_params': jnp.zeros(shape=(len(upstream_model.device2path_table), upstream_model.max_table_size)),
+            'circuit_bias': jnp.zeros(shape=(1,)),
+        }
+        # params = jnp.zeros(shape=(len(upstream_model.device2path_table), upstream_model.max_table_size))  #  + 1
         # 每个device一行
         
         optimizer = optax.adamw(learning_rate=1e-2)
         opt_state = optimizer.init(params)
-        
-        min_test_loss = 1e10
-        best_test_params = None
+
         if validation_dataset is None:
             train_dataset, validation_dataset  = train_test_split(train_dataset, test_size = 0.1)
         
@@ -57,7 +60,7 @@ class FidelityModel():
                     for path in gate_paths:
                         self.path_count[path] += 1
             
-            mean_real_fidelity = sum(real_fidelities) / len(real_fidelities)
+            # mean_real_fidelity = sum(real_fidelities) / len(real_fidelities)
             
             # if mean_real_fidelity < 0.2:  # 再小的质量太低了，可能没用
             #     terminate_num_gate = gate_num
@@ -73,7 +76,7 @@ class FidelityModel():
         best_params = None
         loss_decrease_history = []
         n_iter_no_change = 5
-        no_change_tolerance  = .5
+        no_change_tolerance  = .1  # TODO: 可以改到.1
         
         for epoch in range(epoch_num):
 
@@ -106,32 +109,34 @@ class FidelityModel():
                     updates, opt_state = optimizer.update(gradient, opt_state, params)
                     params = optax.apply_updates(params, updates)
 
-                    params = params.at[params > error_param_rescale / 10].set(error_param_rescale / 10)  # 假设一个特征对error贡献肯定小于0.1
-                    params = params.at[params < 0].set(0)
+                    # for key, param in params.items():
+                    params['gate_params'] = params['gate_params'].at[params['gate_params'] > error_param_rescale / 10].set(error_param_rescale / 10)  # 假设一个特征对error贡献肯定小于0.1
+                    params['gate_params'] = params['gate_params'].at[params['gate_params'] < 0].set(0)
+
+                    params['circuit_bias'] = params['circuit_bias'].at[params['circuit_bias'] > error_param_rescale / 5].set(error_param_rescale / 5)  # 假设一个特征对error贡献肯定小于0.1
+                    params['circuit_bias'] = params['circuit_bias'].at[params['circuit_bias'] < -error_param_rescale / 5].set(-error_param_rescale / 5)
+
+                    # params = params.at[params > error_param_rescale / 10].set(error_param_rescale / 10)  # 假设一个特征对error贡献肯定小于0.1
+                    # params = params.at[params < 0].set(0)
 
                     loss_values.append(loss_value)
 
-            # if validation_dataset is not None:
             test_loss = 0 
             for circuit_info in validation_dataset: #[:2000]:
-                # if circuit_info['ground_truth_fidelity'] < 0.2:
-                #     continue
                 circuit_devices = []
                 for gate in circuit_info['gates']:
                     device = extract_device(gate)
+                    if 'map' in circuit_info:
+                        if isinstance(device,tuple):
+                            device = (circuit_info['map'][device[0]],circuit_info['map'][device[1]])
+                        else:
+                            device = circuit_info['map'][device]
                     device_index = list(upstream_model.device2path_table.keys()).index(device)
                     circuit_devices.append(device_index)
                 circuit_devices = jnp.array(circuit_devices, dtype=jnp.int32)
                 test_loss += loss_func(params, np.array(circuit_info['vecs'], dtype=np.float32), circuit_info['ground_truth_fidelity'], circuit_devices)
 
-            # print('', test_loss)
-            # if test_loss < min_test_loss:
-            #     min_test_loss = test_loss
-            #     best_test_params = params
-                    
-            epoch_loss  = test_loss #sum(loss_values) / len(loss_values)
-            
-            loss_decrease_history.append(min_loss - epoch_loss)
+            loss_decrease_history.append(min_loss - test_loss)
             if epoch > n_iter_no_change:
                 loss_no_change = True
                 for loss_decrement in loss_decrease_history[-n_iter_no_change:]:
@@ -140,11 +145,11 @@ class FidelityModel():
                 if loss_no_change:
                     break
             
-            if epoch_loss < min_loss:
-                min_loss = epoch_loss
+            if test_loss < min_loss:
+                min_loss = test_loss
                 best_params = params
                 
-            print(f'epoch: {epoch}, \t epoch_loss = {sum(loss_values) / len(loss_values)}, \t test loss = {test_loss}')
+            print(f'epoch: {epoch}, \t epoch loss = {sum(loss_values)}, \t test loss = {test_loss}')
                 
             # params = best_params
         
@@ -179,22 +184,23 @@ class FidelityModel():
         return circuit_predict
 
 
-def gate_error(device2params, vec, device):
-    # error = jnp.dot((device2params[device] / error_param_rescale)**2, vec)
-    error = jnp.dot((device2params[device] / error_param_rescale), vec)
+def gate_error(params, vec, device):
+    # error = jnp.dot((params[device] / error_param_rescale)**2, vec)
+    # error = jnp.dot((params[device][:-1] / error_param_rescale), vec) + params[device][-1]
+    error = jnp.dot((params['gate_params'][device] / error_param_rescale), vec)
     return error
 
 
 @jax.jit
-def smart_predict(device2params, vecs, devices):
+def smart_predict(params, vecs, devices):
     '''预测电路的保真度'''
-    errors = vmap(gate_error, in_axes=(None, 0, 0), out_axes=0)(device2params, vecs, devices)
-    return jnp.product(1 - errors, axis=0)  # 不知道为什么是[0][0]
+    errors = vmap(gate_error, in_axes=(None, 0, 0), out_axes=0)(params, vecs, devices)
+    return jnp.product(1 - errors, axis=0)  + params['circuit_bias'][0]/error_param_rescale # 不知道为什么是[0][0]
 
 @jax.jit
-def loss_func(device2params, vecs, true_fidelity, devices):
+def loss_func(params, vecs, true_fidelity, devices):
     # predict_fidelity = naive_predict(circ) # 对于电路比较浅的预测是准的，大概是因为有可能翻转回去吧，所以电路深了之后会比理论的保真度要高一些
-    predict_fidelity = smart_predict(device2params, vecs, devices)
+    predict_fidelity = smart_predict(params, vecs, devices)
     return optax.l2_loss(true_fidelity - predict_fidelity) * 100
 
 

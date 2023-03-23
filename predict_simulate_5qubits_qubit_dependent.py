@@ -23,7 +23,7 @@ upstream_model_path = os.path.join(dir_size, f"upstream_model_{n_qubits}.pkl")
 retrain = False
 if retrain:
     with open(dataset_path, "rb")as f:
-        train_dataset, test_dataset = pickle.load(f)
+        train_dataset, validation_dataset, test_dataset = pickle.load(f)
 
     with open(upstream_model_path, "rb")as f:
         step1 = pickle.load(f)
@@ -32,17 +32,20 @@ if retrain:
     backend = step1.backend
 
     upstream_model = QubitDependentModel(0, 20, backend=backend, travel_directions=('parallel', 'former'))
-    upstream_model.train(dataset, multi_process=True, )
+    upstream_model.train(dataset, multi_process=True)
 
 
     for idx, cir in enumerate(train_dataset):
+        cir = upstream_model.vectorize(cir)
+
+    for idx, cir in enumerate(validation_dataset):
         cir = upstream_model.vectorize(cir)
 
     for idx, cir in enumerate(test_dataset):
         cir = upstream_model.vectorize(cir)
         
     downstream_model = FidelityModel(upstream_model)
-    downstream_model.train(train_dataset, test_dataset = test_dataset[:200], epoch_num = 100)
+    downstream_model.train(train_dataset, validation_dataset = validation_dataset, epoch_num = 100)
 
     predicts, reals, durations = [], [], []
     for idx, cir in enumerate(test_dataset):
@@ -68,10 +71,22 @@ else:
         downstream_model, predicts, reals, durations, test_dataset = pickle.load(f)
         # downstream_model.error_params, predicts, reals, durations = pickle.load(f)
     # upstream_model = downstream_model.upstream_model
-        
-print('average inaccuracy = ', np.abs(predicts - reals).mean())
 
 # 画duration - fidelity
+# predicts, reals, durations = [], [], []
+# for idx, cir in enumerate(test_dataset):
+#     if cir['gate_num'] > 2000:
+#         continue
+#     predicts.append(cir['circuit_predict'])
+#     reals.append(cir['ground_truth_fidelity'])
+#     durations.append(cir['duration'])
+# reals = np.array(reals)
+# predicts = np.array(predicts)
+# durations = np.array(durations)
+
+print('average inaccuracy = ', np.abs(predicts - reals).mean())
+print('average variance', np.var(np.abs(predicts - reals), ddof = 1) )
+
 fig, axes = plt.subplots(figsize=(20, 6))  # 创建一个图形对象和一个子图对象
 duration_X, duration2circuit_index = plot_duration_fidelity(fig, axes, test_dataset)
 fig.savefig(f"duration_fidelity_{n_qubits}_qubit_dependent.svg")  # step

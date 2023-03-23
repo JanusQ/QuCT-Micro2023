@@ -47,10 +47,10 @@ if regen:
     # dataset = gen_train_dataset(
     #     n_qubits, topology, neighbor_info, coupling_map, 2000)
     dataset = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=250, two_qubit_gate_probs=[
-        3, 7], gate_num_step=20, backend=backend, multi_process=True)
+        3, 7], gate_num_step=20, backend=backend, multi_process=True, circuit_type='cycle')
 
-    test_dataset = gen_random_circuits(min_gate=20, max_gate=3000, n_circuits=10, two_qubit_gate_probs=[
-        3, 7], gate_num_step=60, backend=backend, multi_process=True)
+    test_dataset = gen_random_circuits(min_gate=20, max_gate=2000, n_circuits=10, two_qubit_gate_probs=[
+        3, 7], gate_num_step=60, backend=backend, multi_process=True, circuit_type='random')
 
     print('train dataset size = ', len(dataset))
     print('test dataset size = ', len(test_dataset))
@@ -66,9 +66,15 @@ if regen:
     print("cutted", len(dataset))
     
 
-    simulator = NoiseSimulator(backend)
+    all_to_all_backend = copy.deepcopy(backend)
+    all_to_all_backend.coupling_map = []
+    for i in range(all_to_all_backend.n_qubits - 1):
+        for j in range(i + 1,all_to_all_backend.n_qubits):
+            all_to_all_backend.coupling_map.append([i,j])
+            
+    simulator = NoiseSimulator(all_to_all_backend)
     erroneous_pattern = get_random_erroneous_pattern(
-        upstream_model, error_pattern_num_per_device=2)
+        upstream_model, error_pattern_num_per_device=3)
     
     # 每个subcircuit是单独的NoiseSimulator，backend对应不对
     erroneous_pattern = simulator.get_error_results(
@@ -106,7 +112,7 @@ plot_correlation(error_data, ['n_erroneous_patterns',
 
 print('erroneous patterns = ', upstream_model.erroneous_pattern)
 
-retrain = True
+retrain = False
 # # TODO: 要用fidelity 大于 0.5的阶段
 if retrain:
     downstream_model = FidelityModel(upstream_model)
@@ -140,7 +146,7 @@ else:
 print('average inaccuracy = ', np.abs(predicts - reals).mean())
 
 # 画找到path的数量
-find_error_path(upstream_model, downstream_model.error_params)
+find_error_path(upstream_model, downstream_model.error_params['gate_params'])
 
 fig, axes = plt.subplots(figsize=(20, 6))  # 创建一个图形对象和一个子图对象
 duration_X, duration2circuit_index = plot_duration_fidelity(
@@ -171,7 +177,7 @@ print(np.array(delta).mean())
 
 
 # 存path error 到 excel
-error_params = downstream_model.error_params
+error_params = downstream_model.error_params['gate_params']
 device_index2device = {}
 for device  in upstream_model.device2path_table.keys():
     device_index = list(upstream_model.device2path_table.keys()).index(device)
