@@ -199,7 +199,8 @@ def topology_to_coupling_map(topology: dict) -> list:
             coupling.sort()
             coupling_map.add(tuple(coupling))
     return [
-        list(coupling)
+        # list(coupling)
+        tuple(coupling)
         for coupling in coupling_map
     ]
 
@@ -280,7 +281,7 @@ class Backend():
 
         if topology is None:
             topology = {
-                q1: [q1 for q2 in range(n_qubits) if q1 != q2]
+                q1: [q2 for q2 in range(n_qubits) if q1 != q2]
                 for q1 in range(n_qubits)
             }
 
