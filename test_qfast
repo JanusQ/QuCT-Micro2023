@@ -1,15 +1,15 @@
 from itertools import combinations
 
-my_array = [1, 2, 3]
+# my_array = [1, 2, 3]
 
-# 获取 my_array 所有的子集
-subsets = []
-for i in range(len(my_array) + 1):
-    for subset in combinations(my_array, i):
-        subsets.append(list(subset))
+# # 获取 my_array 所有的子集
+# subsets = []
+# for i in range(len(my_array) + 1):
+#     for subset in combinations(my_array, i):
+#         subsets.append(list(subset))
 
-# 输出所有子集
-print(subsets)
+# # 输出所有子集
+# print(subsets)
 
 
 
@@ -19,7 +19,9 @@ print(subsets)
 # from __future__ import annotations
 
 from bqskit import compile
+from qiskit import QuantumCircuit
 from scipy.stats import unitary_group
+import time
 # from bqskit.assemblers import ASSEMBLER_IBMOPENQASM
 
 n_qubits = 3
@@ -40,10 +42,16 @@ unitary = unitary_group.rvs(2**n_qubits)
 # ]
 
 # The compile function will perform synthesis
-synthesized_circuit = compile(unitary, max_synthesis_size=3)
+start_time = time.time()
+synthesized_circuit = compile(unitary, max_synthesis_size=n_qubits, optimization_level = 2) # , optimization_level = 3
+print(time.time() - start_time)
+qasm = synthesized_circuit.to('qasm')
 print(synthesized_circuit.gate_counts)
-print(synthesized_circuit.get_qasm)
+# print(synthesized_circuit.to('qasm'))
 
+qiskit_circuit =  QuantumCircuit.from_qasm_str(qasm)
+
+print(qiskit_circuit)
 # qasm = ASSEMBLER_IBMOPENQASM.assemble(result, opt)
 # # print(qasm)
 # qc = qiskit.QuantumCircuit.from_qasm_str(qasm)

@@ -10,8 +10,8 @@ from circuit.formatter import layered_circuits_to_qiskit
 from circuit.parser import qiskit_to_layered_circuits
 from circuit import gen_random_circuits
 from upstream import RandomwalkModel
-from downstream.synthesis.pennylane_op import layer_circuit_to_pennylane_circuit, layer_circuit_to_pennylane_tape
-from downstream.synthesis.tensor_network_op import layer_circuit_to_matrix
+from downstream.synthesis.wrong.pennylane_op import layer_circuit_to_pennylane_circuit, layer_circuit_to_pennylane_tape
+from downstream.synthesis.wrong.tensor_network_op_ import layer_circuit_to_matrix
 from sklearn.neural_network import MLPRegressor as DNN  # MLPClassifier as DNN
 # from sklearn.decomposition import IncrementalPCA as PCA
 from jax import numpy as jnp

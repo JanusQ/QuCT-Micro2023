@@ -26,10 +26,12 @@
 # TODO:
 1. jax gpu
 
-screen -L -S nn python test_synthesis_nn.py 
+screen -L -S synthesis python test_synthesis.py 
 screen -L -S nn python test_
 screen -ls
 screen -r yourname 
 
 ctrl-a + d 推出不杀死
 ctrl-a + k 关闭
+
+screen -L -S q5_random python predict_simulate_5qubits.py 

@@ -7,8 +7,8 @@ import cloudpickle as pickle
 from utils.backend import gen_grid_topology, get_grid_neighbor_info, Backend
 from circuit import gen_random_circuits
 from upstream import RandomwalkModel
-from downstream.synthesis.pennylane_op import layer_circuit_to_pennylane_circuit, layer_circuit_to_pennylane_tape
-from downstream.synthesis.tensor_network_op import layer_circuit_to_matrix
+from downstream.synthesis.wrong.pennylane_op import layer_circuit_to_pennylane_circuit, layer_circuit_to_pennylane_tape
+from downstream.synthesis.wrong.tensor_network_op_ import layer_circuit_to_matrix
 from downstream.synthesis.neural_network import NeuralNetworkModel
 from sklearn.neural_network import MLPRegressor as DNN #MLPClassifier as DNN
 

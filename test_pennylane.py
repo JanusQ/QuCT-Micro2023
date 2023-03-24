@@ -1,3 +1,199 @@
+
+import pennylane as qml
+from pennylane import numpy as np
+from scipy.stats import unitary_group
+
+import scipy as sp
+
+# The Pauli Matrices
+X = np.array( [ [ 0, 1 ],
+                [ 1, 0 ] ], dtype = np.complex128 )
+
+Y = np.array( [ [ 0, -1j ],
+                [ 1j,  0 ] ], dtype = np.complex128 )
+
+Z = np.array( [ [ 1,  0 ],
+                [ 0, -1 ] ], dtype = np.complex128 )
+
+I = np.array( [ [ 1, 0 ],
+                [ 0, 1 ] ], dtype = np.complex128 )
+
+
+_norder_paulis_map = [ np.array( [ I ] ), np.array( [ I, X, Y, Z ] ) ]
+import itertools  as it
+
+def get_norder_paulis( n ):
+    if n < 0:
+        raise ValueError( "n must be nonnegative" )
+
+    if len( _norder_paulis_map ) > n:
+        return _norder_paulis_map[n]
+
+    norder_paulis = []
+    for pauli_n_1, pauli_1 in it.product( get_norder_paulis( n - 1 ),
+                                          get_norder_paulis(1) ):
+        norder_paulis.append( np.kron( pauli_n_1, pauli_1 ) )
+
+    _norder_paulis_map.append( np.array( norder_paulis ) )
+
+    return _norder_paulis_map[n]
+def dot_product ( alpha, sigma ):
+    if len( alpha ) != len( sigma ):
+        raise ValueError( "Length of alpha and sigma must be the same." )
+    return np.sum(np.array([ a*s for a, s in zip( alpha, sigma ) ], dtype=np.complex128), 0 )
+
+from itertools import product
+from scipy.linalg import LinAlgError, bandwidth
+from scipy.linalg._matfuncs_expm import pick_pade_structure, pade_UV_calc
+
+def _exp_sinch(x):
+    # Higham's formula (10.42), might overflow, see GH-11839
+    lexp_diff = np.diff(np.exp(x))
+    l_diff = np.diff(x)
+    mask_z = l_diff == 0.
+    lexp_diff[~mask_z] /= l_diff[~mask_z]
+    lexp_diff[mask_z] = np.exp(x[:-1][mask_z])
+    return lexp_diff
+
+def expm(A):
+    a = A
+    # larger problem with unspecified stacked dimensions.
+    n = a.shape[-1]
+    eA = np.empty(a.shape, dtype=a.dtype)
+    # working memory to hold intermediate arrays
+    Am = np.empty((5, n, n), dtype=a.dtype)
+
+    for ind in product(*[range(x) for x in a.shape[:-2]]):
+        aw = a[ind]
+
+        lu = bandwidth(aw)
+        if not any(lu):  # a is diagonal?
+            eA[ind] = np.diag(np.exp(np.diag(aw)))
+            continue
+
+        # Generic/triangular case; copy the slice into scratch and send.
+        # Am will be mutated by pick_pade_structure
+        Am[0, :, :] = aw
+        m, s = pick_pade_structure(Am)
+
+        if s != 0:  # scaling needed
+            Am[:4] *= [[[2**(-s)]], [[4**(-s)]], [[16**(-s)]], [[64**(-s)]]]
+
+        pade_UV_calc(Am, n, m)
+        eAw = Am[0]
+
+        if s != 0:  # squaring needed
+
+            if (lu[1] == 0) or (lu[0] == 0):  # lower/upper triangular
+                # This branch implements Code Fragment 2.1 of [1]
+
+                diag_aw = np.diag(aw)
+                # einsum returns a writable view
+                np.einsum('ii->i', eAw)[:] = np.exp(diag_aw * 2**(-s))
+                # super/sub diagonal
+                sd = np.diag(aw, k=-1 if lu[1] == 0 else 1)
+
+                for i in range(s-1, -1, -1):
+                    eAw = eAw @ eAw
+
+                    # diagonal
+                    np.einsum('ii->i', eAw)[:] = np.exp(diag_aw * 2.**(-i))
+                    exp_sd = _exp_sinch(diag_aw * (2.**(-i))) * (sd * 2**(-i))
+                    if lu[1] == 0:  # lower
+                        np.einsum('ii->i', eAw[1:, :-1])[:] = exp_sd
+                    else:  # upper
+                        np.einsum('ii->i', eAw[:-1, 1:])[:] = exp_sd
+
+            else:  # generic
+                for _ in range(s):
+                    eAw = eAw @ eAw
+
+        # Zero out the entries from np.empty in case of triangular input
+        if (lu[0] == 0) or (lu[1] == 0):
+            eA[ind] = np.triu(eAw) if lu[0] == 0 else np.tril(eAw)
+        else:
+            eA[ind] = eAw
+
+    return eA
+
+
+
+def get_gate_matrix( n_qubits_gate, x):
+    """Produces the matrix for this gate on its own."""
+    sigma = get_norder_paulis( n_qubits_gate )
+    sigma = (-1j / ( 2 ** n_qubits_gate )) * sigma
+    H = dot_product( x, sigma )
+    return expm( H )  # np.exp(H) #
+
+
+def get_param_count (n_qubits_gate ):
+    """Returns the number of the gate's input parameters."""
+    return 4 ** n_qubits_gate
+
+# Define the quantum circuit
+dev = qml.device("default.qubit", wires=2)
+
+# def to_unitary(parmas):
+#     z = 1/np.sqrt(2)*parmas
+#     q, r = np.linalg.qr(z)
+#     d = r.diagonal()
+#     q *= d/np.abs(d)
+#     return q
+
+@qml.qnode(dev)
+def circuit(params):
+    qml.RX(2, 0)
+    qml.QubitUnitary(get_gate_matrix(n_qubits, params), wires=[0, 1])
+    return qml.expval(qml.PauliZ(0) @ qml.PauliZ(1))
+
+# Define the objective function
+def cost(params):
+    return np.abs(circuit(params) - 1) ** 2
+
+# Choose an optimizer
+optimizer = qml.NesterovMomentumOptimizer()
+
+
+
+# def to_unitary(matrix):
+#     svd_u, _, svd_v = pnp.linalg.svd(matrix, full_matrices = False)
+#     return pnp.dot(svd_u, svd_v)
+
+# Initialize the parameters
+n_qubits = 2
+unitary = np.array(unitary_group.rvs(2**2), requires_grad = True, dtype = np.complex128)
+params = np.random.rand(get_param_count(n_qubits)) * np.pi #* (1+0j)
+
+# {
+#     '1': [
+#         np.array(unitary_group.rvs(2**2), requires_grad = True, dtype = np.complex128),
+#         np.array(unitary_group.rvs(2**2), requires_grad = True, dtype = np.complex128),
+#     ],
+#     '2': [
+#         np.array(unitary_group.rvs(2**2), requires_grad = True, dtype = np.complex128),
+#         np.array(unitary_group.rvs(2**2), requires_grad = True, dtype = np.complex128),
+#     ]
+# }
+
+# Optimize the circuit
+num_iterations = 100
+for i in range(num_iterations):
+    params = optimizer.step(cost, params)
+    
+    # for key, unitaries in params.items():
+        # for uni
+    assert np.allclose(params @ np.conj(params.T), np.eye(4))
+    print(params)
+    
+# Print the optimized parameters
+print("Optimized parameters:", params)
+
+# Run the optimized circuit
+result = circuit(params)
+print("Expectation value:", result)
+print(params)
+
+
 import pennylane as qml
 from pennylane import numpy as np
 
@@ -6,17 +202,14 @@ from jax import vmap
 import jax
 import optax
 from jax.config import config
-from downstream.synthesis.pennylane_op import layer_circuit_to_pennylane_circuit, layer_circuit_to_pennylane_tape
-<<<<<<< HEAD
-from downstream.synthesis.tensor_network_op import layer_circuit_to_matrix
+from downstream.synthesis.wrong.pennylane_op import layer_circuit_to_pennylane_circuit, layer_circuit_to_pennylane_tape
+from downstream.synthesis.wrong.tensor_network_op_ import layer_circuit_to_matrix
 from scipy.stats import unitary_group
 import random
-=======
 from scipy.stats import unitary_group
 import time
 import random
 import scipy
->>>>>>> 5b937f28b4496c8c6a3bb93447f300feb293a2bc
 config.update("jax_enable_x64", True)
 
 
