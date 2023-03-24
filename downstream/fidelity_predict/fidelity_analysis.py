@@ -25,7 +25,7 @@ class FidelityModel():
         return
 
     # device2reverse_path_table_size去掉，从backend拿
-    def train(self, train_dataset, validation_dataset = None, epoch_num = 100, ):
+    def train(self, train_dataset, validation_dataset = None, epoch_num = 100, verbose = True):
         upstream_model = self.upstream_model
         # backend = self.upstream_model.backend
         
@@ -66,7 +66,8 @@ class FidelityModel():
             #     terminate_num_gate = gate_num
             #     break
             
-            print(f'n_instruction2circuit_infos[{gate_num}] has', len(n_instruction2circuit_infos[gate_num]))
+            # print(f'n_instruction2circuit_infos[{gate_num}] has', len(n_instruction2circuit_infos[gate_num]))
+        print('n_instruction2circuit_infos = ', {n: len(n_instruction2circuit_infos[n]) for n in n_instruction2circuit_infos})
         
         gate_nums = [gate_num for gate_num in gate_nums if gate_num <= terminate_num_gate]
         for gate_num in gate_nums:
@@ -75,7 +76,7 @@ class FidelityModel():
         min_loss = 1e10
         best_params = None
         loss_decrease_history = []
-        n_iter_no_change = 5
+        n_iter_no_change = 10
         no_change_tolerance  = .1  # TODO: 可以改到.1
         
         for epoch in range(epoch_num):
@@ -148,13 +149,15 @@ class FidelityModel():
             if test_loss < min_loss:
                 min_loss = test_loss
                 best_params = params
-                
-            print(f'epoch: {epoch}, \t epoch loss = {sum(loss_values)}, \t test loss = {test_loss}')
+            
+            if verbose:
+                print(f'epoch: {epoch}, \t epoch loss = {sum(loss_values)}, \t test loss = {test_loss}')
                 
             # params = best_params
         
         self.error_params = best_params
-        print(f'taining error params finishs')
+        if verbose:
+            print(f'taining error params finishs')
         return best_params
     
         # if validation_dataset is not None:
