@@ -472,8 +472,15 @@ with qml.tape.QuantumTape(do_queue=False) as u_tape:
     layer_circuit_to_pennylane_circuit(layer2gates, params = params, offest=0)
 
 
+dev = qml.device("default.qubit", wires=n_qubits)
+@qml.qnode(dev, interface="jax")
+def hilbert_test(layer2gates):
+    layer_circuit_to_pennylane_circuit(layer2gates)
+    return qml.probs([0, n_qubits])
+
 
 dev = qml.device("default.qubit", wires=n_qubits*2)
+
 
 @qml.qnode(dev, interface="jax")
 def hilbert_test(params):

@@ -47,7 +47,7 @@ backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neighbor_i
 dir_size = 'temp_data'
 dataset_path = os.path.join(dir_size, f"dataset_{n_qubits}.pkl")
 upstream_model_path = os.path.join(dir_size, f"upstream_model_{n_qubits}.pkl")
-regen = False
+regen = True
 if regen:
     # dataset = gen_train_dataset(
     #     n_qubits, topology, neighbor_info, coupling_map, 2000)
@@ -58,12 +58,31 @@ if regen:
     # test_dataset = gen_random_circuits(min_gate=20, max_gate=2000, n_circuits=1, two_qubit_gate_probs=[
     #     3, 7], gate_num_step=60, backend=backend, multi_process=True, circuit_type='random')
 
-    dataset = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=25, two_qubit_gate_probs=[
+    dataset_cycle = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=10, two_qubit_gate_probs=[
         3, 7], gate_num_step=40, backend=backend, multi_process=True, circuit_type='cycle')
+    dataset_random = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=10, two_qubit_gate_probs=[
+        3, 7], gate_num_step=40, backend=backend, multi_process=True, circuit_type='random')
+
+    for elm in dataset_cycle:
+        elm['label'] = 'train_cycle'
+        
+    for elm in dataset_random:
+        elm['label'] = 'train_random'
 
     '''TODO: 门可以少一些'''
-    test_dataset = gen_random_circuits(min_gate=20, max_gate=2000, n_circuits=5, two_qubit_gate_probs=[
+    test_dataset_cycle = gen_random_circuits(min_gate=20, max_gate=2000, n_circuits=2, two_qubit_gate_probs=[
         3, 7], gate_num_step=100, backend=backend, multi_process=True, circuit_type='cycle')  # random
+    test_dataset_random = gen_random_circuits(min_gate=20, max_gate=2000, n_circuits=2, two_qubit_gate_probs=[
+        3, 7], gate_num_step=100, backend=backend, multi_process=True, circuit_type='random')  # 
+
+    for elm in test_dataset_cycle:
+        elm['label'] = 'test_cycle'
+        
+    for elm in test_dataset_random:
+        elm['label'] = 'test_random'
+        
+    dataset = dataset_cycle + dataset_random
+    test_dataset = test_dataset_cycle + test_dataset_random
 
     print('train dataset size = ', len(dataset))
     print('test dataset size = ', len(test_dataset))
@@ -110,19 +129,21 @@ else:
 
 total_dataset = np.concatenate([train_dataset, validation_dataset, test_dataset])
 error_data = []
+labels = []
 for circuit_info in total_dataset:
     error_data.append([circuit_info['n_erroneous_patterns'], len(circuit_info['gates']),
                       circuit_info['n_erroneous_patterns'] / len(circuit_info['gates']), circuit_info['two_qubit_prob'],
-                      circuit_info['ground_truth_fidelity'], circuit_info['independent_fidelity'], circuit_info['ground_truth_fidelity'] - circuit_info['independent_fidelity']
+                      circuit_info['ground_truth_fidelity'], circuit_info['independent_fidelity'], circuit_info['ground_truth_fidelity'] - circuit_info['independent_fidelity'],
+                      circuit_info['label']
                     ])
 
 error_data = np.array(error_data)
 plot_correlation(error_data, ['n_erroneous_patterns',
-                 'n_gates', 'error_prop', 'two_qubit_prob', 'ground_truth_fidelity', 'independent_fidelity', 'ground_truth_fidelity - independent_fidelity'], None)
+                 'n_gates', 'error_prop', 'two_qubit_prob', 'ground_truth_fidelity', 'independent_fidelity', 'ground_truth_fidelity - independent_fidelity', 'label'], 'label')
 
 print('erroneous patterns = ', upstream_model.erroneous_pattern)
 
-retrain = True
+retrain = False
 # # TODO: 要用fidelity 大于 0.5的阶段
 if retrain:
     downstream_model = FidelityModel(upstream_model)
@@ -168,7 +189,7 @@ plt.close(fig)
 fig, axes = plt.subplots(figsize=(10, 10))  # 创建一个图形对象和一个子图对象
 plot_real_predicted_fidelity(fig, axes, test_dataset)
 fig.savefig(f"real_predictedy_{n_qubits}_step1.svg")  # step
- 
+
 # 画x: real fidelity, y: inaccuracy
 fig, axes = plt.subplots(figsize=(20, 6))  # 创建一个图形对象和一个子图对象
 duration_X, duration2circuit_index = get_duration2circuit_infos(

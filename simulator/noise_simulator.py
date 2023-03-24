@@ -14,6 +14,7 @@ from numpy import pi
 from upstream.randomwalk_model import extract_device, RandomwalkModel
 import ray
 from circuit.random_circuit import random_1q_layer
+from utils.backend import Backend
 
 # https://qiskit.org/documentation/tutorials/simulators/3_building_noise_models.html
 
@@ -51,41 +52,50 @@ from circuit.random_circuit import random_1q_layer
 class NoiseSimulator():
 
     def __init__(self, backend):
-        self.backend = backend
+        self.backend: Backend = backend
         self.noise_model = NoiseModel()
         self.qasm_simulator = Aer.get_backend('qasm_simulator')
         self.n_qubits = backend.n_qubits
+        
+        single_qubit_time = backend.single_qubit_gate_time
+        two_qubit_time = backend.two_qubit_gate_time
+        
+        # TODO: rz 没有噪音
         for qubit in range(self.n_qubits):
             _error = 1 - backend.single_qubit_fidelity[qubit]
             # error_1q = depolarizing_error(_error, 1)
             # noise_model.add_quantum_error(error_1q, ['rx', 'ry'], [qubit])
 
-            bit_flip = pauli_error([('X', _error), ('I', 1 - _error)])
-            phase_flip = pauli_error([('Z', _error), ('I', 1 - _error)])
+            # bit_flip = pauli_error([('X', _error), ('I', 1 - _error)])
+            # phase_flip = pauli_error([('Z', _error), ('I', 1 - _error)])
             _depolarizing_error = depolarizing_error(_error, 1)
             thermal_error = thermal_relaxation_error(backend.qubit2T1[qubit] * 1e3, backend.qubit2T1[qubit] * 1e3,
-                                                     30)  # ns, ns ns
+                                                     single_qubit_time)  # ns, ns ns
 
-            # total_qubit_error = bit_flip.compose(phase_flip).compose(
-            #     thermal_error).compose(_depolarizing_error)
+            # total_qubit_error = bit_flip.compose(
+            #     thermal_error).compose(_depolarizing_error)  # .compose(phase_flip)
             total_qubit_error = thermal_error.compose(_depolarizing_error)
             self.noise_model.add_quantum_error(
                 total_qubit_error, backend.basis_single_gates, [qubit])
-            # # noise_model.add_readout_error(ReadoutError(readout_error[qubit]), [qubit])
-            # noise_model.add_quantum_error(errors_thermal, basis_single_gates, [qubit])
+            # noise_model.add_readout_error(ReadoutError(readout_error[qubit]), [qubit])
 
         for index, (qubit1, qubit2) in enumerate(backend.coupling_map):
             _error = 1 - backend.two_qubit_fidelity[index]
-            bit_flip = pauli_error([('X', _error), ('I', 1 - _error)])
-            phase_flip = pauli_error([('Z', _error), ('I', 1 - _error)])
+            # bit_flip = pauli_error([('X', _error), ('I', 1 - _error)])
+            # phase_flip = pauli_error([('Z', _error), ('I', 1 - _error)])
+            
+            # bit_flip = bit_flip.expand(bit_flip)
+            # phase_flip = phase_flip.expand(phase_flip)
+            
             _depolarizing_error = depolarizing_error(_error, 2)
 
-            thermal_error = thermal_relaxation_error(backend.qubit2T1[qubit1] * 1e3, backend.qubit2T1[qubit1] * 1e3,
-                                                     60).expand(
-                thermal_relaxation_error(backend.qubit2T1[qubit2] * 1e3, backend.qubit2T1[qubit2] * 1e3, 60))
-
-            # total_coupler_error = bit_flip.compose(phase_flip).compose(
-            #     thermal_error).compose(_depolarizing_error)
+            thermal_error_q1 = thermal_relaxation_error(backend.qubit2T1[qubit1] * 1e3, backend.qubit2T2[qubit1] * 1e3, two_qubit_time)
+            thermal_error_q2 = thermal_relaxation_error(backend.qubit2T1[qubit2] * 1e3, backend.qubit2T2[qubit2] * 1e3, two_qubit_time)
+            thermal_error = thermal_error_q1.expand(thermal_error_q2)     
+                                
+            # total_coupler_error = bit_flip.compose(thermal_error).compose(_depolarizing_error)  #.compose(phase_flip)
+            
+            
             total_coupler_error = thermal_error.compose(_depolarizing_error)
             self.noise_model.add_quantum_error(
                 total_coupler_error, backend.basis_two_gates, [qubit1, qubit2])
@@ -94,51 +104,6 @@ class NoiseSimulator():
             # noise_model.add_quantum_error(error_2q, basis_two_gates, [qubit1, qubit2])
             # noise_model.add_quantum_error(error_2q, basis_two_gates, [qubit2, qubit1])
 
-            # bit_flip = pauli_error([('X', _error), ('I', 1 - _error)])
-            # phase_flip = pauli_error([('Z', _error), ('I', 1 - _error)])
-            # identity = pauli_error([('I', 1)])
-            # noise_model.add_quantum_error(identity.tensor(bit_flip.compose(phase_flip)), basis_two_gates, [qubit2, qubit1])
-            # noise_model.add_quantum_error(identity.tensor(bit_flip.compose(phase_flip)), basis_two_gates, [qubit1, qubit2])
-
-            # noise_model.add_quantum_error(errors_thermal, basis_two_gates, [qubit1, qubit2])
-
-    def get_error_results(self, dataset, model, erroneous_pattern=None, multi_process=False):
-        if erroneous_pattern is None:
-            erroneous_pattern = get_random_erroneous_pattern(model)
-            
-        futures = []
-        fidelities = []
-        independent_fidelities = []
-        n_erroneous_patterns = []
-        step = 100
-        
-        for start in range(0, len(dataset), step):
-            sub_dataset = dataset[start:start + step]
-            if multi_process:
-                _dataset = model.dataset
-                model.dataset = None
-                futures.append(get_error_result_remote.remote(
-                    self, sub_dataset, start, model, erroneous_pattern))
-                model.dataset = _dataset
-            else:
-                _fidelities, _n_erroneous_patterns, _independent_fidelities = self.get_error_result(
-                    sub_dataset, start, model, erroneous_pattern)
-                fidelities += _fidelities
-                n_erroneous_patterns += _n_erroneous_patterns
-                independent_fidelities += _independent_fidelities
-
-        for future in futures:
-            _fidelities, _n_erroneous_patterns, _independent_fidelities = ray.get(future)
-            fidelities += _fidelities
-            n_erroneous_patterns += _n_erroneous_patterns
-            independent_fidelities += _independent_fidelities
-
-        for idx, cir in enumerate(dataset):
-            cir['ground_truth_fidelity'] = fidelities[idx]
-            cir['n_erroneous_patterns'] = n_erroneous_patterns[idx]
-            cir['independent_fidelity'] = independent_fidelities[idx]
-            
-        return erroneous_pattern
 
     def get_error_result(self, sub_dataset, start, model, erroneous_pattern=None):
         fidelities = []
@@ -147,20 +112,16 @@ class NoiseSimulator():
         n_qubits = self.n_qubits
         
         n_samples = 1000 
+        circuit_reps = 5
+        
         for circuit_info in sub_dataset:
-            # if 'qiskit_circuit' not in circuit_info or circuit_info['qiskit_circuit'] is None:
-            #     circuit_info['qiskit_circuit'] = layered_circuits_to_qiskit(circuit_info['num_qubits'], circuit_info['layer2gates'])
-            # if erroneous_pattern is None:
-            #     erroneous_pattern = get_random_erroneous_pattern(model)
-
-            
             true_result = {
                 '0' * circuit_info['num_qubits']: 2000
             }
             
             '''TODO: 加多个单层的算fidelity'''
             _fidelities = []
-            for _ in range(5):
+            for _ in range(circuit_reps):
                 layer_1q = random_1q_layer(n_qubits, self.backend.basis_single_gates)
                 simulate_circuit = QuantumCircuit(n_qubits)
                 simulate_circuit = simulate_circuit.compose(layer_1q)
@@ -183,7 +144,7 @@ class NoiseSimulator():
             
             independent_error_circuit, _ = add_pattern_error_path(circuit_info, circuit_info['num_qubits'], model, defaultdict(list))
             _fidelities = []
-            for _ in range(5):
+            for _ in range(circuit_reps):
                 layer_1q = random_1q_layer(n_qubits, self.backend.basis_single_gates)
                 simulate_circuit = QuantumCircuit(n_qubits)
                 simulate_circuit = simulate_circuit.compose(layer_1q)
@@ -205,21 +166,90 @@ class NoiseSimulator():
         print(start+len(sub_dataset), 'finished')
         return fidelities, n_erroneous_patterns, independent_fidelities
 
-    def simulate_noise(self, circuit, n_samples=2000):
-        n_qubits = circuit.num_qubits
+    def match_hardware_constraints(self, circuit: QuantumCircuit):
+        
+        backend : Backend = self.backend
+        
+        if isinstance(circuit, list):
+            for _ in circuit:
+                self.match_hardware_constraints(_)
+        else:
+            for gate in circuit.get_instructions('cx') + circuit.get_instructions('cz'):
+                qubits = [qubit.index for qubit in gate.qubits]
+                qubits.sort()
+                
+                assert tuple(qubits) in backend.coupling_map
+        
+        # return
+    
+    def simulate_noise(self, circuit, n_samples=2000, get_count = True):
+        if not isinstance(circuit, QuantumCircuit):  # is list
+            n_qubits = circuit[0].num_qubits
+        else:  
+            n_qubits = circuit.num_qubits
+        
+        # circuit.measure()
         initial_layout = list(range(n_qubits))
         # 做噪音实现前就直接必须符合拓扑结构了吧
-        # match_hardware_constraints(circuit)
+        self.match_hardware_constraints(circuit)
         result = execute(circuit, self.qasm_simulator,
                          # coupling_map=coupling_map,
                          basis_gates=self.backend.basis_gates,
                          initial_layout=initial_layout,
-                         noise_model=self.noise_model, shots=n_samples, optimization_level=0).result()
-        return result.get_counts()
+                         noise_model=self.noise_model, shots=n_samples, optimization_level=0)
+        
+        if get_count:
+            return result.result().get_counts()
+        else:
+            return result
 
+
+
+    def get_error_results(self, dataset, model, erroneous_pattern=None, multi_process=False):
+        if erroneous_pattern is None:
+            erroneous_pattern = get_random_erroneous_pattern(model)
+            
+        futures = []
+        fidelities = []
+        independent_fidelities = []
+        n_erroneous_patterns = []
+        step = 50
+        
+        for start in range(0, len(dataset), step):
+            sub_dataset = dataset[start:start + step]
+            if multi_process:
+                _dataset = model.dataset
+                model.dataset = None
+                call_time = time.time()
+                futures.append(get_error_result_remote.remote(
+                    self, sub_dataset, start, model, erroneous_pattern, call_time))
+                model.dataset = _dataset
+            else:
+                _fidelities, _n_erroneous_patterns, _independent_fidelities = self.get_error_result(
+                    sub_dataset, start, model, erroneous_pattern)
+                fidelities += _fidelities
+                n_erroneous_patterns += _n_erroneous_patterns
+                independent_fidelities += _independent_fidelities
+
+        for future in futures:
+            _fidelities, _n_erroneous_patterns, _independent_fidelities = ray.get(future)
+            fidelities += _fidelities
+            n_erroneous_patterns += _n_erroneous_patterns
+            independent_fidelities += _independent_fidelities
+
+        for idx, cir in enumerate(dataset):
+            cir['ground_truth_fidelity'] = fidelities[idx]
+            cir['n_erroneous_patterns'] = n_erroneous_patterns[idx]
+            cir['independent_fidelity'] = independent_fidelities[idx]
+            
+        return erroneous_pattern
 
 @ray.remote
-def get_error_result_remote(noiseSimulator, sub_dataset, start, model, erroneous_pattern=None):
+def get_error_result_remote(noiseSimulator, sub_dataset, start, model, erroneous_pattern=None, call_time = None):
+    
+    if call_time is not None:
+        print('call latency = ', time.time() - call_time, 's')
+    
     return noiseSimulator.get_error_result(sub_dataset, start, model, erroneous_pattern)
 
 # https://qiskit.org/documentation/apidoc/aer_noise.html
@@ -251,6 +281,7 @@ def get_error_result_remote(noiseSimulator, sub_dataset, start, model, erroneous
 def add_pattern_error_path(circuit, n_qubits, model, device2erroneous_pattern):  # 单这几个碰到的概念有点少
     '''circuit can be a QuantumCircuit or a circuit_info (a dict created with the instructions's sparse vector)'''
     if isinstance(circuit, QuantumCircuit):
+        # print(circuit)
         circuit_info = model.vectorize(circuit)
     else:
         circuit_info = circuit

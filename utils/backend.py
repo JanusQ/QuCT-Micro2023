@@ -199,7 +199,8 @@ def topology_to_coupling_map(topology: dict) -> list:
             coupling.sort()
             coupling_map.add(tuple(coupling))
     return [
-        list(coupling)
+        # list(coupling)
+        tuple(coupling)
         for coupling in coupling_map
     ]
 
@@ -275,7 +276,7 @@ class Backend():
 
     def __init__(self, n_qubits, topology=None, neighbor_info=None, coupling_map = None, basis_single_gates: list = None,
                  basis_two_gates: list = None,
-                 divide: bool = True, decoupling: bool = True, single_qubit_gate_time=30, two_qubit_gate_time=60):
+                 divide: bool = False, decoupling: bool = False, single_qubit_gate_time=30, two_qubit_gate_time=60):
         self.n_qubits = n_qubits
 
         if topology is None:
@@ -311,12 +312,12 @@ class Backend():
 
         # 随机了一个噪音
         self.single_qubit_fidelity = [
-            1 - .5 / 10000  #1 - random.random() / 10000
+            1 - 1 / 2000  #1 - random.random() / 10000
             for q in range(n_qubits)
         ]
 
         self.two_qubit_fidelity = [
-            1 - .5 / 5000  #1 - random.random() / 5000
+            1 - 1 / 1000  #1 - random.random() / 5000
             for i, coupler in enumerate(self.coupling_map)
         ]
 

@@ -24,8 +24,14 @@ import random
 from circuit.formatter import layered_circuits_to_qiskit, to_unitary
 from qiskit.quantum_info import Operator
 
-# n_qubits = 2
-# qiskit_circuit = QuantumCircuit(n_qubits)
+n_qubits = 2
+qiskit_circuit = QuantumCircuit(n_qubits)
+qiskit_circuit.x(0)
+qiskit_circuit.cx(0, 1)
+qiskit_circuit.rz(np.pi/2, 1)
+qiskit_circuit.cx(1, 0)
+print(qiskit_circuit)
+print(Operator(qiskit_circuit).data)
 # # qiskit_circuit.u(1, 1, 2, 0)
 # qiskit_circuit.u(1, 2, 3, 0)
 # # qiskit_circuit.u(1, 2, 3, 1)
@@ -63,36 +69,38 @@ from qiskit.quantum_info import Operator
 # neigh_info = get_grid_neighbor_info(grid_num, 1)
 # n_qubits = grid_num ** 2
 
+# init_unitary_mat = unitary_group.rvs(2**2)
+# print(init_unitary_mat)
 
-n_qubits = 2
-layer2gates = [
-    [
-        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-    ],
-    [{'name': 'cz', 'qubits': [1,0], 'params': []}],
-    [
-        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-    ],
-    [{'name': 'cz', 'qubits': [0,1], 'params': []}],
-    [
-        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-    ],
-    [{'name': 'cz', 'qubits': [0,1], 'params': []}],
-    [
-        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-    ],
-    [{'name': 'cz', 'qubits': [1,0], 'params': []}],
-    [
-        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-        {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
-    ],
-]
-U = unitary_group.rvs(2**n_qubits)
-params = find_parmas(n_qubits, layer2gates, U, max_epoch=100, random_params= True, verbose = True)
+# n_qubits = 2pytho
+# layer2gates = [
+#     [
+#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+#     ],
+#     [{'name': 'cz', 'qubits': [1,0], 'params': []}],
+#     [
+#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+#     ],
+#     [{'name': 'cz', 'qubits': [0,1], 'params': []}],
+#     [
+#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+#     ],
+#     [{'name': 'cz', 'qubits': [0,1], 'params': []}],
+#     [
+#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+#     ],
+#     [{'name': 'cz', 'qubits': [1,0], 'params': []}],
+#     [
+#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+#         {'name': 'u', 'qubits': [0], 'params': [np.pi]*3},
+#     ],
+# ]
+# U = unitary_group.rvs(2**n_qubits)
+# params = find_parmas(n_qubits, layer2gates, U, max_epoch=100, random_params= True, verbose = True)
 
 # from qiskit.quantum_info import Operator
 

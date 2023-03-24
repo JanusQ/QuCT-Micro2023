@@ -13,13 +13,13 @@ def get_layered_instructions(circuit):
 
     layer2operations = []  # Remove input and output nodes
     for layer in graph_layers:
-        layer = [node for node in layer if isinstance(node, DAGOpNode) and node.op.name != 'barrier']
+        layer = [node for node in layer if isinstance(node, DAGOpNode) and node.op.name not in ('barrier', 'measure')]
         if len(layer) != 0:
             layer2operations.append(layer)
 
-    for _index, instruction in enumerate(instructions):
-        assert instruction.operation.name != 'barrier'
-        assert nodes[_index].op.name != 'barrier'
+    # for _index, instruction in enumerate(instructions):
+    #     assert instruction.operation.name != 'barrier'
+    #     assert nodes[_index].op.name != 'barrier'
 
     layer2instructions = []
     instruction2layer = [None] * len(nodes)
@@ -117,7 +117,8 @@ def layered_instructions_to_circuit(layer2instructions, n_qubits):
                 involved_qubits += [qubit for qubit in instruction['qubits']]
             else:
                 involved_qubits += [qubit.index for qubit in instruction.qubits]
-            new_circuit.append(instruction)
+            new_circuit.append(instruction, qargs =  involved_qubits)
+            # new_circuit.append(instruction)
         new_circuit.barrier()
     return new_circuit
 

@@ -10,31 +10,33 @@ import numpy as np
 
 def qiskit_to_layered_circuits(circuit, divide=False, decoupling=False):
     circuit_info = {}
-    layer2instructions, instruction2layer, instructions, dagcircuit, nodes = get_layered_instructions(
-        circuit)  # instructions的index之后会作为instruction的id, nodes和instructions的顺序是一致的
+    
+    assert divide == False and decoupling == False, 'get_layered_instructions 问题太多了，主要是创建一个新的时候quanutm register对不上'
+    # layer2instructions, instruction2layer, instructions, dagcircuit, nodes = get_layered_instructions(
+    #     circuit)  # instructions的index之后会作为instruction的id, nodes和instructions的顺序是一致的
 
-    if (divide):
-        layer2instructions = divide_layer(layer2instructions)
-        if decoupling:
-            layer2instructions = dynamic_decoupling_divide(
-                layer2instructions, 30, 60, 300)
-            circuit = layered_instructions_to_circuit(layer2instructions, circuit.num_qubits)
-    else:
-        if decoupling:
-            layer2instructions = dynamic_decoupling(
-                layer2instructions, 60, 300)
-            circuit = layered_instructions_to_circuit(layer2instructions, circuit.num_qubits)
+    # if (divide):
+    #     layer2instructions = divide_layer(layer2instructions)
+    #     if decoupling:
+    #         layer2instructions = dynamic_decoupling_divide(
+    #             layer2instructions, 30, 60, 300)
+    #         circuit = layered_instructions_to_circuit(layer2instructions, circuit.num_qubits)
+    # else:
+    #     if decoupling:
+    #         layer2instructions = dynamic_decoupling(
+    #             layer2instructions, 60, 300)
+    #         circuit = layered_instructions_to_circuit(layer2instructions, circuit.num_qubits)
 
-    circuit = layered_instructions_to_circuit(layer2instructions, circuit.num_qubits)
+    # circuit = layered_instructions_to_circuit(layer2instructions, circuit.num_qubits)
     layer2instructions, instruction2layer, instructions, dagcircuit, nodes = get_layered_instructions(
         circuit)
 
-    layer2instructions, instruction2layer, instructions = qiskit_to_my_format_circuit(
+    layer2gates, gate2layer, gates = qiskit_to_my_format_circuit(
         layer2instructions)  # 转成一个更不占内存的格式
 
-    circuit_info['layer2gates'] = layer2instructions
-    circuit_info['gate2layer'] = instruction2layer
-    circuit_info['gates'] = instructions
+    circuit_info['layer2gates'] = layer2gates
+    circuit_info['gate2layer'] = gate2layer
+    circuit_info['gates'] = gates
     circuit_info['num_qubits'] = circuit.num_qubits
     # circuit_info['dagcircuit'] = dagcircuit
     # circuit_info['nodes'] = nodes
