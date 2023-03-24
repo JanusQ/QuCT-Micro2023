@@ -213,7 +213,7 @@ class RandomwalkModel():
         self.max_step = max_step
         self.path_per_node = path_per_node
         self.dataset = None
-        self.reduced_dim = 100
+        # self.reduced_dim = 100
 
         self.backend = backend
         self.travel_directions = travel_directions
@@ -240,7 +240,7 @@ class RandomwalkModel():
         # 改成一种device一个path table
         '''TODO: 可以枚举来生成所有的path table'''
 
-        assert self.dataset is None
+        # assert self.dataset is None
         # self.dataset = dataset
 
         backend: Backend = self.backend
