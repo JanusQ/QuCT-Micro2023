@@ -15,7 +15,7 @@ from upstream.randomwalk_model import extract_device, RandomwalkModel
 import ray
 from circuit.random_circuit import random_1q_layer
 from utils.backend import Backend
-
+import time
 # https://qiskit.org/documentation/tutorials/simulators/3_building_noise_models.html
 
 # backend_name = 'ibm_nairobi'

@@ -136,10 +136,9 @@ if retrain:
             print(idx, "predict finished!")
         predict = downstream_model.predict_fidelity(cir)
 
-        predicts.append(cir['circuit_predict'])
+        predicts.append(predict)
         reals.append(cir['ground_truth_fidelity'])
         durations.append(cir['duration'])
-        # print(predict, cir['ground_truth_fidelity'])
 
     reals = np.array(reals)
     predicts = np.array(predicts)

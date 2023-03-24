@@ -1,14 +1,12 @@
 
 from collections import defaultdict
 from operator import index
-from upstream.randomwalk_model import RandomwalkModel, add_pattern_error, Step
+from upstream.randomwalk_model import RandomwalkModel, Step
 import matplotlib.pyplot as plt
 from utils.backend_info import max_qubit_num
 from downstream.fidelity_predict.other import naive_predict
 from upstream.dimensionality_reduction import batch
 import numpy as np
-from dataset.dataset_loader import load_algorithms, _gen_random_circuits
-
 
 from sklearn.utils import shuffle
 
