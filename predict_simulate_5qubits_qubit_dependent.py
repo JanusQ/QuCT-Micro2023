@@ -20,7 +20,7 @@ dir_size = 'temp_data'
 dataset_path = os.path.join(dir_size, f"dataset_{n_qubits}.pkl")
 upstream_model_path = os.path.join(dir_size, f"upstream_model_{n_qubits}.pkl")
 
-retrain = False
+retrain = True
 if retrain:
     with open(dataset_path, "rb")as f:
         train_dataset, validation_dataset, test_dataset = pickle.load(f)

@@ -42,7 +42,7 @@ backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neighbor_i
 dir_size = 'temp_data'
 dataset_path = os.path.join(dir_size, f"dataset_{n_qubits}.pkl")
 upstream_model_path = os.path.join(dir_size, f"upstream_model_{n_qubits}.pkl")
-regen = True
+regen = False
 if regen:
     # dataset = gen_train_dataset(
     #     n_qubits, topology, neighbor_info, coupling_map, 2000)
@@ -65,12 +65,14 @@ if regen:
     # dataset = make_circuitlet(dataset)
     print("cutted", len(dataset))
     
-
-    all_to_all_backend = copy.deepcopy(backend)
-    all_to_all_backend.coupling_map = []
-    for i in range(all_to_all_backend.n_qubits - 1):
-        for j in range(i + 1,all_to_all_backend.n_qubits):
-            all_to_all_backend.coupling_map.append([i,j])
+    all_to_all_backend = Backend(n_qubits=n_qubits, topology=None, neighbor_info=neighbor_info, basis_single_gates=default_basis_single_gates,
+                  basis_two_gates=default_basis_two_gates, divide=False, decoupling=False)
+    # all_to_all_backend = copy.deepcopy(backend)
+    # all_to_all_backend.n_qubits = 5
+    # all_to_all_backend.coupling_map = []
+    # for i in range(all_to_all_backend.n_qubits - 1):
+    #     for j in range(i + 1,all_to_all_backend.n_qubits):
+    #         all_to_all_backend.coupling_map.append([i,j])
             
     simulator = NoiseSimulator(all_to_all_backend)
     erroneous_pattern = get_random_erroneous_pattern(
@@ -112,7 +114,7 @@ plot_correlation(error_data, ['n_erroneous_patterns',
 
 print('erroneous patterns = ', upstream_model.erroneous_pattern)
 
-retrain = False
+retrain = True
 # # TODO: 要用fidelity 大于 0.5的阶段
 if retrain:
     downstream_model = FidelityModel(upstream_model)
@@ -158,7 +160,7 @@ plt.close(fig)
 fig, axes = plt.subplots(figsize=(10, 10))  # 创建一个图形对象和一个子图对象
 plot_real_predicted_fidelity(fig, axes, test_dataset)
 fig.savefig(f"real_predictedy_{n_qubits}_step1.svg")  # step
-
+ 
 # 画x: real fidelity, y: inaccuracy
 fig, axes = plt.subplots(figsize=(20, 6))  # 创建一个图形对象和一个子图对象
 duration_X, duration2circuit_index = get_duration2circuit_infos(

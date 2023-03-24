@@ -280,7 +280,7 @@ class Backend():
 
         if topology is None:
             topology = {
-                q1: [q1 for q2 in range(n_qubits) if q1 != q2]
+                q1: [q2 for q2 in range(n_qubits) if q1 != q2]
                 for q1 in range(n_qubits)
             }
 
@@ -311,22 +311,22 @@ class Backend():
 
         # 随机了一个噪音
         self.single_qubit_fidelity = [
-            1 - random.random() / 10000
+            1 - .5 / 10000  #1 - random.random() / 10000
             for q in range(n_qubits)
         ]
 
         self.two_qubit_fidelity = [
-            1 - random.random() / 5000
+            1 - .5 / 5000  #1 - random.random() / 5000
             for i, coupler in enumerate(self.coupling_map)
         ]
 
         self.qubit2T1 = [
-            110 - random.random() * 10
+            110 - 5 #random.random() * 10
             for q in range(n_qubits)
         ]
 
         self.qubit2T2 = [
-            110 - random.random() * 3
+            110 - 3 #random.random() * 3
             for q in range(n_qubits)
         ]
 
