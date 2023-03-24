@@ -86,7 +86,7 @@ class FidelityModel():
             random.shuffle(random_gate_nums)
 
             for gate_num in gate_nums + random_gate_nums:                
-                      
+                
                 for circuit_infos in batch(n_instruction2circuit_infos[gate_num], batch_size=100, should_shuffle = True):
                     X = np.array([circuit_info['vecs'] for circuit_info in circuit_infos], dtype=np.float32)
                     Y = np.array([circuit_info['ground_truth_fidelity'] for circuit_info in circuit_infos], dtype=np.float32)
