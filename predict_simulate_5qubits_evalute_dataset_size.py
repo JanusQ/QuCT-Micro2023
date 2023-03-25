@@ -31,6 +31,10 @@ n_steps = 1
 
 dataset_path = os.path.join('temp_data', f"eval_datasize_{n_qubits}.pkl")
 
+
+''' 数据集多大，start和end是多少'''
+'''cycle， random，cycle + random'''
+
 regen = False
 if regen:
     topology = gen_grid_topology(size)  # 3x3 9 qubits
@@ -46,11 +50,11 @@ if regen:
     backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neighbor_info, basis_single_gates=default_basis_single_gates,
                     basis_two_gates=default_basis_two_gates, divide=False, decoupling=False)
 
-    for gen_type in ['cycle', 'random']:
-        dataset_cycle = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=5, two_qubit_gate_probs=[
-            3, 7], gate_num_step=40, backend=backend, multi_process=True, circuit_type='cycle')
-        dataset_random = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=5, two_qubit_gate_probs=[
-            3, 7], gate_num_step=40, backend=backend, multi_process=True, circuit_type='random')
+    # for gen_type in ['cycle', 'random']:
+    dataset_cycle = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=5, two_qubit_gate_probs=[
+        3, 7], gate_num_step=40, backend=backend, multi_process=True, circuit_type='cycle')
+    dataset_random = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=5, two_qubit_gate_probs=[
+        3, 7], gate_num_step=40, backend=backend, multi_process=True, circuit_type='random')
 
     for elm in dataset_cycle:
         elm['label'] = 'train_cycle'
@@ -194,7 +198,7 @@ def eval(train_dataset, start, end):
 def eval_remote(dataset, start, end):
     return eval(dataset, start, end)
 
-# TODO: for 不同的数据量
+# TODO: for 不同的数据量 2000, 6000, 500
 maximum_datasize = 2000
 
 n_instruction2circuit_infos, gate_nums = get_n_instruction2circuit_infos(

@@ -191,7 +191,7 @@ class NoiseSimulator():
         # circuit.measure()
         initial_layout = list(range(n_qubits))
         # 做噪音实现前就直接必须符合拓扑结构了吧
-        self.match_hardware_constraints(circuit)
+        # self.match_hardware_constraints(circuit)
         result = execute(circuit, self.qasm_simulator,
                          # coupling_map=coupling_map,
                          basis_gates=self.backend.basis_gates,

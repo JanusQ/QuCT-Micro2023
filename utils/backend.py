@@ -199,8 +199,8 @@ def topology_to_coupling_map(topology: dict) -> list:
             coupling.sort()
             coupling_map.add(tuple(coupling))
     return [
-        # list(coupling)
-        tuple(coupling)
+        list(coupling)
+        # tuple(coupling)
         for coupling in coupling_map
     ]
 
@@ -290,7 +290,9 @@ class Backend():
             self.coupling_map = topology_to_coupling_map(topology)
         else:
             self.coupling_map = coupling_map
-        self.true_coupling_map = list(self.coupling_map)
+        # self._coupling_map = [tuple(elm) for elm in coupling_map]
+            
+        self._true_coupling_map = list(self.coupling_map)
         # describe qubits that have mutual interactions
         self.neighbor_info = neighbor_info  # TODO: rename to 'adjlist'
 

@@ -222,10 +222,10 @@ print(all_errors)
 
 
 # assuming we ran 1Q RB experiment for qubit 0 and qubit 1
-gpc = {0: {'cx': 0, 'u1': 0.13, 'u2': 0.31, 'u3': 0.51},
-        1: {'cx': 0, 'u1': 0.10, 'u2': 0.33, 'u3': 0.51}}
-epc_q0 = 1.5e-3
-epc_q1 = 5.8e-4
+# gpc = {0: {'cx': 0, 'u1': 0.13, 'u2': 0.31, 'u3': 0.51},
+#         1: {'cx': 0, 'u1': 0.10, 'u2': 0.33, 'u3': 0.51}}
+# epc_q0 = 1.5e-3
+# epc_q1 = 5.8e-4
 
 # epgs_q0 = rb.rb_utils.calculate_1q_epg(gate_per_cliff=gpc, epc_1q=epc_q0, qubit=0)
 # epgs_q1 = rb.rb_utils.calculate_1q_epg(gate_per_cliff=gpc, epc_1q=epc_q1, qubit=1)
