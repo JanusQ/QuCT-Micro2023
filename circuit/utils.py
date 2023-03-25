@@ -171,6 +171,22 @@ def cut_circuit(circuit):
         circ_let['reverse_map'] = reverse_qubit_map
         
         circ_let['duration'] = get_circuit_duration(circ_let['layer2gates'])
+        
+        
+        for idx, gate in enumerate(circ_let['gates']):
+            gate['id'] = idx
+            
+        layer2gates = []
+        idx = 0
+        for layer, gates in enumerate(circ_let['layer2gates']):
+            new_layer = []
+            for _ in range(len(circ_let['layer2gates'][layer])):
+                circ_let['gate2layer'][idx] = layer
+                new_layer.append(circ_let['gates'][idx])
+                idx += 1
+            layer2gates.append(new_layer)
+        circ_let['layer2gates'] = layer2gates
+        
 
         result.append(circ_let)
     

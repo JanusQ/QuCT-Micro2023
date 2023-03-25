@@ -22,7 +22,7 @@ import os
 from sklearn.model_selection import train_test_split
 
 size = 3
-n_qubits = 5
+n_qubits = 4
 n_steps = 1
 
 topology = gen_grid_topology(size)  # 3x3 9 qubits
@@ -58,9 +58,9 @@ if regen:
     # test_dataset = gen_random_circuits(min_gate=20, max_gate=2000, n_circuits=1, two_qubit_gate_probs=[
     #     3, 7], gate_num_step=60, backend=backend, multi_process=True, circuit_type='random')
 
-    dataset_cycle = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=10, two_qubit_gate_probs=[
+    dataset_cycle = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=5, two_qubit_gate_probs=[
         3, 7], gate_num_step=40, backend=backend, multi_process=True, circuit_type='cycle')
-    dataset_random = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=10, two_qubit_gate_probs=[
+    dataset_random = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=5, two_qubit_gate_probs=[
         3, 7], gate_num_step=40, backend=backend, multi_process=True, circuit_type='random')
 
     for elm in dataset_cycle:
@@ -70,9 +70,9 @@ if regen:
         elm['label'] = 'train_random'
 
     '''TODO: 门可以少一些'''
-    test_dataset_cycle = gen_random_circuits(min_gate=20, max_gate=2000, n_circuits=2, two_qubit_gate_probs=[
+    test_dataset_cycle = gen_random_circuits(min_gate=20, max_gate=1500, n_circuits=2, two_qubit_gate_probs=[
         3, 7], gate_num_step=100, backend=backend, multi_process=True, circuit_type='cycle')  # random
-    test_dataset_random = gen_random_circuits(min_gate=20, max_gate=2000, n_circuits=2, two_qubit_gate_probs=[
+    test_dataset_random = gen_random_circuits(min_gate=20, max_gate=1500, n_circuits=2, two_qubit_gate_probs=[
         3, 7], gate_num_step=100, backend=backend, multi_process=True, circuit_type='random')  # 
 
     for elm in test_dataset_cycle:
@@ -127,19 +127,45 @@ else:
     with open(upstream_model_path, "rb")as f:
         upstream_model = pickle.load(f)
 
-total_dataset = np.concatenate([train_dataset, validation_dataset, test_dataset])
+
+# total_dataset = np.concatenate([train_dataset, validation_dataset, test_dataset])
+# error_data = []
+# for circuit_info in total_dataset:
+#     error_data.append([circuit_info['n_erroneous_patterns'], len(circuit_info['gates']),
+#                       circuit_info['n_erroneous_patterns'] / len(circuit_info['gates']), circuit_info['two_qubit_prob'],
+#                       circuit_info['ground_truth_fidelity'], circuit_info['independent_fidelity'], circuit_info['ground_truth_fidelity'] - circuit_info['independent_fidelity']
+#                     ])
+
+# error_data = np.array(error_data)
+# plot_correlation(error_data, ['n_erroneous_patterns',
+#                  'n_gates', 'error_prop', 'two_qubit_prob', 'ground_truth_fidelity', 'independent_fidelity', 'ground_truth_fidelity - independent_fidelity'], None)
+
 error_data = []
 labels = []
-for circuit_info in total_dataset:
+for circuit_info in dataset:
     error_data.append([circuit_info['n_erroneous_patterns'], len(circuit_info['gates']),
                       circuit_info['n_erroneous_patterns'] / len(circuit_info['gates']), circuit_info['two_qubit_prob'],
                       circuit_info['ground_truth_fidelity'], circuit_info['independent_fidelity'], circuit_info['ground_truth_fidelity'] - circuit_info['independent_fidelity'],
-                      circuit_info['label']
                     ])
+    labels.append(circuit_info['label'])
 
 error_data = np.array(error_data)
 plot_correlation(error_data, ['n_erroneous_patterns',
-                 'n_gates', 'error_prop', 'two_qubit_prob', 'ground_truth_fidelity', 'independent_fidelity', 'ground_truth_fidelity - independent_fidelity', 'label'], 'label')
+                 'n_gates', 'error_prop', 'two_qubit_prob', 'ground_truth_fidelity', 'independent_fidelity', 'ground_truth_fidelity - independent_fidelity'], color_features = labels, name = 'c1')
+
+
+error_data = []
+labels = []
+for circuit_info in test_dataset:
+    error_data.append([circuit_info['n_erroneous_patterns'], len(circuit_info['gates']),
+                      circuit_info['n_erroneous_patterns'] / len(circuit_info['gates']), circuit_info['two_qubit_prob'],
+                      circuit_info['ground_truth_fidelity'], circuit_info['independent_fidelity'], circuit_info['ground_truth_fidelity'] - circuit_info['independent_fidelity'],
+                    ])
+    labels.append(circuit_info['label'])
+    
+error_data = np.array(error_data)
+plot_correlation(error_data, ['n_erroneous_patterns',
+                 'n_gates', 'error_prop', 'two_qubit_prob', 'ground_truth_fidelity', 'independent_fidelity', 'ground_truth_fidelity - independent_fidelity'], color_features = labels, name = 'c2')
 
 print('erroneous patterns = ', upstream_model.erroneous_pattern)
 

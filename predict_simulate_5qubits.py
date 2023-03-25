@@ -47,7 +47,7 @@ backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neighbor_i
 dir_size = 'temp_data'
 dataset_path = os.path.join(dir_size, f"dataset_{n_qubits}.pkl")
 upstream_model_path = os.path.join(dir_size, f"upstream_model_{n_qubits}.pkl")
-regen = True
+regen = False
 if regen:
     # dataset = gen_train_dataset(
     #     n_qubits, topology, neighbor_info, coupling_map, 2000)
@@ -122,7 +122,7 @@ plot_correlation(error_data, ['n_erroneous_patterns',
 
 print('erroneous patterns = ', upstream_model.erroneous_pattern)
 
-retrain = False
+retrain = True
 # # TODO: 要用fidelity 大于 0.5的阶段
 if retrain:
     downstream_model = FidelityModel(upstream_model)
@@ -136,10 +136,9 @@ if retrain:
             print(idx, "predict finished!")
         predict = downstream_model.predict_fidelity(cir)
 
-        predicts.append(cir['circuit_predict'])
+        predicts.append(predict)
         reals.append(cir['ground_truth_fidelity'])
         durations.append(cir['duration'])
-        # print(predict, cir['ground_truth_fidelity'])
 
     reals = np.array(reals)
     predicts = np.array(predicts)
@@ -168,7 +167,7 @@ plt.close(fig)
 fig, axes = plt.subplots(figsize=(10, 10))  # 创建一个图形对象和一个子图对象
 plot_real_predicted_fidelity(fig, axes, test_dataset)
 fig.savefig(f"real_predictedy_{n_qubits}_step1.svg")  # step
-
+ 
 # 画x: real fidelity, y: inaccuracy
 fig, axes = plt.subplots(figsize=(20, 6))  # 创建一个图形对象和一个子图对象
 duration_X, duration2circuit_index = get_duration2circuit_infos(

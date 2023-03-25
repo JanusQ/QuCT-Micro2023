@@ -144,10 +144,15 @@ def find_error_path(upstream_model, error_params):
 
 import pandas as pd
 import seaborn as sns
-def plot_correlation(data, feature_names, color_feature = None, name = 'correlation'):
+def plot_correlation(data, feature_names, color_features = None, name = 'correlation'):
     df = pd.DataFrame(data, columns=feature_names)
-    # df["class"] = pd.Series(data[:,color_feature_index])
-    sns_plot = sns.pairplot(df, hue=color_feature, palette="tab10")
+    
+    if color_features is not None:
+        df["class"] = pd.Series(color_features)
+        sns_plot = sns.pairplot(df, hue='class', palette="tab10")
+    else:
+        sns_plot = sns.pairplot(df, hue=None, palette="tab10")
+    # sns_plot = sns.pairplot(df, hue=color_feature, palette="tab10")
     # fig = sns_plot.get_figure()
     sns_plot.savefig(f"{name}.png")
     return

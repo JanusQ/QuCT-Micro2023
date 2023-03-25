@@ -15,7 +15,7 @@ from upstream.randomwalk_model import extract_device, RandomwalkModel
 import ray
 from circuit.random_circuit import random_1q_layer
 from utils.backend import Backend
-
+import time
 # https://qiskit.org/documentation/tutorials/simulators/3_building_noise_models.html
 
 # backend_name = 'ibm_nairobi'
@@ -191,7 +191,7 @@ class NoiseSimulator():
         # circuit.measure()
         initial_layout = list(range(n_qubits))
         # 做噪音实现前就直接必须符合拓扑结构了吧
-        self.match_hardware_constraints(circuit)
+        # self.match_hardware_constraints(circuit)
         result = execute(circuit, self.qasm_simulator,
                          # coupling_map=coupling_map,
                          basis_gates=self.backend.basis_gates,
