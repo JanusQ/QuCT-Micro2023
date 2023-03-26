@@ -614,7 +614,7 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
             '''TODO: 相似的距离优先比特数小的'''
             dist_decrement = now_dist - c_now_dist
             subset_qubits = c_total_layers[-1][0]['qubits']
-            subset_penalty = lagre_block_penalty**len(subset_qubits)
+            subset_penalty = lagre_block_penalty**(len(subset_qubits)-1)
             if c_total_layers[-1][0]['name'] != 'unitary':
                 subset_penalty = sum([len(layer) for layer in c_total_layers]) #lagre_block_penalty
             
