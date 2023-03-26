@@ -3,6 +3,7 @@
 '''
 # from downstream.synthesis import
 
+from sklearn.neighbors import NearestNeighbors
 from circuit.formatter import get_layered_instructions, qiskit_to_my_format_circuit
 from random import choice as random_choice
 import inspect
@@ -180,7 +181,7 @@ def pca_transform(m, X_mean, V_k):
 
 
 
-class SynthesisModel_v2():
+class SynthesisModelRandom():
     def __init__(self, backend) -> None:
         self.backend = backend
     
@@ -194,7 +195,6 @@ class SynthesisModel_v2():
             for cirucit_info in circuit_infos
             # if len(cirucit_info['layer2gates']) < 5
         ]
-    
     
 class SynthesisModel():
     def __init__(self, upstream_model: RandomwalkModel, name=None):
@@ -229,6 +229,7 @@ class SynthesisModel():
             device_gate_vecs, Us = [], []
             layer2gates = circuit_info['layer2gates']
 
+            
             for layer_index, layer_gates in enumerate(layer2gates):
                 # print(index, layer_index)
                 layer_gates = [
@@ -247,6 +248,8 @@ class SynthesisModel():
                     # TODO: 应该有些可以重复利用才对
                     U = layer_circuit_to_matrix(random_params(
                         layer2gates[layer_index:]), n_qubits)  # TODO: vmap
+                    
+                    # assert np.allclose(U.T.conj() @ U, I)
                     Us.append(U)
 
                     gate_vec = circuit_info['vecs'][target_gate_index].astype(np.int8)
@@ -282,8 +285,13 @@ class SynthesisModel():
 
         # 加[:100000]，不然现在有点太慢了
         Vs, Us = shuffle(Vs, Us)
+        
         Vs = np.array(Vs, dtype=np.int8)  # [:100000]
-        Us = np.array(Us, dtype=np.float64)  # [:100000]
+        Us = np.array(Us, dtype=np.complex128)  # [:100000]
+
+        # I = np.eye(2**n_qubits)
+        # for U in Us:
+        #     assert np.allclose(U.T.conj() @ U, I)
 
         print('len(Us) = ', len(Us), 'len(gate_vecs) = ', len(Vs))
 
@@ -311,21 +319,19 @@ class SynthesisModel():
         upstream_model = self.upstream_model
         backend = self.backend
         n_qubits = self.n_qubits
-
+        
         device_gate_vec = pca_model.transform(jnp.array([U]))
         device_gate_vec = U_to_vec_model.predict(device_gate_vec)[0]
         ''' 基于预测的gate vector来构建子电路'''
         device = int(device_gate_vec[0])
         gate_vec = device_gate_vec[1:]
-
-        gate_vec = device_gate_vec[n_qubits:]
         '''TODO: 万一有冲突怎么办'''
         '''TODO:有可能找到的子电路还会使dist变大，可能需要类似残差的结构'''
         layer2gates = upstream_model.reconstruct(
             device, gate_vec)  # TODO: 如果出现全是0的怎么办
         # print('reconstruct', layer_gates)
         
-        return layer2gates, device_gate_vec
+        return [layer2gates] #, device_gate_vec
 
         involved_qubits = []
         connected_sets = []  # [[q1, q2], [q3, q4]]  存了在path里面连接的比特组
@@ -367,6 +373,69 @@ class SynthesisModel():
             obj = pickle.load(f)
         return obj
 
+
+
+def flatten(U):
+    U = U.reshape(U.size)
+    return np.concatenate([U.real, U.imag])
+
+# @jax.jit
+def unflatten(x):
+    n_qubits = int(math.log2(x.size//2)//2)
+    x_real = x[:x.size//2]
+    x_imag = x[x.size//2:]
+    return x_real.reshape((2**n_qubits, 2**n_qubits)) + 1j * x_imag.reshape((2**n_qubits, 2**n_qubits))
+
+class SynthesisModelNN(SynthesisModel):
+    
+    @staticmethod
+    def flatten_matrix_distance_squared(x1, x2):
+        x1 = unflatten(x1)
+        x2 = unflatten(x2)
+        return matrix_distance_squared(x1, x2)
+    
+    def construct_model(self, data):
+        print('Start construct model')
+        start_time = time.time()
+
+        Us, Vs = data
+
+        Us = [flatten(U) for U in Us]
+        
+        self.nbrs = NearestNeighbors(n_neighbors=6, algorithm='ball_tree', metric= self.flatten_matrix_distance_squared, n_jobs = -1).fit(Us)
+        self.Vs = Vs
+        
+        print(f'Finish construct model, costing {time.time()-start_time}s')
+
+    
+    def choose(self, U, verbose = False):
+        nbrs: NearestNeighbors = self.nbrs
+        upstream_model = self.upstream_model
+        backend = self.backend
+        n_qubits = self.n_qubits
+        Vs = self.Vs
+
+        U = flatten(U)
+        
+        distances, indices = nbrs.kneighbors([U])
+
+        ''' 基于预测的gate vector来构建子电路'''
+
+        if verbose:
+            print('heuristic distance = ', distances)
+        
+        candidates = []
+        # indices = indices[distances < .8]
+        for index in indices[0]:
+            device_gate_vec = Vs[index]
+            device = int(device_gate_vec[0])
+            gate_vec = device_gate_vec[1:]
+
+            candidate = upstream_model.reconstruct(
+                device, gate_vec)  # TODO: 如果出现全是0的怎么办
+            candidates.append(candidate)
+        
+        return candidates
 
 def find_parmas(n_qubits, layer2gates, U, lr=1e-1, max_epoch=1000, allowed_dist=1e-2, n_iter_no_change=10, no_change_tolerance=1e-2, random_params=True, verbose=False):
     np.random.RandomState()
@@ -506,7 +575,8 @@ def _optimize_remote(total_layers, new_layers, n_optimized_layers, invU, lr, n_i
     return _optimize(total_layers, new_layers, n_optimized_layers, invU, lr, n_iter_no_change, n_qubits, allowed_dist, now_dist)
 
 
-def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: SynthesisModel = None, multi_process=True, verbose=False, lagre_block_penalty=2, heuristic_ratio = .5):
+def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: SynthesisModel = None, multi_process=True, 
+               verbose=False, lagre_block_penalty=2, heuristic_ratio = .5, timeout = 5*3600):
     start_time = time.time()
     subp_times = []
     
@@ -515,7 +585,7 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
 
     # multi_process = True
     n_qubits = int(math.log2(len(U)))
-    if n_qubits < 3:
+    if n_qubits < 3: # TODO: 等于 3
         gate = {
             'qubits': list(range(n_qubits)),
             'unitary': U,
@@ -538,21 +608,24 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
     iter_count = 0
 
     min_dist = 1e2
-    former_device_gate_vec = None
+    # former_device_gate_vec = None  
 
+    heuristic_takeeffact_count = 0 # 记录下起heuristic作用的数量
     while now_dist > allowed_dist:
+        if time.time() - start_time > timeout: break
+        
         '''TODO: 有些电路要是没有优化动就不插了'''
         canditate_layers = []
 
         device_gate_vec = None
-        if use_heuristic:
+        if use_heuristic: # and now_dist > .5:
         # if use_heuristic and heuristic_ratio > random() and iter_count != 0 and now_dist > 0.3:
             '''相似的酉矩阵矩阵可能会导致重复插入相似的电路'''
             # canditates, device_gate_vec = heuristic_model.choose(remained_U,)
             # canditate_layers.append(new_layers)
-            canditates = heuristic_model.choose(remained_U,)
+            canditates = heuristic_model.choose(remained_U, verbose = True)
             canditate_layers += canditates
-            print('use heuristic')
+            # print('use heuristic')
 
         if True:
         # if not use_heuristic or device_gate_vec is None or (former_device_gate_vec is not None and jnp.allclose(device_gate_vec, former_device_gate_vec)):
@@ -607,6 +680,8 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
         futures = wait(futures)
         max_dist_decrement = 0
         _min_dist = None
+        
+        heuristic_takeeffact = False
         for future in futures:
             c_remained_U, c_total_layers, c_qml_dist, c_now_dist, c_epoch, subp_time = future
             subp_times.append(subp_time)
@@ -616,7 +691,7 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
             subset_qubits = c_total_layers[-1][0]['qubits']
             subset_penalty = lagre_block_penalty**(len(subset_qubits)-1)
             if c_total_layers[-1][0]['name'] != 'unitary':
-                subset_penalty = sum([len(layer) for layer in c_total_layers]) #lagre_block_penalty
+                subset_penalty = sum([len([gate for gate in layer if len(gate['qubits']) > 2]) for layer in c_total_layers]) + 1#lagre_block_penalty
             
             if dist_decrement > 0:
                 # 比特数多虽然能够减少的快，但是代价大
@@ -628,14 +703,24 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
 
             if verbose:
                 print(candidate_layer['name'], candidate_layer['qubits'],
-                      dist_decrement, now_dist, c_now_dist, c_epoch)
+                      dist_decrement, now_dist, c_now_dist, subset_penalty, c_epoch)
 
             if dist_decrement > max_dist_decrement:
                 max_dist_decrement = dist_decrement
                 total_layers = c_total_layers
                 remained_U = c_remained_U
                 _min_dist = c_now_dist
-
+                
+                if c_total_layers[-1][0]['name'] != 'unitary' and len(c_total_layers) != 1:
+                    heuristic_takeeffact = True
+                else:
+                    heuristic_takeeffact = False
+        
+        if heuristic_takeeffact:
+            if verbose:
+                print('heuristic takes effact')
+            heuristic_takeeffact_count += 1
+                
         if verbose:
             print('candiate selection cost', time.time() -
                   candiate_selection_start_time)
@@ -649,8 +734,9 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
             remained_U, total_layers, c_qml_dist, now_dist, epoch_spent = future
 
         if verbose:
+            # 只显示一部分就好了，不然太乱了
             qiskit_circuit = layered_circuits_to_qiskit(
-                n_qubits, total_layers, barrier=False)   # 0.00287s
+                n_qubits, total_layers[-6:], barrier=False)   # 0.00287s
             print(qiskit_circuit)
             print('iter_count=', iter_count, 'now_dist=', now_dist, '\n')
 
@@ -716,6 +802,8 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
     layer2instructions, _, _, _, _ = get_layered_instructions(qiskit_circuit)
     synthesized_circuit, _, _ = qiskit_to_my_format_circuit(layer2instructions)
 
+    if verbose: 
+        print('heuristic takes effect in', heuristic_takeeffact_count / iter_count * 100, '%')
     return synthesized_circuit, time.time() - start_time + sum(subp_times)
 
 # from qiskit.quantum_info import TwoQubitBasisDecomposer
