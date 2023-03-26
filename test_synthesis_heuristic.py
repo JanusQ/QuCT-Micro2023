@@ -32,25 +32,27 @@ neigh_info = gen_fulllyconnected_topology(n_qubits)
 # topology = gen_linear_topology(n_qubits)
 # neigh_info = get_linear_neighbor_info(n_qubits, 1)
 regen = False
-if regen:
-    backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basis_single_gates=['u'],
-                    basis_two_gates=['cz'], divide=False, decoupling=False)
+# if regen:
+#     backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basis_single_gates=['u'],
+#                     basis_two_gates=['cz'], divide=False, decoupling=False)
 
 
-    min_gate, max_gate = 2 * 4**n_qubits - 200, 2 * 4**n_qubits
-    dataset = gen_random_circuits(min_gate=100, max_gate=max_gate, gate_num_step=max_gate//50, n_circuits=50,
-                                    two_qubit_gate_probs=[2, 5], backend=backend, reverse=False, optimize=True, multi_process=True)
+#     min_gate, max_gate = 2 * 4**n_qubits - 200, 2 * 4**n_qubits
+#     dataset = gen_random_circuits(min_gate=100, max_gate=max_gate, gate_num_step=max_gate//50, n_circuits=50,
+#                                     two_qubit_gate_probs=[2, 5], backend=backend, reverse=False, optimize=True, multi_process=True)
 
 
-    upstream_model = RandomwalkModel(1, 20, backend)
-    upstream_model.train(dataset, multi_process=True, remove_redundancy=False)
-    synthesis_model = SynthesisModel(upstream_model, f'synthesis_{n_qubits}')
-    data = synthesis_model.construct_data(dataset, multi_process = True)
-    synthesis_model.construct_model(data)
-    synthesis_model.save()
-else:
-    synthesis_model: SynthesisModel = SynthesisModel.load(f'synthesis_{n_qubits}')
-    backend: Backend = synthesis_model.backend
+#     upstream_model = RandomwalkModel(1, 20, backend)
+#     upstream_model.train(dataset, multi_process=True, remove_redundancy=False)
+#     synthesis_model = SynthesisModel(upstream_model, f'synthesis_{n_qubits}')
+#     data = synthesis_model.construct_data(dataset, multi_process = True)
+#     synthesis_model.construct_model(data)
+#     synthesis_model.save()
+# else:
+#     synthesis_model: SynthesisModel = SynthesisModel.load(f'synthesis_{n_qubits}')
+#     backend: Backend = synthesis_model.backend
+
+SynthesisModel
 
 
 def cnot_count(qc: QuantumCircuit):
