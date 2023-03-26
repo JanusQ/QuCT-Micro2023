@@ -425,7 +425,10 @@ class SynthesisModelNN(SynthesisModel):
             print('heuristic distance = ', distances)
         
         candidates = []
-        # indices = indices[distances < .8]
+        indices = indices[distances < .8]
+        
+        if len(indices) == 0: return []
+        
         for index in indices[0]:
             device_gate_vec = Vs[index]
             device = int(device_gate_vec[0])
@@ -552,7 +555,7 @@ def _optimize(total_layers, new_layers, n_optimized_layers, U, lr, n_iter_no_cha
         unchanged_total_layer2gates, n_qubits)
 
     '''TODO: 将连续的两个操作同一组qubits的unitary合并'''
-    params, qml_dist, epoch_spent = find_parmas(n_qubits, total_layers, U @ unchanged_part_matrix.T.conj(), max_epoch=1000, allowed_dist=allowed_dist,
+    params, qml_dist, epoch_spent = find_parmas(n_qubits, total_layers, U @ unchanged_part_matrix.T.conj(), max_epoch=100, allowed_dist=allowed_dist,
                                                 n_iter_no_change=n_iter_no_change, no_change_tolerance=now_dist/10, random_params=False, lr=lr, verbose=False)
     # allowed_dist/100
 
@@ -617,7 +620,7 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
         '''TODO: 有些电路要是没有优化动就不插了'''
         canditate_layers = []
 
-        device_gate_vec = None
+        # device_gate_vec = None
         if use_heuristic: # and now_dist > .5:
         # if use_heuristic and heuristic_ratio > random() and iter_count != 0 and now_dist > 0.3:
             '''相似的酉矩阵矩阵可能会导致重复插入相似的电路'''
@@ -654,7 +657,7 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
 
         # canditate_layers = list(itertools.product(canditate_layers, canditate_layers))
         futures = []
-        former_device_gate_vec = device_gate_vec
+        # former_device_gate_vec = device_gate_vec
 
         candiate_selection_start_time = time.time()
         for candidate_layer in canditate_layers:
@@ -662,7 +665,7 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
             if (iter_count+1) % 10 == 0 or now_dist < 1e-2:  # TODO: 需要尝试的超参数
                 n_optimized_layers = len(total_layers) + len(candidate_layer)
             else:
-                n_optimized_layers = 10 + len(candidate_layer)  # TODO: 需要尝试的超参数
+                n_optimized_layers = 5 + len(candidate_layer)  # TODO: 需要尝试的超参数
 
             if now_dist < 1e-2:
                 n_iter_no_change = 10
@@ -731,12 +734,12 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
         if max_dist_decrement == 0:
             print('Warning: no improvement in the exploration')
             future = random_choice(futures)
-            remained_U, total_layers, c_qml_dist, now_dist, epoch_spent = future
+            remained_U, total_layers, c_qml_dist, now_dist, epoch_spent, subp_time = future
 
         if verbose:
             # 只显示一部分就好了，不然太乱了
             qiskit_circuit = layered_circuits_to_qiskit(
-                n_qubits, total_layers[-6:], barrier=False)   # 0.00287s
+                n_qubits, total_layers[-8:], barrier=False)   # 0.00287s
             print(qiskit_circuit)
             print('iter_count=', iter_count, 'now_dist=', now_dist, '\n')
 

@@ -40,7 +40,7 @@ def cz_count(qc: QuantumCircuit):
     return 0
 
 
-n_qubits = 3
+# n_qubits = 3
 for n_qubits in range(3, 7):
     topology = gen_fulllyconnected_topology(n_qubits)
     neigh_info = gen_fulllyconnected_topology(n_qubits)
@@ -48,7 +48,7 @@ for n_qubits in range(3, 7):
     # topology = gen_linear_topology(n_qubits)
     # neigh_info = get_linear_neighbor_info(n_qubits, 1)
 
-    regen = True
+    regen = False
     if regen:
         backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basis_single_gates=['u'],
                         basis_two_gates=['cz'], divide=False, decoupling=False)
