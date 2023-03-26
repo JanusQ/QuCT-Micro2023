@@ -179,6 +179,23 @@ def pca_transform(m, X_mean, V_k):
     return q  # m_reduced #q
 
 
+
+class SynthesisModel_v2():
+    def __init__(self, backend) -> None:
+        self.backend = backend
+    
+    def choose(self, U):
+        backend: Backend = self.backend
+        n_qubits = backend.n_qubits
+        circuit_infos = gen_random_circuits(min_gate = 5 + n_qubits, max_gate=20 + n_qubits, backend = backend, gate_num_step = 10, n_circuits=1, two_qubit_gate_probs = [2,5], optimize=True, reverse=False)
+        
+        return [
+            cirucit_info['layer2gates']
+            for cirucit_info in circuit_infos
+            # if len(cirucit_info['layer2gates']) < 5
+        ]
+    
+    
 class SynthesisModel():
     def __init__(self, upstream_model: RandomwalkModel, name=None):
         self.upstream_model = upstream_model
@@ -531,8 +548,10 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
         if use_heuristic:
         # if use_heuristic and heuristic_ratio > random() and iter_count != 0 and now_dist > 0.3:
             '''相似的酉矩阵矩阵可能会导致重复插入相似的电路'''
-            new_layers, device_gate_vec = heuristic_model.choose(remained_U,)
-            canditate_layers.append(new_layers)
+            # canditates, device_gate_vec = heuristic_model.choose(remained_U,)
+            # canditate_layers.append(new_layers)
+            canditates = heuristic_model.choose(remained_U,)
+            canditate_layers += canditates
             print('use heuristic')
 
         if True:
@@ -570,7 +589,7 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
             if (iter_count+1) % 10 == 0 or now_dist < 1e-2:  # TODO: 需要尝试的超参数
                 n_optimized_layers = len(total_layers) + len(candidate_layer)
             else:
-                n_optimized_layers = 10  # TODO: 需要尝试的超参数
+                n_optimized_layers = 10 + len(candidate_layer)  # TODO: 需要尝试的超参数
 
             if now_dist < 1e-2:
                 n_iter_no_change = 10
@@ -597,7 +616,7 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
             subset_qubits = c_total_layers[-1][0]['qubits']
             subset_penalty = lagre_block_penalty**len(subset_qubits)
             if c_total_layers[-1][0]['name'] != 'unitary':
-                subset_penalty = lagre_block_penalty
+                subset_penalty = sum([len(layer) for layer in c_total_layers]) #lagre_block_penalty
             
             if dist_decrement > 0:
                 # 比特数多虽然能够减少的快，但是代价大
