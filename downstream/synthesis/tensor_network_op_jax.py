@@ -9,8 +9,8 @@ K = tc.set_backend("jax")
 
 # @jax.jit
 def layer_circuit_to_matrix(layer2gates, n_qubits, params = None) -> jax.numpy.array:
-    # if len(layer2gates) == 0:
-    #     return jnp.eye(2**n_qubits)
+    if len(layer2gates) == 0:
+        return jnp.eye(2**n_qubits)
     return qml.matrix(layer_circuit_to_pennylane_tape(layer2gates, params), wire_order = list(range(n_qubits)))
     
     ''''值没有搞清楚先不用, 现在算出来的似乎不是unitary的'''

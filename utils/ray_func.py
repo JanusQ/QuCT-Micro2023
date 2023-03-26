@@ -18,12 +18,20 @@ def is_ray_func(func):
 def is_ray_future(obj):
     return isinstance(obj, ray._raylet.ObjectRef)
 
-def wait(future):
+def wait(future, show_progress = False):
     # TODO: 可能会导致循环递归
     if isinstance(future, (list, set)):
         futures = future
-        return [wait(future) for future in futures]
-    if is_ray_future(future):
+        
+        if not show_progress: 
+            return [wait(future) for future in futures]
+        else:
+            from tqdm import tqdm
+            results = []
+            for future in tqdm(futures):
+                results.append(wait(future) )
+            return results
+    elif is_ray_future(future):
         return ray.get(future)
     elif isinstance(future, Future):
         return future.result()

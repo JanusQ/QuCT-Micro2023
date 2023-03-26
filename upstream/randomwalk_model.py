@@ -507,6 +507,7 @@ class RandomwalkModel():
                 head_gate.update(parse_gate_info(elms[0]))
                 head_gate['params'] *= 3
             else:
+                elms = elms[1:]
                 for index in range(0, len(elms), 2):
                     relation, gate_info = elms[index:index + 2]
                     if relation == 'next':

@@ -10,3 +10,4 @@ scikit-learn
 cloudpickle
 pennylane
 bqskit
+tqdm
