@@ -14,7 +14,7 @@ from downstream.synthesis.tensor_network_op_jax import layer_circuit_to_matrix
 
 from scipy.stats import unitary_group
 
-from downstream.synthesis.synthesis_model_pca_unitary_jax import find_parmas, pkl_dump, pkl_load, matrix_distance_squared, SynthesisModel, synthesize
+from downstream.synthesis.synthesis_model_pca_unitary_jax import SynthesisModel_v2, find_parmas, pkl_dump, pkl_load, matrix_distance_squared, SynthesisModel, synthesize
 from itertools import combinations
 import time
 from qiskit import transpile
@@ -31,7 +31,7 @@ neigh_info = gen_fulllyconnected_topology(n_qubits)
 
 # topology = gen_linear_topology(n_qubits)
 # neigh_info = get_linear_neighbor_info(n_qubits, 1)
-regen = False
+# regen = False
 # if regen:
 #     backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basis_single_gates=['u'],
 #                     basis_two_gates=['cz'], divide=False, decoupling=False)
@@ -52,8 +52,6 @@ regen = False
 #     synthesis_model: SynthesisModel = SynthesisModel.load(f'synthesis_{n_qubits}')
 #     backend: Backend = synthesis_model.backend
 
-SynthesisModel
-
 
 def cnot_count(qc: QuantumCircuit):
     count_ops = qc.count_ops()
@@ -67,7 +65,12 @@ def cz_count(qc: QuantumCircuit):
         return count_ops['cz']
     return 0
 
+backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basis_single_gates=['u'],
+                basis_two_gates=['cz'], divide=False, decoupling=False)
+synthesis_model: SynthesisModel_v2 = SynthesisModel_v2(backend)
+
 # init_unitary_mat = qft_U(n_qubits)
+
 for index in range(5):
     init_unitary_mat = unitary_group.rvs(2**n_qubits)
     for use_heuristic in [False, True]:

@@ -28,7 +28,7 @@ def gen_random_circuits(min_gate: int, max_gate: int, n_circuits: int, two_qubit
     for future in futures:
         dataset += ray.get(future)
 
-    print(f'finish random circuit generation with {len(dataset)} circuits')
+    # print(f'finish random circuit generation with {len(dataset)} circuits')
     return dataset
 
 
