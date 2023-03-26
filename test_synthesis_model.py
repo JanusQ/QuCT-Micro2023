@@ -22,7 +22,7 @@ import random
 import cloudpickle as pickle
 from circuit.formatter import layered_circuits_to_qiskit, to_unitary
 from qiskit.quantum_info import Operator
-
+from jax import vmap
 from utils.unitaries import qft_U, grover_U
 
 n_qubits = 3
@@ -57,9 +57,10 @@ else:
     backend: Backend = synthesis_model.backend
 
     with open(synthesis_data_path, 'rb') as f:
-        dataset: list[np.array, np.array] = pickle.load(f)
+        Us, Vs = pickle.load(f)
 
 
 U = unitary_group.rvs(2**n_qubits)
 
-dists = vmap(matrix_distance_squared, in_axis = (None, 0))
+dists = vmap(matrix_distance_squared, in_axis = (None, 0))(U, Us)
+
