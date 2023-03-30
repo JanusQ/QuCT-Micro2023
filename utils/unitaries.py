@@ -26,5 +26,5 @@ def optimal_grover(num_qubits):
     return qc
 
 def grover_U(n: int):
-    grover = optimal_grover(4)
+    grover = optimal_grover(n)
     return Operator(grover).data

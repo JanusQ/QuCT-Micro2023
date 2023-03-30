@@ -164,14 +164,14 @@ class QubitDependentModel():
                 self.max_table_size = len(path_table)
 
         for circuit_info in dataset:
-            circuit_info['path_indexs'] = []
+            circuit_info['sparse_vecs'] = []
             circuit_info['vecs'] = []
 
             for gate, paths in zip(circuit_info['gates'], circuit_info['gate_paths']):
                 device = extract_device(gate)
                 _path_index = [self.path_index(device, path_id) for path_id in paths if self.has_path(device, path_id)]
                 _path_index.sort()
-                circuit_info['path_indexs'].append(_path_index)
+                circuit_info['sparse_vecs'].append(_path_index)
 
                 vec = np.zeros(self.max_table_size, dtype=np.int32)
                 vec[np.array(_path_index)] = 1.
@@ -225,7 +225,7 @@ class QubitDependentModel():
             return circuit_info
 
         neighbor_info = self.backend.neighbor_info
-        circuit_info['path_indexs'] = []
+        circuit_info['sparse_vecs'] = []
 
         circuit_info['vecs'] = []
         circuit_info['gate_paths'] = []
@@ -249,7 +249,7 @@ class QubitDependentModel():
             _path_index = [self.path_index(
                 device, path_id) for path_id in paths if self.has_path(device, path_id)]
             _path_index.sort()
-            circuit_info['path_indexs'].append(_path_index)
+            circuit_info['sparse_vecs'].append(_path_index)
             circuit_info['gate_paths'].append(paths)
             
             vec = np.zeros(self.max_table_size, dtype=np.float32)
@@ -260,10 +260,10 @@ class QubitDependentModel():
 
     def extract_paths_from_vec(self, device, gate_vector: np.array) -> list:
         # device = extract_device(gate)
-        inclued_path_indexs = np.argwhere(gate_vector == 1)[:, 0]
+        inclued_sparse_vecs = np.argwhere(gate_vector == 1)[:, 0]
         paths = [
             self.device2reverse_path_table[device][index]
-            for index in inclued_path_indexs
+            for index in inclued_sparse_vecs
         ]
         return paths
 
@@ -342,11 +342,11 @@ class QubitDependentModel():
     # def reconstruct(self, gate, gate_vector: np.array) -> list:
 
     #     # device = extract_device(gate)
-    #     # inclued_path_indexs = np.argwhere(gate_vector==1)[:,0]
+    #     # inclued_sparse_vecs = np.argwhere(gate_vector==1)[:,0]
     #     paths = self.extract_paths_from_vec(gate, gate_vector)
     #     # [
     #     #     self.device2reverse_path_table[device][index]
-    #     #     for index in inclued_path_indexs
+    #     #     for index in inclued_sparse_vecs
     #     # ]
 
     #     def parse_gate_info(gate_info):

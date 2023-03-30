@@ -128,7 +128,7 @@ def cut_circuit(circuit):
         circ_let['num_qubits']=len(pattern)
         circ_let['divide_qubits'] = [pattern]
         circ_let['gate_paths']=[]
-        circ_let['path_indexs']=[]
+        circ_let['sparse_vecs']=[]
         circ_let['vecs']=[]
         
         circ_let['layer2gates'] = []
@@ -162,7 +162,7 @@ def cut_circuit(circuit):
                     
         for gate in circ_let['gates']:
             circ_let['gate_paths'].append(circuit['gate_paths'][gate['id']])
-            circ_let['path_indexs'].append(circuit['path_indexs'][gate['id']])
+            circ_let['sparse_vecs'].append(circuit['sparse_vecs'][gate['id']])
             circ_let['vecs'].append(circuit['vecs'][gate['id']])
         
         circ_let['gate_num']=len(circ_let['gates'])

@@ -323,7 +323,7 @@ def add_pattern_error_path(circuit, n_qubits, model, device2erroneous_pattern): 
         else:
             raise Exception(gate, 'known')
 
-        path_index = circuit_info['path_indexs'][index]
+        path_index = circuit_info['sparse_vecs'][index]
         for _index in path_index:
             if _index in erroneous_pattern_index:
                 for qubit in gate['qubits']:

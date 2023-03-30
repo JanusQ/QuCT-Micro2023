@@ -152,7 +152,7 @@ def scan(max_step, path_per_node, bug_num, min_qubit_num, max_qubit_num):
 
                 print('nearest_circuits', nearest_circuits) # 相近的电路
                 print('nearest_positive_instructions', nearest_circuit_instruction_index)
-                # print(nearest_positive_instructions[0]['path_indexs'][nearest_positive_instructions[0]['id']], circuit_info['path_indexs'][analyzed_vec_index])
+                # print(nearest_positive_instructions[0]['sparse_vecs'][nearest_positive_instructions[0]['id']], circuit_info['sparse_vecs'][analyzed_vec_index])
 
                 print('\n')
 

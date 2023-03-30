@@ -373,9 +373,9 @@ def sp_MDS(vecs, vec_size, reduced_dim, epoch_num=10, print_interval=10, batch_s
     return np.array(best_parms), np.array(reduced_vecs)
 
 
-def pad_to(path_indexs, path_values, size):
+def pad_to(sparse_vecs, path_values, size):
     pointer = 0
-    vec_indexs = path_indexs.copy()
+    vec_indexs = sparse_vecs.copy()
     vec_values = path_values
     for _ in range(size - len(vec_indexs)):
         while pointer in vec_indexs:

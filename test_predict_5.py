@@ -27,7 +27,7 @@ neigh_info= topology
 #     for circuit_info in dataset:
 #         circuit_info['qiskit_circuit'] = None
 #         circuit_info['gate_paths'] = None
-#         circuit_info['path_indexs'] = None
+#         circuit_info['sparse_vecs'] = None
 #         circuit_info['vecs'] = None
 
 # simplify(train_dataset), simplify(test_dataset)
@@ -36,15 +36,6 @@ neigh_info= topology
 
 backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basis_single_gates = default_basis_single_gates,
                   basis_two_gates = default_basis_two_gates, divide = False, decoupling=False)
-<<<<<<< HEAD
-upstream_model = RandomwalkModel(1, 20, backend = backend) ### step
-upstream_model.train(train_dataset, multi_process = True)
-
-with open("upstream_model_5_step3.pkl", "wb") as f: ### step
-    pickle.dump(upstream_model, f)
-
-
-=======
 
 with open("5qubit_data/dataset_split_simp.pkl", "rb") as f:
     train_dataset, test_dataset = pickle.load(f)
@@ -67,7 +58,6 @@ train_dataset = upstream_model.dataset[:len(train_dataset)]
 test_dataset = upstream_model.dataset[len(train_dataset):]
 upstream_model.dataset = None
 
->>>>>>> 60f9be79e6181cbdb6bc2eaa29e2da0cb2029f24
 downstream_model = FidelityModel(upstream_model)
 downstream_model.train(train_dataset, test_dataset = None)
 
