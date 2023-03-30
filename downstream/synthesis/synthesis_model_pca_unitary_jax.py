@@ -221,11 +221,21 @@ class SynthesisModel():
         def gen_data(circuit_info, n_qubits, index):
             device_gate_vecs, Us = [], []
             layer2gates = circuit_info['layer2gates']
+            
+            for layer_index, layer_gates in enumerate(layer2gates):
+                for target_gate in layer_gates:
+                    if len(target_gate['qubits']) != 1:
+                        continue
+                    
+                    U = layer_circuit_to_matrix(layer2gates[layer_index:], n_qubits)  # TODO: vmap
+                    Us.append(U)
 
+                    gate_vec = circuit_info['sparse_vecs'][target_gate['id']] # 如果是奇奇怪怪的地方生成的这个地方可能会不对
+                    device_gate_vecs.append([target_gate['qubits'][0], gate_vec])
+                    
             for layer_index, layer_gates in enumerate(layer2gates):
                 layer_gates = [
-                    gate
-                    for gate in layer_gates
+                    gate for gate in layer_gates
                     if len(gate['qubits']) == 1
                 ]
                 if len(layer_gates) == 0:
@@ -243,7 +253,6 @@ class SynthesisModel():
 
                     gate_vec = circuit_info['sparse_vecs'][target_gate_index] #.astype(np.int8)
                     device_gate_vecs.append([target_gate['qubits'][0], gate_vec])
-                    
 
             return device_gate_vecs, Us
 

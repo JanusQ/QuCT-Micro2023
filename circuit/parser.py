@@ -40,7 +40,7 @@ def qiskit_to_layered_circuits(circuit, divide=False, decoupling=False):
     circuit_info['num_qubits'] = circuit.num_qubits
     # circuit_info['dagcircuit'] = dagcircuit
     # circuit_info['nodes'] = nodes
-    circuit_info['qiskit_circuit'] = circuit
+    circuit_info['qiskit_circuit'] = None #circuit
     return circuit_info
 
 

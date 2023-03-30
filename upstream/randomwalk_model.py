@@ -248,6 +248,8 @@ class RandomwalkModel():
 
         if multi_process:
             batch_size = len(dataset) // process_num
+            if batch_size < 20:
+                batch_size = len(dataset)
         else:
             batch_size = len(dataset)
 
