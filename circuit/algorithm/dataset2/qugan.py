@@ -8,7 +8,7 @@ class QuGAN:
         self.quantum_register = qiskit.circuit.QuantumRegister(self.qubit_count)
         self.classical_register = qiskit.circuit.ClassicalRegister((self.qubit_count - 1) // 2)
         self.circuit = qiskit.circuit.QuantumCircuit(self.quantum_register)
-        self.data_load()
+        # self.data_load()
         self.swap_test()
         self.generate_samples()
 

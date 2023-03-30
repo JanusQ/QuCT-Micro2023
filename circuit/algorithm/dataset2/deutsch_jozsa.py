@@ -40,7 +40,7 @@ def get_cir(n, b_str):
 
     # Add oracle
     
-    dj_circuit = dj_circuit.compose(get_balanced_oracle(n, b_str))
+    # dj_circuit = dj_circuit.compose(get_balanced_oracle(n, b_str))
     # dj_circuit += get_balanced_oracle(n, b_str)
 
     # Repeat H-gates

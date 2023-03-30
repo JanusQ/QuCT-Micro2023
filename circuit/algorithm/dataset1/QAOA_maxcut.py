@@ -29,7 +29,7 @@ def apply_mixing_hamiltonian(qc, V, E, beta):
 def construct_full_qaoa(p, gammas, betas, V, E):
     qc = initialize_qaoa(V, E)
     for i in range(p):
-        qc = apply_cost_hamiltonian(qc, V, E, gammas[i])
+        # qc = apply_cost_hamiltonian(qc, V, E, gammas[i])
         qc = apply_mixing_hamiltonian(qc, V, E, betas[i])
     # qc = terminate_qaoa(qc, V, E)
     return qc

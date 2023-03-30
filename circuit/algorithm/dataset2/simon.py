@@ -29,7 +29,7 @@ def get_cir(bitstring: str) -> QuantumCircuit:
     # Apply barrier for visual separation
     simon_circuit.barrier()
 
-    simon_circuit = simon_circuit.compose(simon_oracle(bitstring))
+    # simon_circuit = simon_circuit.compose(simon_oracle(bitstring))
 
     # Apply barrier for visual separation
     simon_circuit.barrier()

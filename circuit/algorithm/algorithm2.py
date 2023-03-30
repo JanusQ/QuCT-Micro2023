@@ -49,28 +49,6 @@ class Algorithm:
             qc.h(q)
         return qc
 
-    # 黑盒，随便设计的
-    def grover_oracle(self, target: str):
-        from qiskit.quantum_info import Statevector
-        from qiskit.algorithms import AmplificationProblem
-        qc = AmplificationProblem(Statevector.from_label(target)).grover_operator.oracle.decompose()
-        return qc
-
-    def amplitude_amplification(self, target: str):
-        from qiskit.quantum_info import Statevector
-        from qiskit.algorithms import AmplificationProblem
-        qc = AmplificationProblem(Statevector.from_label(target)).grover_operator.decompose()
-        return qc
-
-    # Grover算法
-    def grover(self, target: str, iterations=1):
-        # grover
-        qc = QuantumCircuit(self.n_qubits)
-        qc = self._initialize_s(qc)
-        for _ in range(iterations):
-            qc.append(self.amplitude_amplification(target=target), range(self.n_qubits))
-        return qc
-
     @staticmethod
     def shor(N):
         from qiskit.algorithms.factorizers.shor import Shor
@@ -95,15 +73,6 @@ class Algorithm:
 
         # Apply barrier
         bv_circuit.barrier()
-
-        # Apply the inner-product oracle
-        s = s[::-1]  # reverse s to fit qiskit's qubit ordering
-        for q in range(self.n_qubits):
-            if s[q] == '0':
-                bv_circuit.i(q)
-            else:
-                bv_circuit.cx(q, self.n_qubits)
-
         # Apply barrier
         bv_circuit.barrier()
 
@@ -115,6 +84,7 @@ class Algorithm:
 
     def qft_inverse(self, circuit: QuantumCircuit, n: int) -> QuantumCircuit:
         """ Applies the inverse of the Quantum Fourier Transform on the first n qubits in the given circuit. """
+        circuit = QuantumCircuit(n)
         for qubit in range(n // 2):
             circuit.swap(qubit, n - qubit - 1)
         for j in range(n):

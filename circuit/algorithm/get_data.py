@@ -91,60 +91,60 @@ def get_dataset_bug_detection(min_qubit_num, max_qubit_num,coupling_map, mirror)
             dataset.append(get_data(f'qnn', qnn.get_cir(n_qubits), coupling_map, mirror))
             dataset.append(get_data(f'qugan', qugan.get_cir(n_qubits), coupling_map, mirror))
             dataset.append(get_data(f'swap', swap.get_cir(n_qubits), coupling_map, mirror))
-        if n_qubits % 2 == 0:
-            dataset.append(get_data(f'simon', simon.get_cir(get_bitstr(n_qubits // 2)), coupling_map, mirror))
+        # if n_qubits % 2 == 0:
+        #     dataset.append(get_data(f'simon', simon.get_cir(get_bitstr(n_qubits // 2)), coupling_map, mirror))
 
     return dataset
 
 
-def get_dataset():
-    dataset = []
-
-    for n_qubits in range(3, 11):
-        # print(n_qubits)
-        al = Algorithm(n_qubits)
-        dataset.append(get_data(f'hamiltonian_simulation_{n_qubits}', hamiltonian_simulation.get_cir(n_qubits)))
-        dataset.append(get_data(f'ising_{n_qubits}', ising.get_cir(n_qubits)))
-        dataset.append(get_data(f'QAOA_maxcut_{n_qubits}', QAOA_maxcut.get_cir(n_qubits)))
-        dataset.append(get_data(f'qknn_{n_qubits}', qknn.get_cir(n_qubits)))
-        dataset.append(get_data(f'qsvm_{n_qubits}', qsvm.get_cir(n_qubits)))
-        dataset.append(get_data(f'vqc_{n_qubits}', vqc.get_cir(n_qubits)))
-        dataset.append(get_data(f'vqe_{n_qubits}', vqe.get_cir(n_qubits)))
-        dataset.append(get_data(f'qft_{n_qubits}', al.qft()))
-        dataset.append(get_data(f'ghz_{n_qubits}', al.ghz()))
-        dataset.append(get_data(f'grover_oracle_{n_qubits}', al.grover_oracle(get_bitstr(n_qubits))))
-        dataset.append(get_data(f'amplitude_amplification_{n_qubits}', al.amplitude_amplification(get_bitstr(n_qubits))))
-        dataset.append(get_data(f'grover_{n_qubits}', al.grover(get_bitstr(n_qubits))))
-        # algorithm.append(get_data(f'phase_estimation_{n_qubits}', al.phase_estimation(random_circuit(n_qubits, n_qubits))))
-        dataset.append(get_data(f'bernstein_vazirani_{n_qubits}', al.bernstein_vazirani(get_bitstr(n_qubits))))
-        dataset.append(get_data(f'qft_inverse_{n_qubits}', al.qft_inverse(random_circuit(n_qubits, n_qubits), n_qubits)))
-
-    # algorithm.append(get_data(f'qcnn_{8}', QCNN()))
-    # algorithm.append(get_data('basic_teleportation_3', basic_teleportation.get_cir()))
-    # algorithm.append(get_data(f'quantum_counting_{8}', quantum_counting.get_cir(4, 4)))
-
-    for n_qubits in range(2, 10):
-        dataset.append(get_data(f'deutsch_jozsa_{n_qubits + 1}', deutsch_jozsa.get_cir(n_qubits, get_bitstr(n_qubits))))
-
-    for n_qubits in [1, 2]:
-        dataset.append(get_data(f'multiplier_{5 * n_qubits}', multiplier.get_cir(n_qubits)))
-        dataset.append(get_data(f'qec_5_x_{5 * n_qubits}', qec_5_x.get_cir(n_qubits)))
-        # algorithm.append(get_data(f'hhl_{n_qubits}', hhl.get_cir(n_qubits)))
-
-    # algorithm.append(get_data(f'phase_kickback_{3}', phase_kickback.get_cir()))
-
-    for n_qubits in [3, 5, 7, 9]:
-        dataset.append(get_data(f'qnn_{n_qubits}', qnn.get_cir(n_qubits)))
-        dataset.append(get_data(f'qugan_{n_qubits}', qugan.get_cir(n_qubits)))
-        dataset.append(get_data(f'swap_{n_qubits}', swap.get_cir(n_qubits)))
-
-
-    for n_qubits in [2, 4, 6, 8, 10]:
-        dataset.append(get_data(f'simon_{n_qubits}', simon.get_cir(get_bitstr(n_qubits // 2))))
-
-    for n_qubits in [6, 9]:
-        dataset.append(get_data(f'square_root_{n_qubits}', square_root.get_cir(n_qubits)))
-        
-    return dataset
+# def get_dataset():
+#     dataset = []
+#
+#     for n_qubits in range(3, 11):
+#         # print(n_qubits)
+#         al = Algorithm(n_qubits)
+#         dataset.append(get_data(f'hamiltonian_simulation_{n_qubits}', hamiltonian_simulation.get_cir(n_qubits)))
+#         dataset.append(get_data(f'ising_{n_qubits}', ising.get_cir(n_qubits)))
+#         dataset.append(get_data(f'QAOA_maxcut_{n_qubits}', QAOA_maxcut.get_cir(n_qubits)))
+#         dataset.append(get_data(f'qknn_{n_qubits}', qknn.get_cir(n_qubits)))
+#         dataset.append(get_data(f'qsvm_{n_qubits}', qsvm.get_cir(n_qubits)))
+#         dataset.append(get_data(f'vqc_{n_qubits}', vqc.get_cir(n_qubits)))
+#         dataset.append(get_data(f'vqe_{n_qubits}', vqe.get_cir(n_qubits)))
+#         dataset.append(get_data(f'qft_{n_qubits}', al.qft()))
+#         dataset.append(get_data(f'ghz_{n_qubits}', al.ghz()))
+#         dataset.append(get_data(f'grover_oracle_{n_qubits}', al.grover_oracle(get_bitstr(n_qubits))))
+#         dataset.append(get_data(f'amplitude_amplification_{n_qubits}', al.amplitude_amplification(get_bitstr(n_qubits))))
+#         dataset.append(get_data(f'grover_{n_qubits}', al.grover(get_bitstr(n_qubits))))
+#         # algorithm.append(get_data(f'phase_estimation_{n_qubits}', al.phase_estimation(random_circuit(n_qubits, n_qubits))))
+#         dataset.append(get_data(f'bernstein_vazirani_{n_qubits}', al.bernstein_vazirani(get_bitstr(n_qubits))))
+#         dataset.append(get_data(f'qft_inverse_{n_qubits}', al.qft_inverse(random_circuit(n_qubits, n_qubits), n_qubits)))
+#
+#     # algorithm.append(get_data(f'qcnn_{8}', QCNN()))
+#     # algorithm.append(get_data('basic_teleportation_3', basic_teleportation.get_cir()))
+#     # algorithm.append(get_data(f'quantum_counting_{8}', quantum_counting.get_cir(4, 4)))
+#
+#     for n_qubits in range(2, 10):
+#         dataset.append(get_data(f'deutsch_jozsa_{n_qubits + 1}', deutsch_jozsa.get_cir(n_qubits, get_bitstr(n_qubits))))
+#
+#     for n_qubits in [1, 2]:
+#         dataset.append(get_data(f'multiplier_{5 * n_qubits}', multiplier.get_cir(n_qubits)))
+#         dataset.append(get_data(f'qec_5_x_{5 * n_qubits}', qec_5_x.get_cir(n_qubits)))
+#         # algorithm.append(get_data(f'hhl_{n_qubits}', hhl.get_cir(n_qubits)))
+#
+#     # algorithm.append(get_data(f'phase_kickback_{3}', phase_kickback.get_cir()))
+#
+#     for n_qubits in [3, 5, 7, 9]:
+#         dataset.append(get_data(f'qnn_{n_qubits}', qnn.get_cir(n_qubits)))
+#         dataset.append(get_data(f'qugan_{n_qubits}', qugan.get_cir(n_qubits)))
+#         dataset.append(get_data(f'swap_{n_qubits}', swap.get_cir(n_qubits)))
+#
+#
+#     for n_qubits in [2, 4, 6, 8, 10]:
+#         dataset.append(get_data(f'simon_{n_qubits}', simon.get_cir(get_bitstr(n_qubits // 2))))
+#
+#     for n_qubits in [6, 9]:
+#         dataset.append(get_data(f'square_root_{n_qubits}', square_root.get_cir(n_qubits)))
+#
+#     return dataset
 
 # print(len(get_dataset()))
