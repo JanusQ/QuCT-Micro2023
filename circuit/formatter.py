@@ -87,7 +87,7 @@ def qiskit_to_my_format_instruction(instruction):
     return {
         'name': name,
         'qubits': [qubit.index for qubit in instruction.qubits],
-        'params': parms,
+        'params': [ele if isinstance(ele,float) else float(ele) for ele in parms],
     }
 
 '''TODO: my_format_circuit -> layered_circuits'''

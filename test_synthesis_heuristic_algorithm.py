@@ -107,28 +107,29 @@ def eval(n_qubits):
     
     # grover_circuit = optimal_grover(n_qubits)
     
-    upstream_model = RandomwalkModel(n_step, 100, backend)
-    upstream_model.train(dataset, multi_process=True, remove_redundancy=False, full_vec=False)
+    # upstream_model = RandomwalkModel(n_step, 100, backend)
+    # upstream_model.train(dataset, multi_process=True, remove_redundancy=False, full_vec=False)
 
     
-    synthesis_model = SynthesisModelNN(upstream_model, synthesis_model_name)
-    data = synthesis_model.construct_data(dataset, multi_process=False)
-    print(f'data size of {synthesis_model_name} is {len(data[0])}')
-    synthesis_model.construct_model(data)
-    synthesis_model.save()
+    # synthesis_model = SynthesisModelNN(upstream_model, synthesis_model_name)
+    # data = synthesis_model.construct_data(dataset, multi_process=False)
+    # print(f'data size of {synthesis_model_name} is {len(data[0])}')
+    # synthesis_model.construct_model(data)
+    # synthesis_model.save()
 
-    synthesis_model: SynthesisModel = SynthesisModel.load(synthesis_model_name)
-    backend: Backend = synthesis_model.backend
+    synthesis_model = SynthesisModelRandom(backend)
+    # synthesis_model: SynthesisModel = SynthesisModel.load(synthesis_model_name)
+    # backend: Backend = synthesis_model.backend
     print('synthesize', backend.n_qubits)
     
-    for use_heuristic in [True]:
+    for use_heuristic in [False]:
         start_time = time.time()
 
         # TODO:给他直接喂算法的电路
         synthesis_log = {}
         synthesized_circuit, cpu_time = synthesize(init_unitary_mat, backend=backend, allowed_dist=1e-2,
                                                 multi_process=True, heuristic_model=synthesis_model if use_heuristic else None,
-                                                verbose=False, lagre_block_penalty=4, synthesis_log = synthesis_log)
+                                                verbose=True, lagre_block_penalty=4, synthesis_log = synthesis_log)
         synthesis_time = time.time() - start_time
 
         qiskit_circuit = layered_circuits_to_qiskit(
