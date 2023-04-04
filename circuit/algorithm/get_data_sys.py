@@ -1,7 +1,7 @@
 import random
 
 from circuit.algorithm.algorithm2_sys import Algorithm
-from circuit.algorithm.dataset1_sys import hamiltonian_simulation, ising, qknn, qsvm, swap, vqe, QAOA_maxcut
+from circuit.algorithm.dataset1_sys import hamiltonian_simulation, ising, qknn, qsvm, swap, vqe, QAOA_maxcut, grover
 from circuit.algorithm.dataset2_sys import deutsch_jozsa, multiplier, qec_5_x, qnn, qugan, simon, square_root
 
 from qiskit import QuantumCircuit, transpile, QuantumRegister
@@ -66,7 +66,7 @@ def get_bitstr(n_qubits):
     return b
 
 
-from circuit.algorithm.dataset1 import grover
+# from circuit.algorithm.dataset1 import grover
 
 
 # def get_dataset_bug_detection(min_qubit_num, max_qubit_num, coupling_map, mirror):

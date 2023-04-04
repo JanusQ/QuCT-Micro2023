@@ -66,18 +66,6 @@ def pkl_dump(obj, path):
         return pickle.dump(obj, file)
 
 
-def assign_params(params, layer2gates):
-    layer2gates = copy.deepcopy(layer2gates)
-    count = 0
-    for gates in layer2gates:
-        for gate in gates:
-            for index, _ in enumerate(gate['params']):
-                # gate['params'][index].set(params[count])
-                gate['params'][index] = params[count]
-                count += 1
-    return layer2gates
-
-
 def random_params(layer2gates):
     layer2gates = copy.deepcopy(layer2gates)
     for layer in layer2gates:
@@ -129,6 +117,7 @@ def create_unitary_gate(connect_qubits):
             'qubits': list(connect_qubits),
             # 不知道有没有参数量更少的方法
             'params': np.array(identit_params.get(n_connect_qubits, np.random.rand((4**n_connect_qubits)*2))),
+            # np.random.rand((4**n_connect_qubits)*2), #
             # 'params': np.zeros((4**n_connect_qubits)*2),
         }]]
 
@@ -495,9 +484,24 @@ class SynthesisModelNN(SynthesisModel):
         
         return candidates
 
+
+
+def assign_params(params, layer2gates):
+    layer2gates = copy.deepcopy(layer2gates)
+    count = 0
+    for gates in layer2gates:
+        for gate in gates:
+            gate['params'] = params[count: count+len(gate['params'])]
+            count += len(gate['params'])      
+            # for index, _ in enumerate(gate['params']):
+            #     # gate['params'][index].set(params[count])
+            #     gate['params'][index] = params[count]
+            #     count += 1
+    assert count == len(params)
+    return layer2gates
+
 def find_parmas(n_qubits, layer2gates, U, lr=1e-1, max_epoch=1000, allowed_dist=1e-2, n_iter_no_change=10, no_change_tolerance=1e-2, random_params=True, verbose=False):
     np.random.RandomState()
-
     param_size = 0
     params = []
     for layer in layer2gates:
@@ -547,43 +551,42 @@ def find_parmas(n_qubits, layer2gates, U, lr=1e-1, max_epoch=1000, allowed_dist=
 
     def cost_hst(params, U):
         probs = hilbert_test(params, U)
-        # return 1 - jnp.sqrt(probs[0]) # 会变慢
         return (1 - probs[0])
-    
+
     opt = optax.adamw(learning_rate=lr)
-    # opt = optax.adam(learning_rate=lr)
-    # opt = optax.sgd(learning_rate=lr)
     opt_state = opt.init(params)
 
-
-    min_loss = 1e2
-    best_params = params
+    min_loss = 1e5
+    best_params = None
 
     loss_decrease_history = []
     epoch = 0
     # start_time = time.time()
-    # jax.jacobian
-    # value_and_grad = jax.value_and_grad(cost_hst)
     while True:
-        loss_value, gradient = jax.value_and_grad(cost_hst)(params, U)  # 需要约1s
-        # loss_value = 1 - math.sqrt(1-loss_value)  # 将HilbertSchmidt的distance计算变为matrix_distance_squared，HilbertSchmidt的公式具体看https://docs.pennylane.ai/en/stable/code/api/pennylane.HilbertSchmidt.html?highlight=HilbertSchmidt
+        loss_value, gradient = jax.value_and_grad(
+            cost_hst)(params, U)  # 需要约1s
+        updates, opt_state = opt.update(gradient, opt_state, params)
         
-        if verbose:
-            circuit_U: jnp.array = layer_circuit_to_matrix(
-                layer2gates, n_qubits, params)
-            matrix_dist = matrix_distance_squared(circuit_U, U)
-            print('Epoch: {:5d} | Loss: {:.5f}  | Dist: {:.5f}'.format(
-                epoch, loss_value, matrix_dist))
+        # loss_value = 1 - math.sqrt(1-loss_value)
+
+        # if epoch % 10 == 0:
+        # if verbose:
+        #     circuit_U: jnp.array = layer_circuit_to_matrix(
+        #         layer2gates, n_qubits, params)
+        #     matrix_dist = matrix_distance_squared(circuit_U, U)
+        #     print('Epoch: {:5d} | Loss: {:.5f}  | Dist: {:.5f}'.format(
+        #         epoch, loss_value, matrix_dist))
 
         loss_decrease_history.append(min_loss - loss_value)
+
         if min_loss > loss_value:
             min_loss = loss_value
-            best_params = params
-            
-            # _loss_value = cost_hst(best_params, U)
-            # if abs(_loss_value - min_loss) > 1e-2:
-            #     print(min_loss, _loss_value, '????--')
+            best_params = np.array(params)
+            if abs(cost_hst(best_params, U) - min_loss) > 1e-2:
+                print(min_loss, cost_hst(best_params, U), '????--')
                 
+        params = optax.apply_updates(params, updates)  
+        
         if epoch < n_iter_no_change:
             loss_no_change = False
         else:
@@ -594,112 +597,89 @@ def find_parmas(n_qubits, layer2gates, U, lr=1e-1, max_epoch=1000, allowed_dist=
         if loss_no_change or epoch > max_epoch or loss_value < allowed_dist:
             break
 
-        updates, opt_state = opt.update(gradient, opt_state, params)
-        params = optax.apply_updates(params, updates)
         epoch += 1
+    # print('Epoch: {:5d} | Loss: {:.5f} '.format(epoch, loss_value))
+    # print('time per itr = ', (time.time() - start_time)/epoch, 's')
+    if abs(cost_hst(best_params, U) - min_loss) > 1e-2:
+        print(min_loss, cost_hst(best_params, U), '????')
     
-    _min_loss = cost_hst(best_params, U)
-    if abs(_min_loss - min_loss) > 1e-2:
-        print(min_loss, _min_loss, '????')
-    
-    min_loss = 1 - math.sqrt(1-min_loss)
     return best_params, min_loss, epoch
 
-# def hilbert_matrix_distance(n_qubits, total_layers, U, params):
-#     dev = qml.device("default.qubit", wires=n_qubits*2)
-#     @qml.qnode(dev, interface="jax")  # interface如果没有jax就不会有梯度
-#     def hilbert_test():
-#         for q in range(n_qubits):
-#             qml.Hadamard(wires=q)
+def hilbert_matrix_distance(n_qubits, total_layers, U, params):
+    dev = qml.device("default.qubit", wires=n_qubits*2)
+    @qml.qnode(dev, interface="jax")  # interface如果没有jax就不会有梯度
+    def hilbert_test():
+        for q in range(n_qubits):
+            qml.Hadamard(wires=q)
 
-#         for q in range(n_qubits):
-#             qml.CNOT(wires=[q, q+n_qubits])
+        for q in range(n_qubits):
+            qml.CNOT(wires=[q, q+n_qubits])
 
-#         qml.QubitUnitary(U.conj(), wires=list(range(n_qubits)))
-#         layer_circuit_to_pennylane_circuit(
-#             total_layers, params=params, offest=n_qubits)
+        qml.QubitUnitary(U.conj(), wires=list(range(n_qubits)))
+        layer_circuit_to_pennylane_circuit(
+            total_layers, params=params, offest=n_qubits)
 
-#         for q in range(n_qubits):
-#             qml.CNOT(wires=[q, q+n_qubits])
+        for q in range(n_qubits):
+            qml.CNOT(wires=[q, q+n_qubits])
 
-#         for q in range(n_qubits):
-#             qml.Hadamard(wires=q)
+        for q in range(n_qubits):
+            qml.Hadamard(wires=q)
 
-#         return qml.probs(list(range(n_qubits*2)))
+        return qml.probs(list(range(n_qubits*2)))
 
-#     def cost_hst():
-#         probs = hilbert_test()
-#         return (1 - probs[0])
+    def cost_hst():
+        probs = hilbert_test()
+        return (1 - probs[0])
     
-#     return  1 - math.sqrt(1-cost_hst())
+    return  1 - math.sqrt(1-cost_hst())
 
 def _optimize(now_layers, new_layers, n_optimized_layers, U, lr, n_iter_no_change, n_qubits, allowed_dist, now_dist, remote = False):
     if not remote:
         now_layers = copy.deepcopy(now_layers)
         new_layers = copy.deepcopy(new_layers)
-    
+        
+
     old_dist = now_dist
+    
     start_time = time.time()
     
-    # new_layers = random_params(new_layers)
     '''找到当前的最优参数'''
     total_layers = now_layers + new_layers
-    unoptimized_layers, optimized_layers = total_layers[:-n_optimized_layers], total_layers[-n_optimized_layers:]
-    unoptimized_U = layer_circuit_to_matrix(
-        unoptimized_layers, n_qubits)
-
-    # if len(unoptimized_layers) > 0:
-    #     print(len(unoptimized_layers))
-    
     '''TODO: 将连续的两个操作同一组qubits的unitary合并'''
-    params, qml_dist, epoch_spent = find_parmas(n_qubits, optimized_layers, U @ unoptimized_U.T.conj(), max_epoch=1000, allowed_dist=allowed_dist,
+    params, qml_dist, epoch_spent = find_parmas(n_qubits, total_layers, U, max_epoch=100, allowed_dist=allowed_dist,
                                                 n_iter_no_change=n_iter_no_change, no_change_tolerance=now_dist/1000, random_params=False, lr=lr, verbose=False)
-    # now_dist/10000
     
-    # _dist =  hilbert_matrix_distance(n_qubits, optimized_layers, U @ unoptimized_U.T.conj(), params)
-    # if abs(qml_dist - _dist) > 1e-3:
-    #     print(qml_dist, _dist, params, '~~~')
+    qml_dist = 1 - math.sqrt(1-qml_dist)  # 转成和matrix distance一样的值
     
-    optimized_layers = assign_params(params, optimized_layers)
-    total_layers = unoptimized_layers + optimized_layers
+    if abs(qml_dist - hilbert_matrix_distance(n_qubits, total_layers, U, params)) > 1e-3:
+        print(qml_dist, hilbert_matrix_distance(n_qubits, total_layers, U, params), '~~~')
     
-    epoch_finetunes = [epoch_spent]
-    qml_dists = [qml_dist]
-    while len(epoch_finetunes) < 3:
-        lr = max([qml_dist/5, 1e-2])  # 1e-1?
-        params_finetune, qml_dist_finetune, epoch_finetune = find_parmas(n_qubits, total_layers, U, max_epoch=200, allowed_dist=allowed_dist,
-                                                    n_iter_no_change=5, no_change_tolerance=qml_dist/1000, random_params=False, lr=lr, verbose=False)
-        epoch_finetunes.append(epoch_finetune)
-        qml_dists.append(qml_dist)
-        if (qml_dist - qml_dist_finetune) > qml_dist/100 :
-            total_layers = assign_params(params_finetune, total_layers)
-            qml_dist = qml_dist_finetune
-        else:
-            break
-
     optimize_time = time.time() - start_time
-    if now_dist > old_dist:
-        optimize_time = optimize_time / sum(epoch_finetunes) * 5
-        # optimize_time = 0
-    else:
-        if qml_dist_finetune > qml_dist:
-            optimize_time = optimize_time / sum(epoch_finetunes) * epoch_spent
-        pass
-            
+    
+    circuit_U2: jnp.array = layer_circuit_to_matrix(
+        total_layers, n_qubits, params)
+    
+    total_layers = assign_params(params, total_layers)
     circuit_U: jnp.array = layer_circuit_to_matrix(
         total_layers, n_qubits)
-    remained_U = U @ circuit_U.T.conj()  # 加上这个remained_U之后circuit_U就等于U了, 如果不用heuristic的时候其实是不用算的 
+
+    now_dist = matrix_distance_squared(circuit_U, U)
     
-    now_dist = matrix_distance_squared(circuit_U, U)  # 和qml_dist一样了现在
+    
+    if now_dist > old_dist:
+        optimize_time = optimize_time / epoch_spent * 5  # sum(epoch_finetunes) * 
+        
+    remained_U = U @ circuit_U.T.conj()  # 加上这个remained_U之后circuit_U就等于U了
+    
     if now_dist - old_dist > 0.1 or abs(qml_dist - now_dist) > 1e-2:
-        print(old_dist, qml_dist, now_dist, epoch_finetunes, qml_dists, 
-            len(unoptimized_layers), len(optimized_layers), len(total_layers), n_optimized_layers, '!!!!')
-        # 0.9172066892341081 0.11297727640591926 0.8531222772362266 [10, 5, 5, 5, 5] [0.8531222772362267, 0.8531222772362267, 0.6167537048270743, 0.3809311062790137, 0.2131906878277391] 0 3 3 12 !!!!
-    return remained_U, total_layers, qml_dist, now_dist, epoch_finetunes, optimize_time
+    # qml_dist 和 now_dist现在会很不一样，这是为啥
+        print(old_dist, qml_dist, now_dist, hilbert_matrix_distance(n_qubits, total_layers, U, None), matrix_distance_squared(circuit_U2, U),  '!!!!')
+        
+    return remained_U, total_layers, qml_dist, now_dist, epoch_spent, time.time() - start_time
 
 @ray.remote
-def _optimize_remote(total_layers, new_layers, n_optimized_layers, invU, lr, n_iter_no_change, n_qubits, allowed_dist, now_dist):
-    return _optimize(total_layers, new_layers, n_optimized_layers, invU, lr, n_iter_no_change, n_qubits, allowed_dist, now_dist, remote = True)
+def _optimize_remote(total_layers, new_layers, n_optimized_layers, U, lr, n_iter_no_change, n_qubits, allowed_dist, now_dist):
+    return _optimize(total_layers, new_layers, n_optimized_layers, U, lr, n_iter_no_change, n_qubits, allowed_dist, now_dist, remote = True)
 
 
 def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: SynthesisModel = None, multi_process=True, 
@@ -773,11 +753,11 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
             
             if iter_count != 0:
                 unitary_candidates = []
-                # max_n_subset_qubits = max([3, n_qubits - 1])
+                max_n_subset_qubits = max([3, n_qubits - 1])
                 # max_n_subset_qubits_step = max([1, (max_n_subset_qubits-3)//2])
                 # TODO: 可能后面要设置成关于n_qubits的函数
                 # for n_subset_qubits in [2, 3] + list(range(max_n_subset_qubits, 3, -max_n_subset_qubits_step)):
-                for n_subset_qubits in [2, 3]: #[2, 3]:
+                for n_subset_qubits in [2]: #[2, 3]:
                     if n_qubits <= n_subset_qubits:  # 不会生成大于自己的比特数的子电路
                         continue
 
@@ -786,21 +766,40 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
                         unitary_candidates.append(
                             create_unitary_gate(subset_qubits))
                         
+                # for candidate in unitary_candidates:
+                #     u = layer_circuit_to_matrix(candidate, n_qubits)
+                #     if matrix_distance_squared(u, np.eye(2**n_qubits)) > .1:
+                #         print(matrix_distance_squared(u, np.eye(2**n_qubits)))
                 # 增加多层的，尽量减少冗余的
+                two_qubit_unitary_candidates = [[]] #[candidate for candidate in unitary_candidates if len(candidate[0][0]['qubits']) == 2]
+                if iter_count != 0:
+                    for subset_qubits in backend.get_connected_qubit_sets(2):
+                        two_qubit_unitary_candidates.append(create_unitary_gate(subset_qubits))
 
                 canditate_layers += unitary_candidates
                 
                 multilayer_unitary_candidates = []
-                for qubit_sets in itertools.product(*[backend.get_connected_qubit_sets(2) for depth in range(2)]):  # n_qubits - 2
-                    # TODO: 需要判断比如前后的是不是有一个是子集
+                
+                for _layers in itertools.product(*([two_qubit_unitary_candidates]*(n_qubits-2))):
+                    is_repeat = False  # 还要更只能一些，比如前后的是不是有一个是子集
+                    for _index, _candidate in enumerate(_layers[:-1]):
+                        if _candidate is _layers[_index + 1]:
+                            is_repeat = True
+                            break
+                    if is_repeat:
+                        continue
+                    
                     multi_layer_candiate = []
-                    for gate_qubits in qubit_sets:
-                        multi_layer_candiate += create_unitary_gate(gate_qubits)
+                    for _candidate in _layers:
+                        multi_layer_candiate += copy.deepcopy(_candidate)
                     multilayer_unitary_candidates.append(multi_layer_candiate)
                 
+                # n_unitary_candidates = 40
                 if len(multilayer_unitary_candidates) > n_unitary_candidates:
                     multilayer_unitary_candidates = sample(multilayer_unitary_candidates, k = n_unitary_candidates)
+                    
                 canditate_layers += multilayer_unitary_candidates
+                # unitary_candidates = multilayer_unitary_candidates
 
             # maximum_n_canditates = 15
             # if len(canditate_layers) > maximum_n_canditates:
@@ -817,11 +816,11 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
         for candidate_layer in canditate_layers:
             # TODO: 每隔一段时间进行一次finetune
             # (iter_count+1) % 10 == 0 or 
-            if now_dist < 1e-1:  # TODO: 需要尝试的超参数
-                n_optimized_layers = len(total_layers) + len(candidate_layer)
-            else:
-                # n_optimized_layers = 5 + len(candidate_layer)  # TODO: 需要尝试的超参数,看下前面几层的变化大不大
-                n_optimized_layers = 5 + len(candidate_layer)
+            # if now_dist < 1e-1:  # TODO: 需要尝试的超参数
+            #     n_optimized_layers = len(total_layers) + len(candidate_layer)
+            # else:
+            #     n_optimized_layers = 10 + len(candidate_layer)  # TODO: 需要尝试的超参数,看下前面几层的变化大不大
+            n_optimized_layers = len(total_layers) + len(candidate_layer)
             
 
             if now_dist < 1e-2:

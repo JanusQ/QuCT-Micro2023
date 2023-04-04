@@ -37,7 +37,7 @@ def diffuser(qc, nqubits):
 
 def get_cir(n_qubits):
     qc = QuantumCircuit(n_qubits)
-    initialize_s(qc, n_qubits)
+    # initialize_s(qc, n_qubits)
     # oracle(qc, n_qubits)
     diffuser(qc, n_qubits)
     return qc

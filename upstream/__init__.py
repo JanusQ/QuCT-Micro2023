@@ -1,1 +1,1 @@
-from .randomwalk_model import RandomwalkModel
+from .randomwalk_model import RandomwalkModel, extract_device

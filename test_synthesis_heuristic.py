@@ -14,7 +14,7 @@ from downstream.synthesis.tensor_network_op_jax import layer_circuit_to_matrix
 
 from scipy.stats import unitary_group
 
-from downstream.synthesis.synthesis_model_pca_unitary_jax import SynthesisModelNN, SynthesisModelRandom, find_parmas, pkl_dump, pkl_load, matrix_distance_squared, SynthesisModel, synthesize
+from downstream.synthesis.synthesis_model_pca_unitary_jax_可以跑但是最后会一直插一个 import SynthesisModelNN, SynthesisModelRandom, find_parmas, pkl_dump, pkl_load, matrix_distance_squared, SynthesisModel, synthesize
 from itertools import combinations
 import time
 from qiskit import transpile
