@@ -73,7 +73,7 @@ for n_qubits in range(3, 4):
         init_unitary_mat = unitary_group.rvs(2**n_qubits)
         # init_unitary_mat = qft_U(n_qubits)
         start_time = time.time()
-        synthesized_circuit = synthesize(init_unitary_mat, backend = backend, allowed_dist=0.5, multi_process = True, heuristic_model=None, verbose=True, lagre_block_penalty = 4)
+        synthesized_circuit = synthesize(init_unitary_mat, backend = backend, allowed_dist=1e-2, multi_process = True, heuristic_model=None, verbose=True, lagre_block_penalty = 4)
         # print(synthesized_circuit)
         
         synthesis_time = time.time() - start_time

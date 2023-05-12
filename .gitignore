@@ -26,3 +26,8 @@ execute_18bit
 table_size
 *.xlsx
 devide_figure
+*.log
+screen*
+*.mat
+*.png
+*.pyc

@@ -1,101 +1,122 @@
-import random
-import matplotlib.pyplot as plt
-from tensorcircuit.backends.jax_backend import optax_optimizer
-
-from sklearn.utils import shuffle
-
-# import tensorflow as tf
-import numpy as np
-# 还得传参数进去
-from jax import numpy as jnp
 import jax
-from jax import grad, jit, vmap, pmap
-
-# var1 = tf.Variable(10.0)
-
-# t  = jax.random.normal(shape=[8, 32], key=jax.random.PRNGKey(0)),
-
-def learning_function(params, x)-> jnp.ndarray:
-    # return (params[0]*a + params[1]*b + params[2]*c + params[3]*d)  * (params[4]*a + params[5]*b + params[6]*c + params[7]*d) # * (params[8]*b + params[9]*c)
-    # return (params[0]*a + params[1]*b + params[2]*c + params[3]*d)
-    r  = jnp.dot(x, params[0]) * jnp.dot(x, params[1]) * jnp.dot(x, params[2]) 
-    return r
-
-def target_function(x):
-    return learning_function(np.arange(1,13).reshape(3,4,1), x)
-    # return  (2*a + b + 3*c + 4*d) * (5*a + 6*b + 7*c + 9*d) * (3*b + 7*c)
-    # return  (2*a + b + 3*c + 4*d)
-
-# jnp.abs
-# @jax.jit
-def loss(x, parameters, y):
-    return (y - learning_function(parameters, x))**2
-
-# jnp.abs
-# optax.l2_loss
-# jax.debug.print.
-@jax.jit
-def batch_loss(parameters, X, Y):
-    errors = vmap(loss, in_axes=(0, None, 0), out_axes=0)(X, parameters, Y) # in_axes应该是传几个参数就扫几个
-    # error = jnp.array([(y - learning_function(parameters, x))**2  for x,y in zip(X,Y)])
-    # print(errors)
-    # print(error.mean())
-    # jax.debug.print(jnp.where(jnp.any(parameters<0), 0, jnp.max(-parameters)*1e5))
-    # parameters = parameters.reshape((1,12))
-    return errors.mean() #- np.mean(parameters)
-    # + jnp.where(jnp.any(parameters<0), 0, jnp.max(-parameters)*1e5)
-    # parameters.reshape((1,12))
-    # (y - learning_function(parameters, x))**2
-
-# params = jnp.zeros([3,4,1], dtype=np.float32)
-params = jnp.array([15]*12, dtype=np.float32).reshape(3,4,1) + jax.random.normal(shape=[3,4,1], key=jax.random.PRNGKey(0))
-# params = jnp.arange(1,13, dtype=np.float32).reshape(3,4,1)  + jax.random.normal(shape=[3,4,1], key=jax.random.PRNGKey(0))
-# params = np.arange(1,13).reshape(3,4,1)
-# params = jax.random.normal(shape=[3,4,1], key=jax.random.PRNGKey(0))
-# params = jnp.arange(1,13, dtype=np.float32).reshape(3,4,1)
-# parameters.reshape((1,12))
+from jax import numpy as jnp
+import numpy as np
 import optax
-optimizer = optax.adam(10e-2)
-# optimizer = optax.adamw(10e-2)
-opt_state = optimizer.init(params)
+from jax import vmap
 
-# print(learning_function(1,2,3,4 ,params))
+import tensorcircuit as tc
+import numpy as np
+from numpy import e, pi, cos
+import pennylane as qml
+import jax
 
-batch_size = 100
-X = np.array([np.random.randint(0, 10, size=(1,4)) for i in range(10000)])
-Y = np.array([target_function(x) for x in X])
+# @jax.jit
+# def _layer_circuit_to_matrix(gates, n_qubits, params) -> jax.numpy.array:
+#     point = 0
+    
+#     circuit = tc.Circuit(n_qubits)
+#     for gate in gates:
+#         phi, theta, omega = params[point:point+3]
+#         point+=3
+#         u_gate = qml.Rot.compute_matrix(phi = phi, theta = theta, omega = omega)
+        
+#         for layer in layer2gates:
+#             for gate in layer:
+#                 # gate_qubits = [n_qubits - qubit - 1 for qubit in gate['qubits']]
+#                 gate_qubits = gate['qubits']
+#                 if gate['name'] == 'u':
+#                     if params is None:
+#                         phi, theta, omega = gate['params']
+#                     else:
+#                         phi, theta, omega = params[point:point+3]
+#                         point+=3
+#                     u_gate = qml.Rot.compute_matrix(phi = phi, theta = theta, omega = omega)
+#                     circuit.any(*gate_qubits, unitary=u_gate)
+#                     pass
+#                 elif gate['name'] == 'cx':
+#                     circuit.cnot(*gate_qubits)
+#                 elif gate['name'] == 'cz':
+#                     circuit.cz(*gate_qubits)
+#                 else:
+#                     raise Exception('Unkown gate type', gate)
+    
+#     return circuit.matrix()
 
 
-# 现在看来batch是很重要的
-best_loss = 1e30
-best_parmas = None
-for epoch in range(100):
-    # x = [random.random() * 10, random.random() * 10, random.random() * 10, random.random() * 10]
-    # x = jax.random.normal(shape=(4,1), key=jax.random.PRNGKey(0))
-    # y = 
-    # print(x, y)
-    # jax.random.shuffle()
-    X,Y = shuffle(X, Y)
-    for start in range(0, len(X), batch_size):
-        loss_value, gradient = jax.value_and_grad(batch_loss)(params, X[start: start+batch_size], Y[start: start+batch_size])
-        updates, opt_state = optimizer.update(gradient, opt_state, params)
-        params = optax.apply_updates(params, updates)
-
-        # 这个是可行的
-        params = params.at[params > 13].set(13)
-        params = params.at[params < 0].set(0)
 
 
-    # if loss_value < best_loss:
-    #     best_parmas = params
-    #     best_loss = loss_value
 
-    # if _%100 == 0:
-    # print(epoch ,loss_value)  #, params
-    #     # print(best_loss, best_parmas)
-    # if epoch%10 == 0:
-    #     print(params)
-# 106566610000
-# 31427135000
-# 5229225
-# 49173
+
+A = jnp.array([0,1,2])
+B = jnp.array([2,3,4])
+
+def test(a, b):
+    return b[a]
+
+test(A[0], B)
+result = vmap(test, in_axes=(0, None))(A, B)
+
+A = jnp.array([0,1,2])
+B = {
+    0: 1,
+    1: 2,
+    2: 3,
+}
+
+def test(a, b):
+    return b[a]
+
+test(A[0], B)
+result = vmap(test, in_axes=(0, None))(A, B)
+
+
+
+
+def gen_data(x): 
+    return 1/(12*x) + 1
+
+def preidct(weights, x):
+    return 1/(weights[0] * x) + weights[1]
+
+X = jnp.arange(0, 100)
+Y = gen_data(X)
+
+weights = jax.random.normal(jax.random.PRNGKey(0), (2,))
+opt = optax.adamw(learning_rate=1e-2)
+opt_state = opt.init(weights)
+
+for x, y in zip(X, Y):
+    def loss(weights, x, y):
+        return optax.l2_loss(preidct(weights, x) - y)
+    
+    grad_loss = jax.grad(loss)
+    gradient = grad_loss(weights, x, y)
+    updates, opt_state = opt.update(gradient, opt_state, weights)
+    weights = optax.apply_updates(weights, updates)        
+
+    loss_value = loss(weights, x, y)
+
+grad_tanh = jax.grad(jax.numpy.tanh)
+
+print(grad_tanh(0.2))
+
+
+def func1(x): 
+    return 1/x
+
+grad_func1 = jax.grad(func1)
+print(grad_func1(2.0))  # -1/x^2
+
+def func2(x, y): 
+    return 1/(x+y)
+
+grad_func2 = jax.grad(func2, argnums=[0,1])
+print(grad_func2(2.0, 1.0))
+
+
+
+def func3(x, y): 
+    return 1/(x[0] + x[1] + y)
+
+grad_func3 = jax.grad(func3, argnums=[0,1])
+print(grad_func3([2.0, 1.0], 1.0))

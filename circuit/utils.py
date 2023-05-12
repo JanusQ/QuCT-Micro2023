@@ -192,7 +192,7 @@ def cut_circuit(circuit):
     
     return result
     
-def stitching(n_qubits, cut_datasets, devide_qubits, maps, reverse_maps):
+def stitching(n_qubits, cut_datasets, devide_qubits, maps, reverse_maps,align = False):
     stitching_dataset = [] 
     
     for cir_idx in range(len(cut_datasets[0])):
@@ -227,10 +227,11 @@ def stitching(n_qubits, cut_datasets, devide_qubits, maps, reverse_maps):
         circuit_info['duration'] = get_circuit_duration(circuit_info['layer2gates'])
         circuit_info['num_qubits'] = n_qubits
         
-        circuit_info['layer2gates'].reverse()
-        max_layer = len(circuit_info['layer2gates']) -1 
-        circuit_info['gate2layer'] = [max_layer - layer for layer in circuit_info['gate2layer'] ] 
-        circuit_info['max_layer'] = max_layer
+        if align:
+            circuit_info['layer2gates'].reverse()
+            max_layer = len(circuit_info['layer2gates']) -1 
+            circuit_info['gate2layer'] = [max_layer - layer for layer in circuit_info['gate2layer'] ] 
+            circuit_info['max_layer'] = max_layer
         
         stitching_dataset.append(circuit_info)
         # qc = layered_circuits_to_qiskit(n_qubits, circuit_info['layer2gates'])

@@ -677,7 +677,7 @@ def synthesize(U, backend: Backend, allowed_dist=1e-10, heuristic_model: Synthes
     qiskit_circuit: QuantumCircuit = layered_circuits_to_qiskit(
         n_qubits, new_total_layers, barrier=False)
 
-    qiskit_circuit = transpile(qiskit_circuit, coupling_map=backend.coupling_map, optimization_level=3, basis_gates=backend.basis_gates, initial_layout=[qubit for qubit in range(n_qubits)])
+    qiskit_circuit = transpile(qiskit_circuit, coupling_map=coupling_map, optimization_level=3, basis_gates=backend.basis_gates, initial_layout=[qubit for qubit in range(n_qubits)])
     layer2instructions, _, _, _, _ = get_layered_instructions(qiskit_circuit)
     synthesized_circuit, _, _ = qiskit_to_my_format_circuit(layer2instructions)
 

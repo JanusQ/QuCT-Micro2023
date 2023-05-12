@@ -10,10 +10,11 @@ from qiskit.circuit.random import random_circuit
 
 from circuit.algorithm.dataset1 import vqc
 from circuit.parser import qiskit_to_layered_circuits
+from utils.backend import Backend
 from utils.backend_info import default_basis_gates
 
 
-def get_data(id, qiskit_circuit, coupling_map, mirror, trans = True):
+def get_data(id, qiskit_circuit, backend: Backend, mirror, trans = True):
     new_qiskit_circuit = QuantumCircuit(qiskit_circuit.num_qubits)
     for instruction in qiskit_circuit:
         if instruction.operation.name in ('id',):
@@ -31,7 +32,8 @@ def get_data(id, qiskit_circuit, coupling_map, mirror, trans = True):
         new_qiskit_circuit.append(new_instruction)
 
     if trans == True:
-        qiskit_circuit = transpile(new_qiskit_circuit, basis_gates=default_basis_gates, coupling_map = coupling_map, optimization_level=3,inst_map = list(i for i in range(18)))
+        qiskit_circuit = transpile(new_qiskit_circuit, basis_gates=backend.basis_gates, coupling_map = backend.coupling_map, optimization_level=backend.optimzation_level, routing_method=backend.routing)
+        # ,inst_map = list(i for i in range(new_qiskit_circuit.num_qubits))
     else:
         qiskit_circuit = new_qiskit_circuit
     
@@ -57,42 +59,42 @@ def get_bitstr(n_qubits):
     return b
 
 from circuit.algorithm.dataset1 import grover
-def get_dataset_bug_detection(min_qubit_num, max_qubit_num,coupling_map, mirror):
+def get_dataset_bug_detection(min_qubit_num, max_qubit_num, backend: Backend, mirror, trans):
     dataset = []
 
-    assert min_qubit_num > 5 and max_qubit_num > min_qubit_num
+    # assert min_qubit_num > 5 and max_qubit_num > min_qubit_num
 
     for n_qubits in range(min_qubit_num, max_qubit_num):
         al = Algorithm(n_qubits)
-        al2 = Algorithm(8)
-        dataset.append(get_data(f'hamiltonian_simulation', hamiltonian_simulation.get_cir(n_qubits), coupling_map, mirror))
-        dataset.append(get_data(f'ising', ising.get_cir(n_qubits), coupling_map, mirror))
+        # al2 = Algorithm(8)
+        dataset.append(get_data(f'hamiltonian_simulation', hamiltonian_simulation.get_cir(n_qubits), backend, mirror, trans = trans))
+        dataset.append(get_data(f'ising', ising.get_cir(n_qubits), backend, mirror, trans = trans))
         # algorithm.append(get_data(f'QAOA_maxcut', QAOA_maxcut.get_cir(n_qubits)))
-        dataset.append(get_data(f'qknn', qknn.get_cir(n_qubits), coupling_map, mirror))
-        dataset.append(get_data(f'qsvm', qsvm.get_cir(n_qubits), coupling_map, mirror))
-        dataset.append(get_data(f'vqc', vqc.get_cir(6), coupling_map, mirror))
-        dataset.append(get_data(f'qft', al2.qft(), coupling_map, mirror))
-        dataset.append(get_data(f'ghz', al.ghz(), coupling_map, mirror))
+        dataset.append(get_data(f'qknn', qknn.get_cir(n_qubits), backend, mirror, trans = trans))
+        dataset.append(get_data(f'qsvm', qsvm.get_cir(n_qubits), backend, mirror, trans = trans))
+        # dataset.append(get_data(f'vqc', vqc.get_cir(n_qubits), coupling_map, mirror, trans = trans))
+        dataset.append(get_data(f'qft', al.qft(), backend, mirror, trans = trans))
+        dataset.append(get_data(f'ghz', al.ghz(), backend, mirror, trans = trans))
         # algorithm.append(get_data(f'diffuser', diffuser(n_qubits)))
         # dataset.append(
-        #     get_data(f'qft_inverse', al2.qft_inverse(random_circuit(n_qubits, 1), n_qubits), coupling_map, mirror))
+        #     get_data(f'qft_inverse', al2.qft_inverse(random_circuit(n_qubits, 1), n_qubits), coupling_map, mirror, trans = trans))
         # if n_qubits <= 20:
-        #     dataset.append(get_data(f'grover', grover.get_cir(n_qubits), coupling_map, mirror))
+        #     dataset.append(get_data(f'grover', grover.get_cir(n_qubits), coupling_map, mirror, trans = trans))
         al = Algorithm(n_qubits - 1)
-        dataset.append(get_data(f'bernstein_vazirani', al.bernstein_vazirani(get_bitstr(n_qubits - 1)), coupling_map, mirror))
+        dataset.append(get_data(f'bernstein_vazirani', al.bernstein_vazirani(get_bitstr(n_qubits - 1)), backend, mirror, trans = trans))
         # algorithm.append(get_data(f'w_state', w_state.get_cir(n_qubits)))
-        dataset.append(get_data(f'deutsch_jozsa', deutsch_jozsa.get_cir(n_qubits - 1, get_bitstr(n_qubits - 1)), coupling_map, mirror))
+        dataset.append(get_data(f'deutsch_jozsa', deutsch_jozsa.get_cir(n_qubits - 1, get_bitstr(n_qubits - 1)), backend, mirror, trans = trans))
         if n_qubits % 5 == 0:
-            dataset.append(get_data(f'qec_5_x', qec_5_x.get_cir(n_qubits // 5), coupling_map, mirror))
-            dataset.append(get_data(f'multiplier', multiplier.get_cir(n_qubits // 5), coupling_map, mirror))
+            dataset.append(get_data(f'qec_5_x', qec_5_x.get_cir(n_qubits // 5), backend, mirror, trans = trans))
+            dataset.append(get_data(f'multiplier', multiplier.get_cir(n_qubits // 5), backend, mirror, trans = trans))
         # if n_qubits % 17 == 0:
         #     algorithm.append(get_data(f'qec_9_xyz', qec_9_xyz.get_cir(n_qubits // 17)))
         if n_qubits % 2 == 1:
-            dataset.append(get_data(f'qnn', qnn.get_cir(n_qubits), coupling_map, mirror))
-            dataset.append(get_data(f'qugan', qugan.get_cir(n_qubits), coupling_map, mirror))
-            dataset.append(get_data(f'swap', swap.get_cir(n_qubits), coupling_map, mirror))
+            dataset.append(get_data(f'qnn', qnn.get_cir(n_qubits), backend, mirror, trans = trans))
+            dataset.append(get_data(f'qugan', qugan.get_cir(n_qubits), backend, mirror, trans = trans))
+            dataset.append(get_data(f'swap', swap.get_cir(n_qubits), backend, mirror, trans = trans))
         if n_qubits % 2 == 0:
-            dataset.append(get_data(f'simon', simon.get_cir(get_bitstr(n_qubits // 2)), coupling_map, mirror))
+            dataset.append(get_data(f'simon', simon.get_cir(get_bitstr(n_qubits // 2)), backend, mirror, trans = trans))
 
     return dataset
 

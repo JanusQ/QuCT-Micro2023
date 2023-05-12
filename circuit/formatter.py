@@ -62,7 +62,7 @@ def layered_circuits_to_qiskit(qubit_num, layer2instructions, barrier = True):
                 circuit.__getattribute__(name)(qubits[0], qubits[1])
             elif name in ('h', ):
                 circuit.__getattribute__(name)(qubits[0])
-            elif name in ('u', 'u3'):
+            elif name in ('u', 'u3', 'u1', 'u2'):
                 '''TODO: 参数的顺序需要check下， 现在是按照pennylane的Rot的'''
                 circuit.__getattribute__(name)(*[float(param) for param in params], qubits[0])  
             elif name in ('unitary', ):

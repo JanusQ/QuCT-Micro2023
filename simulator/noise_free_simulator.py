@@ -1,25 +1,23 @@
 
 from qiskit import QuantumCircuit, execute
 from qiskit import IBMQ, Aer
-from qiskit.visualization import plot_histogram
-import pickle
-import os
-from utils.backend_info import default_basis_gates, coupling_map, match_hardware_constraints, max_qubit_num
-from jax import pmap, vmap
+import copy
 
 # 需要暴露电路中比特
 qasm_simulator = Aer.get_backend('qasm_simulator')
 def simulate_noise_free(circuit, n_samples = 2000):
-    # n_qubits = circuit.num_qubits
-    n_qubits = max_qubit_num
+    
+    circuit = copy.deepcopy(circuit)
+    n_qubits = circuit.num_qubits
+    circuit.measure_all()
     # initial_layout = list(range(n_qubits))
     # initial_layout = circuits.qubits
     # 做噪音实现前就直接必须符合拓扑结构了吧
-    if isinstance(circuit, list):
-        for circuit in circuit:
-            match_hardware_constraints(circuit)
-    else:
-        match_hardware_constraints(circuit)
+    # if isinstance(circuit, list):
+    #     for circuit in circuit:
+    #         match_hardware_constraints(circuit)
+    # else:
+    #     match_hardware_constraints(circuit)
     # initial_layout = initial_layout, 
     # coupling_map=coupling_map, 
     # basis_gates=basis_gates, 

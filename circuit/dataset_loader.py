@@ -90,6 +90,8 @@ def _gen_random_circuits(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backen
         # fig = circuit_info['qiskit_circuit'].draw('mpl')
         # fig.savefig("devide_figure/"+str(_circuit_info['id'])+".svg")
         # 减少模型大小
+        # print(circuit_info['qiskit_circuit'])
+        # print(circuit_info['gate_num'])
         circuit_info['qiskit_circuit'] = None
 
         new_dataset.append(circuit_info)
@@ -97,5 +99,5 @@ def _gen_random_circuits(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backen
     return new_dataset
 
 
-def gen_algorithms(n_qubits,coupling_map,mirror):
-    return get_dataset_bug_detection(n_qubits, n_qubits+1,coupling_map,mirror)
+def gen_algorithms(n_qubits, backend, mirror,trans = True):
+    return get_dataset_bug_detection(n_qubits, n_qubits+1, backend, mirror, trans)

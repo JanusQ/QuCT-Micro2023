@@ -236,7 +236,7 @@ class RandomwalkModel():
 
     '''TODO: rename to construct'''
 
-    def train(self, dataset, multi_process: bool = False, process_num: int = 10, remove_redundancy = True):
+    def train(self, dataset, multi_process: bool = False, process_num: int = 10, remove_redundancy = True, is_filter_path =False, filter_path =None):
         # 改成一种device一个path table
         '''TODO: 可以枚举来生成所有的path table'''
 
@@ -336,6 +336,8 @@ class RandomwalkModel():
         for device in path_count:
             for path_id, count in path_count[device].items():
                 if count >= 10 and path_id not in device2redundant_path[device]:
+                    if is_filter_path is True and ('rz' in path_id or path_id in filter_path[device]):
+                        continue
                     self.path_index(device, path_id)
 
         print('random walk finish device size = ', len(self.device2path_table))
@@ -359,7 +361,8 @@ class RandomwalkModel():
                 circuit_info['path_indexs'].append(_path_index)
 
                 vec = np.zeros(self.max_table_size, dtype=np.int32)
-                vec[np.array(_path_index)] = 1.
+                if len(_path_index) != 0:
+                    vec[np.array(_path_index)] = 1.
                 circuit_info['vecs'].append(vec)
 
         # self.all_instructions = []
@@ -406,8 +409,8 @@ class RandomwalkModel():
         max_step = self.max_step
         path_per_node = self.path_per_node
 
-        if 'vecs' in circuit_info and circuit_info['vecs'] is not None and len(circuit_info['vecs'][0]) == self.max_table_size:
-            return circuit_info
+        # if 'vecs' in circuit_info and circuit_info['vecs'] is not None and len(circuit_info['vecs'][0]) == self.max_table_size:
+        #     return circuit_info
 
         neighbor_info = self.backend.neighbor_info
         circuit_info['path_indexs'] = []
@@ -452,27 +455,28 @@ class RandomwalkModel():
         ]
         return paths
 
+    # TODO: 还要有一个判断是不是已经加进去了
+    @staticmethod
+    def parse_gate_info(gate_info):
+        elms = gate_info.split(',')
+        gate = {
+            'name': elms[0],
+            'qubits': [int(qubit) for qubit in elms[1:]]
+        }
+        if elms[0] in ('rx', 'ry', 'rz'):
+            # gate['params'] =
+            # np.array([np.pi])  #np.zeros((1,)) #
+            gate['params'] = np.random.rand(1) * 2 * np.pi
+        if elms[0] in ('u'):
+            # np.array([np.pi] * 3)  #np.zeros((3,)) #
+            gate['params'] = np.random.rand(3) * 2 * np.pi
+        elif elms[0] in ('cx', 'cz'):
+            gate['params'] = []
+
+        return gate
+
     def reconstruct(self, device, gate_vector: np.array) -> list:
         paths = self.extract_paths_from_vec(device, gate_vector)
-
-        # TODO: 还要有一个判断是不是已经加进去了
-        def parse_gate_info(gate_info):
-            elms = gate_info.split(',')
-            gate = {
-                'name': elms[0],
-                'qubits': [int(qubit) for qubit in elms[1:]]
-            }
-            if elms[0] in ('rx', 'ry', 'rz'):
-                # gate['params'] =
-                # np.array([np.pi])  #np.zeros((1,)) #
-                gate['params'] = np.random.rand(1) * 2 * np.pi
-            if elms[0] in ('u'):
-                # np.array([np.pi] * 3)  #np.zeros((3,)) #
-                gate['params'] = np.random.rand(3) * 2 * np.pi
-            elif elms[0] in ('cx', 'cz'):
-                gate['params'] = []
-
-            return gate
 
         def add_to_layer(layer, gate):
             for other_gate in layer2gates[layer]:
@@ -504,7 +508,7 @@ class RandomwalkModel():
 
             elms = path.split('-')
             if len(elms) == 1:
-                head_gate.update(parse_gate_info(elms[0]))
+                head_gate.update(self.parse_gate_info(elms[0]))
                 head_gate['params'] *= 3
             else:
                 for index in range(0, len(elms), 2):
@@ -513,7 +517,7 @@ class RandomwalkModel():
                         now_layer += 1
                     elif relation == 'former':
                         now_layer -= 1
-                    add_to_layer(now_layer, parse_gate_info(gate_info))
+                    add_to_layer(now_layer, self.parse_gate_info(gate_info))
                     # layer2gates[now_layer].append(parse_gate_info(gate_info))
 
         layer2gates = [

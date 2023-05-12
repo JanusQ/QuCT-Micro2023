@@ -199,8 +199,8 @@ def topology_to_coupling_map(topology: dict) -> list:
             coupling.sort()
             coupling_map.add(tuple(coupling))
     return [
-        # list(coupling)
-        tuple(coupling)
+        list(coupling)
+        # tuple(coupling)
         for coupling in coupling_map
     ]
 
@@ -292,7 +292,11 @@ class Backend():
             self.coupling_map = coupling_map
         self.true_coupling_map = list(self.coupling_map)
         # describe qubits that have mutual interactions
-        self.neighbor_info = neighbor_info  # TODO: rename to 'adjlist'
+        
+        if neighbor_info is None:
+            self.neighbor_info = copy.deepcopy(topology)
+        else:
+            self.neighbor_info = neighbor_info  # TODO: rename to 'adjlist'
 
         if basis_single_gates is None:
             basis_single_gates = default_basis_single_gates
@@ -331,8 +335,12 @@ class Backend():
             for q in range(n_qubits)
         ]
 
+        self.rb_error = None # rb测得的error
         self.cache = {}
         self.devide_qubits = None
+
+        self.routing = 'sabre'
+        self.optimzation_level = 3
         
     def get_subgraph(self, location):
         """Returns the sub_coupling_graph with qubits in location."""

@@ -24,9 +24,9 @@ from utils.ray_func import wait
 
 # number of qubits
 
-n_totoal_qubits = 5
-dir_path = 'temp_data'
-upstream_model_path = os.path.join(dir_path, f"upstream_model_{n_totoal_qubits}.pkl")
+n_totoal_qubits = 50
+dir_path = f'simulate_50_350/{n_totoal_qubits}'
+upstream_model_path = os.path.join(dir_path, "upstream_model.pkl")
 
 with open(upstream_model_path, "rb")as f:
     upstream_model: RandomwalkModel = pickle.load(f)
@@ -102,7 +102,7 @@ def run_rb(n_totoal_qubits, backend, rb_pattern, rb_circs, xdata, target_qubits,
             
         # Add title and label
         # ax.set_title('%d Qubit RB'%(nQ), fontsize=18)
-        fig.savefig(f'./temp_data/{involved_qubits}_rb.svg')
+        fig.savefig(f'./simulate_50_350/{n_totoal_qubits}/{involved_qubits}_rb.svg')
         plt.close()
         # plt.show()
 
