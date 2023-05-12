@@ -164,8 +164,8 @@ def train(dataset, max_step: int, path_per_node: int, neighbor_info: dict, offes
     for index, circuit_info in enumerate(dataset):
         # print(circuit_info['qiskit_circuit'])
         # print(layered_circuits_to_qiskit(circuit_info['num_qubits'], circuit_info['layer2gates'],))
-        if index % 100 == 0:
-            print(f'train:{index}/{len(dataset)}, {offest}th offest')
+        # if index % 100 == 0:
+        #     print(f'train:{index}/{len(dataset)}, {offest}th offest')
 
         gate_paths = []
         for head_gate in circuit_info['gates']:
@@ -252,8 +252,10 @@ class RandomwalkModel():
 
         if multi_process:
             batch_size = len(dataset) // process_num
-            if batch_size < 20:
-                batch_size = len(dataset)
+            # if batch_size < 20:
+            #     batch_size = len(dataset)
+            if batch_size == 0:
+                batch_size = 1 #process_num
         else:
             batch_size = len(dataset)
 

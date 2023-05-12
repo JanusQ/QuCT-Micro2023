@@ -43,14 +43,15 @@ def cz_count(qc: QuantumCircuit):
         return count_ops['cz']
     return 0
 
+
 '''生成可以使unitary gate等于I的参数'''
 # identit_params = {}
 # for n_qubits in range(2, 7):
 #     U = np.eye(2**n_qubits)
 #     circuit =  create_unitary_gate(list(range(n_qubits)))
-    
+
 #     params, _, _  = find_parmas(n_qubits, circuit, U, .05, max_epoch=1e4, allowed_dist=1e-10, n_iter_no_change=2000, no_change_tolerance=0, verbose=True)
-    
+
 #     identit_params[n_qubits] = params
 
 #     with open('identit_params', 'wb') as file:
@@ -72,9 +73,9 @@ def cz_count(qc: QuantumCircuit):
 #     min_gate, max_gate = max([2**n_qubits - 200, 10]), 2**n_qubits
 #     dataset = gen_random_circuits(min_gate=min_gate, max_gate=max_gate, gate_num_step=max_gate//20, n_circuits=20,
 #                                 two_qubit_gate_probs=[4, 7], backend=backend, reverse=False, optimize=True, multi_process=True, circuit_type = 'random')
-    
+
 #     # dataset += get_dataset_alg_component(n_qubits, backend)
-    
+
 #     upstream_model = RandomwalkModel(n_step, 4**n_step, backend, travel_directions=('parallel', 'next'))
 #     upstream_model.train(dataset, multi_process=True, remove_redundancy=False, full_vec=False, min_count = 0)
 
@@ -85,35 +86,39 @@ def cz_count(qc: QuantumCircuit):
 #     synthesis_model.save()
 # else:
 #     synthesis_model = SynthesisModelRandom(backend)
-    
+
 #     # synthesis_model: SynthesisModel = SynthesisModel.load(synthesis_model_name)
 #     # backend: Backend = synthesis_model.backend
 
 
-def eval(dirpath, filename, n_qubits, n_unitary_candidates):
+def eval(dirpath, filename, n_qubits, synthesis_model: SynthesisModel, n_unitary_candidates, n_neighbors):
+
+    print(dirpath, filename)
     with open(os.path.join(dirpath, filename), mode='r') as f:
         result_dict = json.load(f)
-        
+
     picked_unitary = json.loads(result_dict['Unitary']).encode('latin-1')
     U = pickle.loads(picked_unitary)
-    
-    topology = gen_fulllyconnected_topology(n_qubits)
-    neigh_info = gen_fulllyconnected_topology(n_qubits)
-    backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basis_single_gates=['u'],
-                    basis_two_gates=['cz'], divide=False, decoupling=False)
 
-    synthesis_model = SynthesisModelRandom(backend)
-    print('synthesize', backend.n_qubits)
-    
-    for use_heuristic in [False]:
+    # synthesis_model = SynthesisModelRandom(target_backend)
+    if isinstance(synthesis_model, str):
+        synthesis_model: SynthesisModel = SynthesisModel.load(synthesis_model)
+
+    target_backend = synthesis_model.backend
+    # assert  synthesis_model.backend == target_backend  #TODO
+
+    print('synthesize', target_backend.n_qubits, filename)
+
+    for use_heuristic in [True]:
         # TODO:给他直接喂算法的电路
         synthesis_log = {}
-        
+
         # print(matrix_distance_squared(U @ U.T.conj(), np.eye(2**n_qubits)))
-        assert matrix_distance_squared(U @ U.T.conj(), np.eye(2**n_qubits))< 1e-4
-        synthesized_circuit, cpu_time = synthesize(U, backend=backend, allowed_dist=1e-2,
-                                                multi_process=True, heuristic_model=synthesis_model if use_heuristic else None,
-                                                verbose=True, lagre_block_penalty=3, synthesis_log = synthesis_log, n_unitary_candidates = n_unitary_candidates)
+        assert matrix_distance_squared(
+            U @ U.T.conj(), np.eye(2**n_qubits)) < 1e-4
+        synthesized_circuit, cpu_time = synthesize(U, backend=target_backend, allowed_dist=1e-2,
+                                                   multi_process=True, heuristic_model=synthesis_model if use_heuristic else None,
+                                                   verbose=True, lagre_block_penalty=4, synthesis_log=synthesis_log, n_unitary_candidates=n_unitary_candidates, timeout=3*3600)
 
         qiskit_circuit = layered_circuits_to_qiskit(
             n_qubits, synthesized_circuit, barrier=False)
@@ -127,24 +132,32 @@ def eval(dirpath, filename, n_qubits, n_unitary_candidates):
             'depth': qiskit_circuit.depth(),
             'cpu time': cpu_time,
             'use heuristic': use_heuristic,
-        }        
+            'n_unitary_candidates': n_unitary_candidates,
+            'baseline_name': filename,
+            'baseline_dir': dirpath,
+            'n_neighbors': n_neighbors,
+        }
         result.update(synthesis_log)
-        
-        print({ key: item for key, item in result.items() if key not in ('print', 'qiskit circuit', 'U')})
+
+        print('RESULT')
+        print({key: item for key, item in result.items()
+              if key not in ('print', 'qiskit circuit', 'U')})
         print('\n')
 
-        with open(f'temp_data/synthesis_result/3_29/{n_qubits}_{use_heuristic}_grover_result.pkl', 'wb') as f:
+        with open(f'{n_qubits}/result/{use_heuristic}_{n_unitary_candidates}_{filename}_2_{n_neighbors}.pkl', 'wb') as f:
             pickle.dump(result, f)
 
     print(filename)
     for metrics in result_dict['Metrics']:
-        if metrics['Synthesiser'] != 'QFAST':
+        if metrics['Synthesiser'] != 'QFast Synthesiser':
             continue
-        
+
         print('============================')
         print(f"Synthesiser: {metrics['Synthesiser']}")
         print('Circuit:')
         circuit = QuantumCircuit.from_qasm_str(metrics["Circuit"])
+        circuit = transpile(circuit, basis_gates=[
+                            'u', 'cz'], optimization_level=3)
         # print(QuantumCircuit.from_qasm_str(metrics["Circuit"]))
         print(f"Execution time: {metrics['Execution Time']}")
         print(f"#Gate: {len(circuit)}")
@@ -153,29 +166,71 @@ def eval(dirpath, filename, n_qubits, n_unitary_candidates):
         print(f"Parallelism: {metrics['Parallelism']}")
         print('====================')
 
-    with open(f'temp_data/synthesis_result/baseline_compare/{use_heuristic}_{n_unitary_candidates}_{filename}.pkl', 'wb') as f:
-        pickle.dump(result, f)
 
 @ray.remote
 def eval_remote(*args):
     return eval(*args)
 
-futures = []
-n_qubits = 5
-for dirpath, dirnames, filenames in os.walk('synthesis_result_baseline'):
-    for filename in filenames:
-        if '.json' not in filename or f'-{n_qubits}-' not in filename:
-            continue
-        # for n_unitary_candidates in range(10, 70, 15):
-        for n_unitary_candidates in range(30, 70, 15):
-            futures.append(eval(dirpath, filename, n_qubits, n_unitary_candidates))
 
-# for path in ['random-5-0', 'random-5-2', 'random-5-1',]:
-#     path = os.path.join('synthesis_result_baseline', path)
-    
-# n_qubits = 3
-# for n_qubits in range(5, 7):
-#     # futures.append(eval_remote.remote(n_qubits))
-#     futures.append(eval(n_qubits))
-        
-wait(futures)
+n_qubits = 5
+
+n_unitary_candidates = 5
+if n_qubits == 5:
+    n_neighbors = 7
+elif n_qubits == 4:
+    n_neighbors = 10
+else:
+    n_neighbors = 7
+
+regen = False
+
+n_step = 5
+synthesis_model_name = f'synthesis_{n_qubits}_{n_step}_{n_neighbors}NN'
+if regen:
+    topology = gen_fulllyconnected_topology(n_qubits)
+    neigh_info = gen_fulllyconnected_topology(n_qubits)
+    target_backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basis_single_gates=['u'],
+                             basis_two_gates=['cz'], divide=False, decoupling=False)
+
+    min_gate, max_gate = max([4**n_qubits - 100, 10]), 4**n_qubits
+    dataset = gen_random_circuits(min_gate=min_gate, max_gate=max_gate, gate_num_step=max_gate//20, n_circuits=10,
+                                  two_qubit_gate_probs=[4, 7], backend=target_backend, reverse=False, optimize=True, multi_process=True, circuit_type='random')
+
+    # dataset += get_dataset_alg_component(n_qubits, backend)
+
+    upstream_model = RandomwalkModel(
+        n_step, 4**n_step, target_backend, travel_directions=('parallel', 'next'))
+    upstream_model.train(dataset, multi_process=True,
+                         remove_redundancy=False, full_vec=False)
+
+    synthesis_model = SynthesisModelNN(upstream_model, synthesis_model_name)
+    data = synthesis_model.construct_data(dataset, multi_process=True)
+    print(f'data size of {synthesis_model_name} is {len(data[0])}')
+    synthesis_model.construct_model(data, n_neighbors)
+    synthesis_model.save()
+else:
+    # synthesis_model = SynthesisModelRandom(target_backend)
+    synthesis_model: SynthesisModel = SynthesisModel.load(synthesis_model_name)
+    target_backend: Backend = synthesis_model.backend
+
+
+synthesized_filenames = []
+for dirpath, dirnames, filenames in os.walk(f'{n_qubits}'):
+    for filename in filenames:
+        if f'-{n_qubits}-' not in filename or 'pkl' in filename:  # 'change_func' not in filename or
+            continue
+        synthesized_filenames.append((dirpath, filename))
+
+print(synthesized_filenames)
+
+# futures = []
+# n_batches = 2
+# for start in range(0, len(synthesized_filenames), n_batches):
+#     for dirpath, filename in synthesized_filenames[start:start+n_batches]:
+#         futures.append(eval_remote.remote(dirpath, filename, n_qubits,
+#                        synthesis_model_name, n_unitary_candidates, n_neighbors))
+#         time.sleep(10)
+#         # futures.append(eval(dirpath, filename, n_qubits, synthesis_model, n_unitary_candidates, n_neighbors))
+#     wait(futures)
+#     futures = []
+eval(synthesized_filenames[0][0], synthesized_filenames[0][1], n_qubits, synthesis_model, n_unitary_candidates, n_neighbors)
