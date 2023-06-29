@@ -1,5 +1,4 @@
 import random
-
 from circuit.algorithm.algorithm2 import Algorithm
 from circuit.algorithm.dataset1 import hamiltonian_simulation, ising, qknn, qsvm, swap, vqe, QAOA_maxcut
 from circuit.algorithm.dataset2 import deutsch_jozsa, multiplier, qec_5_x, qnn, qugan, simon, square_root

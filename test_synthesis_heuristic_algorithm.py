@@ -89,7 +89,8 @@ def eval(n_qubits):
     neigh_info = gen_fulllyconnected_topology(n_qubits)
     backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neigh_info, basis_single_gates=['u'],
                     basis_two_gates=['cz'], divide=False, decoupling=False)
-    n_step = n_qubits
+    
+    n_step = n_qubits // 2
     
     synthesis_model_name = f'synthesis_{n_qubits}_{n_step}NN'
     # synthesis_model: SynthesisModel = SynthesisModel.load(synthesis_model_name)
@@ -104,31 +105,46 @@ def eval(n_qubits):
     
     dataset = get_dataset_alg_component(n_qubits, backend)
     
+    from circuit.algorithm.get_data_sys import get_data, grover
+    # grover_circuit = grover.get_cir(n_qubits)
+    # circuit_unitary = Operator(grover_circuit).data 
+    # grover_layer2gates = get_data(f'grover', grover_circuit, backend.coupling_map, False, backend)['layer2gates']
+    # result  = find_parmas(n_qubits, grover_layer2gates, init_unitary_mat, max_epoch=1000, allowed_dist=.01,
+    #                    n_iter_no_change=10, no_change_tolerance=.0001, random_params=True, verbose = True)
+    # dataset = [get_data(f'grover', grover_circuit, backend.coupling_map, False, backend)]
+    
+    
+    # print(circuit_unitary)
+    
+    # print(init_unitary_mat)
+    
+    # print(matrix_distance_squared(circuit_unitary, init_unitary_mat))
+    # assert np.allclose(circuit_unitary, init_unitary_mat)
     
     # grover_circuit = optimal_grover(n_qubits)
     
     upstream_model = RandomwalkModel(n_step, 100, backend)
-    upstream_model.train(dataset, multi_process=True, remove_redundancy=False, full_vec=False)
+    upstream_model.train(dataset, multi_process=True, remove_redundancy=False, full_vec=False, min_count = 0)
 
     
     synthesis_model = SynthesisModelNN(upstream_model, synthesis_model_name)
-    data = synthesis_model.construct_data(dataset, multi_process=False)
+    data = synthesis_model.construct_data(dataset, multi_process=True, random_parm_per_circuit = 2)
     print(f'data size of {synthesis_model_name} is {len(data[0])}')
     synthesis_model.construct_model(data)
-    synthesis_model.save()
+    # synthesis_model.save()
 
-    synthesis_model: SynthesisModel = SynthesisModel.load(synthesis_model_name)
+    # synthesis_model: SynthesisModel = SynthesisModel.load(synthesis_model_name)
     backend: Backend = synthesis_model.backend
     print('synthesize', backend.n_qubits)
     
-    for use_heuristic in [True]:
+    for use_heuristic in [False]:
         start_time = time.time()
 
         # TODO:给他直接喂算法的电路
         synthesis_log = {}
         synthesized_circuit, cpu_time = synthesize(init_unitary_mat, backend=backend, allowed_dist=1e-2,
                                                 multi_process=True, heuristic_model=synthesis_model if use_heuristic else None,
-                                                verbose=False, lagre_block_penalty=4, synthesis_log = synthesis_log)
+                                                verbose=True, lagre_block_penalty=4, synthesis_log = synthesis_log)
         synthesis_time = time.time() - start_time
 
         qiskit_circuit = layered_circuits_to_qiskit(
@@ -150,8 +166,8 @@ def eval(n_qubits):
         print({ key: item for key, item in result.items() if key not in ('print', 'qiskit circuit', 'U')})
         print('\n')
 
-        with open(f'temp_data/synthesis_result/3_29/{n_qubits}_{use_heuristic}_grover_result.pkl', 'wb') as f:
-            pickle.dump(result, f)
+        # with open(f'temp_data/synthesis_result/3_29/{n_qubits}_{use_heuristic}_grover_result.pkl', 'wb') as f:
+        #     pickle.dump(result, f)
 
 @ray.remote
 def eval_remote(*args):

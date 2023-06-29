@@ -236,7 +236,7 @@ class RandomwalkModel():
 
     '''TODO: rename to construct'''
 
-    def train(self, dataset, multi_process: bool = False, process_num: int = 10, remove_redundancy=True, full_vec=True):
+    def train(self, dataset, multi_process: bool = False, process_num: int = 10, remove_redundancy=True, full_vec=True, min_count = 10):
         '''full_vec要不要给dataset里面搁上vec'''
 
         '''TODO: 可以枚举来生成所有的path table'''
@@ -329,7 +329,7 @@ class RandomwalkModel():
         # unusual paths are not added to the path table
         for device in path_count:
             for path_id, count in path_count[device].items():
-                if count >= 10 and path_id not in device2redundant_path[device]:
+                if count >= min_count and path_id not in device2redundant_path[device]:
                     self.path_index(device, path_id)
 
         print('random walk finish device size = ', len(self.device2path_table))
