@@ -123,18 +123,19 @@ def eval(n_qubits):
     
     # grover_circuit = optimal_grover(n_qubits)
     
-    upstream_model = RandomwalkModel(n_step, 100, backend)
-    upstream_model.train(dataset, multi_process=True, remove_redundancy=False, full_vec=False, min_count = 0)
+    # upstream_model = RandomwalkModel(n_step, 100, backend)
+    # upstream_model.train(dataset, multi_process=True, remove_redundancy=False, full_vec=False)
 
     
-    synthesis_model = SynthesisModelNN(upstream_model, synthesis_model_name)
-    data = synthesis_model.construct_data(dataset, multi_process=True, random_parm_per_circuit = 2)
-    print(f'data size of {synthesis_model_name} is {len(data[0])}')
-    synthesis_model.construct_model(data)
+    # synthesis_model = SynthesisModelNN(upstream_model, synthesis_model_name)
+    # data = synthesis_model.construct_data(dataset, multi_process=False)
+    # print(f'data size of {synthesis_model_name} is {len(data[0])}')
+    # synthesis_model.construct_model(data)
     # synthesis_model.save()
 
+    synthesis_model = SynthesisModelRandom(backend)
     # synthesis_model: SynthesisModel = SynthesisModel.load(synthesis_model_name)
-    backend: Backend = synthesis_model.backend
+    # backend: Backend = synthesis_model.backend
     print('synthesize', backend.n_qubits)
     
     for use_heuristic in [False]:
