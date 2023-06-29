@@ -35,7 +35,7 @@ def random_gate(circuit: QuantumCircuit, qubits, two_qubit_prob, coupling_map, b
     if gate_type == 'cz':
         # 没有控制和非控制的区别
         if pre_couple[control_qubit] == target_qubit and pre_couple[target_qubit] == control_qubit:
-            return
+            random_gate(circuit, qubits, two_qubit_prob, coupling_map, basis_single_gates, basis_two_gates, pre_couple, pre_single)
         else:
             circuit.cz(control_qubit, target_qubit)
             pre_couple[control_qubit] = target_qubit 
@@ -48,7 +48,7 @@ def random_gate(circuit: QuantumCircuit, qubits, two_qubit_prob, coupling_map, b
         control_qubit = operated_qubits[0]
         target_qubit = operated_qubits[1]
         if pre_couple[control_qubit] == target_qubit and pre_couple[target_qubit] != control_qubit:
-            return
+            random_gate(circuit, qubits, two_qubit_prob, coupling_map, basis_single_gates, basis_two_gates, pre_couple, pre_single)
         else:
             circuit.cx(control_qubit, target_qubit)
             pre_couple[control_qubit] = target_qubit
@@ -66,7 +66,7 @@ def random_gate(circuit: QuantumCircuit, qubits, two_qubit_prob, coupling_map, b
     elif gate_type in ('rx', 'rz', 'ry'):
         selected_qubit = random.choice(qubits)
         if gate_type == pre_single[selected_qubit]:
-            return
+            random_gate(circuit, qubits, two_qubit_prob, coupling_map, basis_single_gates, basis_two_gates, pre_couple, pre_single)
         else:
             getattr(circuit, gate_type)(random_pi(), selected_qubit)
             # getattr(circuit, gate_type)(pi, selected_qubit)
@@ -78,7 +78,7 @@ def random_gate(circuit: QuantumCircuit, qubits, two_qubit_prob, coupling_map, b
     elif gate_type in ('u',):
         selected_qubit = random.choice(qubits)
         if gate_type == pre_single[selected_qubit]:
-            return
+            random_gate(circuit, qubits, two_qubit_prob, coupling_map, basis_single_gates, basis_two_gates, pre_couple, pre_single)
         else:
             getattr(circuit, gate_type)(random_pi(), random_pi(), random_pi(), selected_qubit)
             pre_single[selected_qubit] = gate_type
@@ -115,7 +115,7 @@ def random_circuit(n_qubits, n_gates, two_qubit_prob = 0.5, reverse = True, coup
     qubits = list(range(n_qubits))
 
     circuit = circuit.compose(random_1q_layer(n_qubits, basis_single_gates))
-        
+    
     n_gates -= len(qubits)
 
     pre_single = defaultdict(str)

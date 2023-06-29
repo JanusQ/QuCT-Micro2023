@@ -17,8 +17,8 @@ from utils.backend import default_basis_single_gates, default_basis_two_gates
 import pickle
 
   
-size = 13
-n_qubits = 150
+size = 8
+n_qubits = 50
 topology = gen_grid_topology(size)  # 3x3 9 qubits
 new_topology = defaultdict(list)
 for qubit in topology.keys():
@@ -35,13 +35,13 @@ coupling_map = topology_to_coupling_map(topology)
 backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neighbor_info, basis_single_gates=default_basis_single_gates,
                   basis_two_gates=default_basis_two_gates, divide=False, decoupling=False)
 
-dataset = gen_train_dataset(n_qubits, topology, neighbor_info, coupling_map, 6000)
+dataset = gen_train_dataset(n_qubits, topology, neighbor_info, coupling_map, dataset_size = 6000)
 
 upstream_model = RandomwalkModel(1, 20, backend=backend, travel_directions=('parallel', 'former'))
 print(len(dataset), "circuit generated")
 upstream_model.train(dataset, multi_process=True)
 
-with open(f"upstream_model_{n_qubits}.pkl","wb")as f:
+with open(f"simulate_50_350/{n_qubits}/upstream_model_{n_qubits}.pkl","wb")as f:
     pickle.dump(upstream_model,f)
 
 print("original",len(dataset))
@@ -52,7 +52,7 @@ print("cutted",len(dataset))
 simulator = NoiseSimulator(backend)
 erroneous_pattern = simulator.get_error_results(dataset, upstream_model, multi_process=True)
 upstream_model.erroneous_pattern = erroneous_pattern
-with open(f"upstream_model_{n_qubits}.pkl","wb")as f:
+with open(f"simulate_50_350/{n_qubits}/upstream_model_{n_qubits}.pkl","wb")as f:
     pickle.dump(upstream_model,f)
     
 
@@ -61,7 +61,7 @@ random.shuffle(index)
 n = -200 * n_qubits
 train_index, test_index = index[:n], index[n:]
 train_dataset, test_dataset = np.array(dataset)[train_index], np.array(dataset)[test_index]
-with open(f"split_dataset_{n_qubits}.pkl","wb")as f:
+with open(f"simulate_50_350/{n_qubits}/split_dataset_{n_qubits}.pkl","wb")as f:
     pickle.dump((train_dataset, test_dataset),f)
 
 
@@ -88,7 +88,7 @@ for idx, cir in enumerate(test_dataset):
     
     
     # print(predict)
-with open(f"error_params_predicts_{n_qubits}.pkl","wb")as f:
+with open(f"simulate_50_350/{n_qubits}/error_params_predicts_{n_qubits}.pkl","wb")as f:
     pickle.dump((downstream_model.error_params, predicts, reals, durations), f)
     
 find_error_path(upstream_model, downstream_model.error_params)
@@ -96,4 +96,4 @@ find_error_path(upstream_model, downstream_model.error_params)
 
 fig, axes = plt.subplots(figsize=(20, 6))  # 创建一个图形对象和一个子图对象
 duration_X, duration2circuit_index = plot_duration_fidelity(fig, axes, test_dataset)
-fig.savefig(f"duration_fidelity_{n_qubits}.svg")  # step
+fig.savefig(f"simulate_50_350/{n_qubits}/duration_fidelity_{n_qubits}.svg")  # step

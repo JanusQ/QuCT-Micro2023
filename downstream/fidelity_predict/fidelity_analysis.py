@@ -28,8 +28,7 @@ class FidelityModel():
     def train(self, train_dataset, validation_dataset = None, epoch_num = 100, verbose = True):
         upstream_model = self.upstream_model
         # backend = self.upstream_model.backend
-        
-        '''TODO: 加一个bias'''
+
         params = {
             'gate_params': jnp.zeros(shape=(len(upstream_model.device2path_table), upstream_model.max_table_size)),
             'circuit_bias': jnp.zeros(shape=(1,)),
@@ -40,12 +39,28 @@ class FidelityModel():
         optimizer = optax.adamw(learning_rate=1e-2)
         opt_state = optimizer.init(params)
 
+
+        for circuit_info in train_dataset:
+            circuit_devices = []
+            for gate in circuit_info['gates']:
+                device = extract_device(gate)
+                if 'map' in circuit_info:
+                    if isinstance(device,tuple):
+                        device = (circuit_info['map'][device[0]],circuit_info['map'][device[1]])
+                    else:
+                        device = circuit_info['map'][device]
+                device_index = list(upstream_model.device2path_table.keys()).index(device)
+                circuit_devices.append(device_index)
+            circuit_devices = jnp.array(circuit_devices, dtype=jnp.int32)
+            circuit_info['circuit_devices'] = circuit_devices
+    
+
         if validation_dataset is None:
-            train_dataset, validation_dataset  = train_test_split(train_dataset, test_size = 0.1)
+            train_dataset, validation_dataset  = train_test_split(train_dataset, test_size = 200)
         
         self.path_count = defaultdict(int)
         n_instruction2circuit_infos, gate_nums = get_n_instruction2circuit_infos(train_dataset)
-        print(gate_nums)
+        # print(gate_nums)
 
         terminate_num_gate  = 150
         for gate_num in gate_nums:
@@ -67,12 +82,13 @@ class FidelityModel():
             #     break
             
             # print(f'n_instruction2circuit_infos[{gate_num}] has', len(n_instruction2circuit_infos[gate_num]))
-        print('n_instruction2circuit_infos = ', {n: len(n_instruction2circuit_infos[n]) for n in n_instruction2circuit_infos})
+        if verbose:
+            print('n_instruction2circuit_infos = ', {n: len(n_instruction2circuit_infos[n]) for n in n_instruction2circuit_infos})
         
         gate_nums = [gate_num for gate_num in gate_nums if gate_num <= terminate_num_gate]
         for gate_num in gate_nums:
             n_instruction2circuit_infos[gate_num] = np.array(n_instruction2circuit_infos[gate_num])
-            
+    
         min_loss = 1e10
         best_params = None
         loss_decrease_history = []
@@ -80,6 +96,7 @@ class FidelityModel():
         no_change_tolerance  = .1  # TODO: 可以改到.1
         
         for epoch in range(epoch_num):
+
 
             loss_values = []
             
@@ -93,17 +110,7 @@ class FidelityModel():
                     Y = np.array([circuit_info['ground_truth_fidelity'] for circuit_info in circuit_infos], dtype=np.float32)
                     devices = []
                     for circuit_info in circuit_infos:
-                        circuit_devices = []
-                        for gate in circuit_info['gates']:
-                            device = extract_device(gate)
-                            if 'map' in circuit_info:
-                                if isinstance(device,tuple):
-                                    device = (circuit_info['map'][device[0]],circuit_info['map'][device[1]])
-                                else:
-                                    device = circuit_info['map'][device]
-                            device_index = list(upstream_model.device2path_table.keys()).index(device)
-                            circuit_devices.append(device_index)
-                        devices.append(circuit_devices)
+                        devices.append(circuit_info['circuit_devices'])
                     devices = jnp.array(devices, dtype=jnp.int32)
                         
                     loss_value, gradient = jax.value_and_grad(batch_loss)(params, X, Y, devices)
@@ -124,18 +131,18 @@ class FidelityModel():
 
             test_loss = 0 
             for circuit_info in validation_dataset: #[:2000]:
-                circuit_devices = []
-                for gate in circuit_info['gates']:
-                    device = extract_device(gate)
-                    if 'map' in circuit_info:
-                        if isinstance(device,tuple):
-                            device = (circuit_info['map'][device[0]],circuit_info['map'][device[1]])
-                        else:
-                            device = circuit_info['map'][device]
-                    device_index = list(upstream_model.device2path_table.keys()).index(device)
-                    circuit_devices.append(device_index)
-                circuit_devices = jnp.array(circuit_devices, dtype=jnp.int32)
-                test_loss += loss_func(params, np.array(circuit_info['vecs'], dtype=np.float32), circuit_info['ground_truth_fidelity'], circuit_devices)
+                # circuit_devices = []
+                # for gate in circuit_info['gates']:
+                #     device = extract_device(gate)
+                #     if 'map' in circuit_info:
+                #         if isinstance(device,tuple):
+                #             device = (circuit_info['map'][device[0]],circuit_info['map'][device[1]])
+                #         else:
+                #             device = circuit_info['map'][device]
+                #     device_index = list(upstream_model.device2path_table.keys()).index(device)
+                #     circuit_devices.append(device_index)
+                # circuit_devices = jnp.array(circuit_devices, dtype=jnp.int32)
+                test_loss += loss_func(params, np.array(circuit_info['vecs'], dtype=np.float32), circuit_info['ground_truth_fidelity'], circuit_info['circuit_devices'])
 
             loss_decrease_history.append(min_loss - test_loss)
             if epoch > n_iter_no_change:
@@ -150,9 +157,11 @@ class FidelityModel():
                 min_loss = test_loss
                 best_params = params
             
+            import pickle 
             if verbose:
                 print(f'epoch: {epoch}, \t epoch loss = {sum(loss_values)}, \t test loss = {test_loss}')
-                
+                with open (f'params_{epoch}.pkl', 'wb') as f:
+                    pickle.dump(params,f)
             # params = best_params
         
         self.error_params = best_params
@@ -183,6 +192,7 @@ class FidelityModel():
         circuit_devices = np.array(circuit_devices)
         vecs = np.array(circuit_info['vecs'])
         circuit_predict = smart_predict(error_params, vecs, circuit_devices)
+        circuit_predict = float(circuit_predict)
         circuit_info['circuit_predict'] = circuit_predict
         return circuit_predict
 

@@ -21,6 +21,27 @@ def get_duration2circuit_infos(durations,step,max_duration):
         
     return duration_X, duration2circuit_index
 
+
+def get_prop2circuit_infos(props,step = 0.1,max_props = 0):
+    props = np.array(props)
+    if max_props == 0:
+        max_props = props.max()
+    else:
+        max_props = max_props if max_props <= props.max() else props.max()
+    left, right = props.min(), props.min() + step
+    prop2circuit_index = []
+    prop_X = []
+    while right <= max_props:
+        prop_index = np.where( (props>left)&(props<=right))[0]
+        left+= step
+        right += step
+        if len(prop_index) == 0:
+            continue
+        prop2circuit_index.append(prop_index)
+        prop_X.append((left+right)/2)
+        
+    return prop_X, prop2circuit_index
+
 def plot_duration_fidelity(fig, axes,dataset,step = 100 ,max_duration =0):
     predicts,reals, durations = [],[],[]
     for cir in dataset:
@@ -64,7 +85,7 @@ def plot_real_predicted_fidelity(fig, axes, dataset,step = 100 ,max_duration =0)
     return fig
 
 
-def plot_top_ratio(upstream_model, erroneous_pattern_weight):
+def plot_top_ratio(upstream_model, erroneous_pattern_weight, name):
     x ,y = [],[]
     
     erroneous_pattern_num = 0
@@ -82,8 +103,8 @@ def plot_top_ratio(upstream_model, erroneous_pattern_weight):
                 if  pattern_weight[1] < top * path_table_size:
                     total_find += 1
 
-        find_ratio = total_find / erroneous_pattern_num
-        find_path = total_find
+        # find_ratio = total_find / erroneous_pattern_num
+        # find_path = total_find
         # print(top, find_ratio)
         
         # x.append(top)
@@ -101,10 +122,15 @@ def plot_top_ratio(upstream_model, erroneous_pattern_weight):
     # axes.set_ylabel('find_ratio')
     axes.legend() # 添加图例
     fig.show()
-    num_qubits = upstream_model.dataset[0]['num_qubits']
-    fig.savefig(f"find_ratio_{num_qubits}.svg")
+    num_qubits = upstream_model.backend.n_qubits
+    
+    if name is None:
+        fig.savefig(f"find_ratio_{num_qubits}.svg")
+    else:
+        fig.savefig(name)
+    return fig
 
-def find_error_path(upstream_model, error_params):
+def find_error_path(upstream_model, error_params, name = None):
     error_params = np.array(error_params)
     erroneous_pattern = upstream_model.erroneous_pattern
     
@@ -140,7 +166,7 @@ def find_error_path(upstream_model, error_params):
                 device_erroneous_pattern_weight.append((pattern,k))
         erroneous_pattern_weight[device] = device_erroneous_pattern_weight
         
-    plot_top_ratio(upstream_model, erroneous_pattern_weight)
+    plot_top_ratio(upstream_model, erroneous_pattern_weight, name)
 
 import pandas as pd
 import seaborn as sns
@@ -153,6 +179,6 @@ def plot_correlation(data, feature_names, color_features = None, name = 'correla
     else:
         sns_plot = sns.pairplot(df, hue=None, palette="tab10")
     # sns_plot = sns.pairplot(df, hue=color_feature, palette="tab10")
-    # fig = sns_plot.get_figure()
-    sns_plot.savefig(f"{name}.png")
+    fig = sns_plot.fig
+    fig.savefig(name)
     return

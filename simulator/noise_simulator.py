@@ -48,6 +48,7 @@ import time
 
 # TODO: 目前没有考虑 T1/T2 thermal relaxation
 
+from simulator.noise_free_simulator import simulate_noise_free
 
 class NoiseSimulator():
 
@@ -109,15 +110,16 @@ class NoiseSimulator():
         fidelities = []
         n_erroneous_patterns = []
         independent_fidelities = []
-        n_qubits = self.n_qubits
         
         n_samples = 1000 
-        circuit_reps = 5
+        circuit_reps = 20  # 5
         
         for circuit_info in sub_dataset:
+            n_qubits = circuit_info['num_qubits']
             true_result = {
                 '0' * circuit_info['num_qubits']: 2000
             }
+            # true_result = simulate_noise_free(res_qc)
             
             '''TODO: 加多个单层的算fidelity'''
             _fidelities = []
@@ -144,7 +146,7 @@ class NoiseSimulator():
             
             independent_error_circuit, _ = add_pattern_error_path(circuit_info, circuit_info['num_qubits'], model, defaultdict(list))
             _fidelities = []
-            for _ in range(circuit_reps):
+            for _ in range(3):
                 layer_1q = random_1q_layer(n_qubits, self.backend.basis_single_gates)
                 simulate_circuit = QuantumCircuit(n_qubits)
                 simulate_circuit = simulate_circuit.compose(layer_1q)
@@ -178,7 +180,7 @@ class NoiseSimulator():
                 qubits = [qubit.index for qubit in gate.qubits]
                 qubits.sort()
                 
-                assert tuple(qubits) in backend.coupling_map
+                assert qubits in backend.coupling_map
         
         # return
     
@@ -206,8 +208,8 @@ class NoiseSimulator():
 
 
     def get_error_results(self, dataset, model, erroneous_pattern=None, multi_process=False):
-        if erroneous_pattern is None:
-            erroneous_pattern = get_random_erroneous_pattern(model)
+        # if erroneous_pattern is None:
+        #     erroneous_pattern = get_random_erroneous_pattern(model)
             
         futures = []
         fidelities = []
@@ -247,8 +249,8 @@ class NoiseSimulator():
 @ray.remote
 def get_error_result_remote(noiseSimulator, sub_dataset, start, model, erroneous_pattern=None, call_time = None):
     
-    if call_time is not None:
-        print('call latency = ', time.time() - call_time, 's')
+    # if call_time is not None:
+    #     print('call latency = ', time.time() - call_time, 's')
     
     return noiseSimulator.get_error_result(sub_dataset, start, model, erroneous_pattern)
 
@@ -327,8 +329,16 @@ def add_pattern_error_path(circuit, n_qubits, model, device2erroneous_pattern): 
         for _index in path_index:
             if _index in erroneous_pattern_index:
                 for qubit in gate['qubits']:
+                    # error_circuit.rx(
+                    #     pi / 50, qubit)  # 之前跑50-300比特的时候用的10, 感觉噪声加的太大了，所以换成20
                     error_circuit.rx(
-                        pi / 20 * random.random(), qubit)  # pi / 20 + pi / 20
+                        pi / 20 * random.random() - pi / 10, qubit)  # 之前跑50-300比特的时候用的10, 感觉噪声加的太大了，所以换成20
+                    # error_circuit.rx(
+                    #     pi / 100 * random.random() - pi / 50, qubit)  # 之前跑50-300比特的时候用的10, 感觉噪声加的太大了，所以换成20
+                    # error_circuit.rx(
+                    #     pi / 50 * random.random() - pi / 25, qubit)  # 之前跑50-300比特的时候用的10, 感觉噪声加的太大了，所以换成20
+                    # pass
+                    # pi / 20 + pi / 20
                     # error_circuit.rx(pi/10, qubit)  #pi / 20
                 n_erroneous_patterns += 1
                 # break

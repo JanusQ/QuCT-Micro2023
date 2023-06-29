@@ -43,3 +43,9 @@ screen*
 synthesis_result_baseline/*
 4_17_logq_6.1
 neighbor
+
+*.log
+screen*
+*.mat
+*.png
+*.pyc

@@ -26,14 +26,10 @@ import ray
 from utils.ray_func import wait
 
 size = 3
-n_qubits = 4
+n_qubits = 5
 n_steps = 1
 
-dataset_path = os.path.join('temp_data', f"eval_datasize_{n_qubits}.pkl")
-
-
-''' 数据集多大，start和end是多少'''
-'''cycle， random，cycle + random'''
+dataset_path = os.path.join('temp_data', f"eval_datasize_{n_qubits}_small_cycle.pkl")
 
 regen = False
 if regen:
@@ -48,7 +44,7 @@ if regen:
     neighbor_info = copy.deepcopy(topology)
     coupling_map = topology_to_coupling_map(topology)
     backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neighbor_info, basis_single_gates=default_basis_single_gates,
-                    basis_two_gates=default_basis_two_gates, divide=False, decoupling=False)
+                      basis_two_gates=default_basis_two_gates, divide=False, decoupling=False)
 
     # for gen_type in ['cycle', 'random']:
     dataset_cycle = gen_random_circuits(min_gate=20, max_gate=150, n_circuits=5, two_qubit_gate_probs=[
@@ -59,26 +55,37 @@ if regen:
     for elm in dataset_cycle:
         elm['label'] = 'train_cycle'
 
-    for elm in dataset_random:
-        elm['label'] = 'train_random'
+    # dataset_random = gen_random_circuits(min_gate=20, max_gate=600, n_circuits=300, two_qubit_gate_probs=[
+    #     3, 7], gate_num_step=40, backend=backend, multi_process=True, circuit_type='random')
+    # dataset_random += gen_random_circuits(min_gate=600, max_gate=1200, n_circuits=100, two_qubit_gate_probs=[
+    #     3, 7], gate_num_step=40, backend=backend, multi_process=True, circuit_type='random')
 
-    '''TODO: 门可以少一些'''
-    test_dataset_cycle = gen_random_circuits(min_gate=20, max_gate=1500, n_circuits=2, two_qubit_gate_probs=[
-        3, 7], gate_num_step=100, backend=backend, multi_process=True, circuit_type='cycle')  # random
-    test_dataset_random = gen_random_circuits(min_gate=20, max_gate=1500, n_circuits=2, two_qubit_gate_probs=[
-        3, 7], gate_num_step=100, backend=backend, multi_process=True, circuit_type='random')  #
+    # for elm in dataset_random:
+    #     elm['label'] = 'train_random'
+    n_instruction2circuit_infos, gate_nums = get_n_instruction2circuit_infos(dataset_cycle)
+    print('n_instruction2circuit_infos = ', {n: len(n_instruction2circuit_infos[n]) for n in n_instruction2circuit_infos})
 
-    for elm in test_dataset_cycle:
-        elm['label'] = 'test_cycle'
+    # test_dataset_cycle = gen_random_circuits(min_gate=20, max_gate=1500, n_circuits=5, two_qubit_gate_probs=[
+    #     3, 7], gate_num_step=100, backend=backend, multi_process=True, circuit_type='cycle')  # random
+
+    # for elm in test_dataset_cycle:
+    #     elm['label'] = 'test_cycle'
+
+    test_dataset_random = gen_random_circuits(min_gate=20, max_gate=1300, n_circuits=30, two_qubit_gate_probs=[
+        3, 7], gate_num_step=20, backend=backend, multi_process=True, circuit_type='random')  #
 
     for elm in test_dataset_random:
         elm['label'] = 'test_random'
 
-    train_dataset = np.array(dataset_cycle + dataset_random)
-    test_dataset = np.array(test_dataset_cycle + test_dataset_random)
+    train_dataset = np.array(dataset_cycle)  # dataset_cycle+ dataset_random
+    # np.array(test_dataset_cycle + test_dataset_random)
+    test_dataset = np.array(test_dataset_random)
+    # test_dataset = np.array(test_dataset_cycle + test_dataset_random)
 
-    test_dataset, validation_dataset = train_test_split(test_dataset, test_size=.2)
-    all_dataset = np.concatenate([train_dataset, validation_dataset, test_dataset])
+    test_dataset, validation_dataset = train_test_split(
+        test_dataset, test_size=.2)
+    all_dataset = np.concatenate(
+        [train_dataset, validation_dataset, test_dataset])
 
     print('train dataset size = ', len(train_dataset))
     print('test dataset size = ', len(test_dataset))
@@ -87,11 +94,10 @@ if regen:
         n_steps, 20, backend=backend, travel_directions=('parallel', 'former'))
 
     upstream_model.train(all_dataset, multi_process=True,
-                        remove_redundancy=n_steps > 1)
-
+                         remove_redundancy=n_steps > 1)
 
     ata_backend = Backend(n_qubits=n_qubits, topology=None, neighbor_info=neighbor_info, basis_single_gates=default_basis_single_gates,
-                        basis_two_gates=default_basis_two_gates, divide=False, decoupling=False)
+                          basis_two_gates=default_basis_two_gates, divide=False, decoupling=False)
 
     simulator = NoiseSimulator(ata_backend)
     erroneous_pattern = get_random_erroneous_pattern(
@@ -101,15 +107,26 @@ if regen:
                                 multi_process=True, erroneous_pattern=erroneous_pattern)
     upstream_model.erroneous_pattern = erroneous_pattern
 
-
     with open(dataset_path, "wb")as f:
         pickle.dump((upstream_model, train_dataset,
                     validation_dataset, test_dataset), f)
     print('erroneous patterns = ', upstream_model.erroneous_pattern)
 else:
     with open(dataset_path, "rb")as f:
-        upstream_model, train_dataset, validation_dataset, test_dataset = pickle.load(f)
-    
+        upstream_model, train_dataset, validation_dataset, test_dataset = pickle.load(
+            f)
+
+    # train_dataset, _test_dataset = train_test_split(train_dataset, test_size=5000)
+    # test_dataset = np.concatenate([validation_dataset, test_dataset, _test_dataset])
+    # test_dataset, validation_dataset = train_test_split(test_dataset, test_size=300)
+    # with open(dataset_path, "wb")as f:
+    #     pickle.dump((upstream_model, train_dataset, validation_dataset, test_dataset), f)
+
+print('train dataset size = ', len(train_dataset))
+print('test dataset size = ', len(test_dataset))
+print('validation dataset size = ', len(validation_dataset))
+
+
 def sumarize_datasize(dataset, name):
     data = []
     labels = []
@@ -127,7 +144,7 @@ def sumarize_datasize(dataset, name):
     data = data[:3000]  # 太大了画出来的图太密了
     data = np.array(data)
     plot_correlation(data, ['n_erroneous_patterns',
-                            'n_gates', 'error_prop', 'two_qubit_prob', 'ground_truth_fidelity', 'independent_fidelity', 
+                            'n_gates', 'error_prop', 'two_qubit_prob', 'ground_truth_fidelity', 'independent_fidelity',
                             'ground_truth_fidelity - independent_fidelity'], color_features=labels, name=name)
 
 
@@ -135,12 +152,12 @@ sumarize_datasize(train_dataset, f'train_dataset_{n_qubits}')
 sumarize_datasize(test_dataset, f'test_dataset_{n_qubits}')
 
 
-def eval(train_dataset, start, end):
+def eval(train_dataset, validation_dataset, test_dataset, start, end):
     print(start, end, len(test_dataset))
-    
+
     downstream_model = FidelityModel(upstream_model)
     downstream_model.train(
-        train_dataset, validation_dataset, epoch_num=200, verbose = False)
+        train_dataset, validation_dataset, epoch_num=500, verbose=False)
 
     predicts, reals, durations = [], [], []
     for idx, cir in enumerate(test_dataset):
@@ -154,8 +171,9 @@ def eval(train_dataset, start, end):
     predicts = np.array(predicts)
     durations = np.array(durations)
 
-    additional_info = f'{n_qubits}_{start}_{end}_{len(train_dataset)}'
-    print(additional_info, np.array(delta).mean())
+    additional_info = f'{n_qubits}_{start}_{end}_{len(train_dataset)}_cycle'
+
+    print(additional_info, np.abs(reals - predicts).mean())
 
     with open(f"temp_data/fidelitymodel_{additional_info}.pkl", "wb")as f:
         pickle.dump((downstream_model, predicts, reals, durations,
@@ -163,18 +181,18 @@ def eval(train_dataset, start, end):
 
     # 画找到path的数量
     find_error_path(
-        upstream_model, downstream_model.error_params['gate_params'])
+        upstream_model, downstream_model.error_params['gate_params'], f'find_ratio_{additional_info}')
 
     fig, axes = plt.subplots(figsize=(20, 6))
     duration_X, duration2circuit_index = plot_duration_fidelity(
         fig, axes, test_dataset)
-    fig.savefig(f"temp_data/duration_fidelity_{additional_info}.svg")  # step
+    fig.savefig(f"temp_data/duration_fidelity_{additional_info}.png")  # step
     plt.close(fig)
 
     # 画x: real fidelity, y: predicted fidelity
     fig, axes = plt.subplots(figsize=(10, 10))
     plot_real_predicted_fidelity(fig, axes, test_dataset)
-    fig.savefig(f"temp_data/real_predictedy_{additional_info}.svg")  # step
+    fig.savefig(f"temp_data/real_predictedy_{additional_info}.png")  # step
 
     # 画x: real fidelity, y: inaccuracy
     fig, axes = plt.subplots(figsize=(20, 6))
@@ -191,57 +209,61 @@ def eval(train_dataset, start, end):
     axes.set_xlabel('duration')
     axes.set_ylabel('fidelity')
     axes.legend()  # 添加图例
-    fig.savefig(f"temp_data/duration_inaccuracy_{additional_info}.svg")
+    fig.savefig(f"temp_data/duration_inaccuracy_{additional_info}.png")
 
 
 @ray.remote
-def eval_remote(dataset, start, end):
-    return eval(dataset, start, end)
+def eval_remote(dataset, validation_dataset, test_dataset, start, end):
+    return eval(dataset, validation_dataset, test_dataset, start, end)
 
-# TODO: for 不同的数据量 2000, 6000, 500
+# TODO: for 不同的数据量
 maximum_datasize = 2000
 
 n_instruction2circuit_infos, gate_nums = get_n_instruction2circuit_infos(
     train_dataset)
+print(gate_nums)
 
 futures = []
-for start in range(20, 150):
-    for end in range(start + 150, 1500, 50):
-        avl_gate_nums = [
-            gate_num
-            for gate_num in gate_nums
-            if gate_num <= end and gate_num > start
-        ]
 
-        aval_n_instruction2circuit_infos = {
-            gate_num: list(n_instruction2circuit_infos[gate_num])
-            for gate_num in avl_gate_nums
-        }
+for maximum_datasize in range(2000, 6000, 1000):  # 2000-6000
+    for start in range(20, 150, 50):
+        for end in range(start + 150, 1500, 50):
+            avl_gate_nums = [
+                gate_num
+                for gate_num in gate_nums
+                if gate_num <= end and gate_num > start
+            ]
 
-        _dataset = []
+            aval_n_instruction2circuit_infos = {
+                gate_num: list(n_instruction2circuit_infos[gate_num])
+                for gate_num in avl_gate_nums
+            }
 
-        while len(_dataset) < maximum_datasize:
-            for gate_num in avl_gate_nums:
-                if len(aval_n_instruction2circuit_infos[gate_num]) != 0:
-                    circuit_info = random.choice(
-                        aval_n_instruction2circuit_infos[gate_num])
-                    aval_n_instruction2circuit_infos[gate_num].remove(
-                        circuit_info)
-                    _dataset.append(circuit_info)
+            _dataset = []
 
-                    if len(_dataset) > maximum_datasize:
-                        break
-                else:
-                    aval_n_instruction2circuit_infos.pop(gate_num)
+            while len(_dataset) < maximum_datasize:
+                for gate_num in avl_gate_nums:
+                    if len(aval_n_instruction2circuit_infos[gate_num]) != 0:
+                        circuit_info = random.choice(
+                            aval_n_instruction2circuit_infos[gate_num])
+                        aval_n_instruction2circuit_infos[gate_num].remove(
+                            circuit_info)
+                        _dataset.append(circuit_info)
 
-            avl_gate_nums = list(aval_n_instruction2circuit_infos.keys())
-            if len(avl_gate_nums) == 0:
-                break
+                        if len(_dataset) > maximum_datasize:
+                            break
+                    else:
+                        aval_n_instruction2circuit_infos.pop(gate_num)
 
-        # futures.append(eval(_dataset, start, end))
-        futures.append(eval_remote.remote(_dataset, start, end))
+                avl_gate_nums = list(aval_n_instruction2circuit_infos.keys())
+                if len(avl_gate_nums) == 0:
+                    break
 
-        # if len(futures) > 10:
-        #     print()
+            # futures.append(eval(_dataset, start, end))
+            futures.append(eval_remote.remote(
+                _dataset, validation_dataset, test_dataset, start, end))
+
+            # if len(futures) > 10:
+            #     print()
 
 wait(futures)
