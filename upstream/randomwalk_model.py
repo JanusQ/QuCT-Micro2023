@@ -132,6 +132,10 @@ def travel_gates_BFS(circuit_info, head_gate, path_per_node, max_step, neighbor_
     op_qubits_str = instruction2str(head_gate)
     traveled_paths.add(op_qubits_str)
 
+    # for path in traveled_paths:
+    #     if len(path.split('next')) > 2: # 至少两个next
+    #         print('wowowow!!!', path)
+    
     # 单独加一个idle的next的
     # 给fidelity用的
 
@@ -160,8 +164,8 @@ def train(dataset, max_step: int, path_per_node: int, neighbor_info: dict, offes
     for index, circuit_info in enumerate(dataset):
         # print(circuit_info['qiskit_circuit'])
         # print(layered_circuits_to_qiskit(circuit_info['num_qubits'], circuit_info['layer2gates'],))
-        if index % 100 == 0:
-            print(f'train:{index}/{len(dataset)}, {offest}th offest')
+        # if index % 100 == 0:
+        #     print(f'train:{index}/{len(dataset)}, {offest}th offest')
 
         gate_paths = []
         for head_gate in circuit_info['gates']:
@@ -248,8 +252,10 @@ class RandomwalkModel():
 
         if multi_process:
             batch_size = len(dataset) // process_num
-            if batch_size < 20:
-                batch_size = len(dataset)
+            # if batch_size < 20:
+            #     batch_size = len(dataset)
+            if batch_size == 0:
+                batch_size = 1 #process_num
         else:
             batch_size = len(dataset)
 
@@ -449,6 +455,10 @@ class RandomwalkModel():
         return paths
 
     def reconstruct(self, device, sparse_vec: np.array) -> list:
+        if isinstance(device, list):
+            device.sort()
+            device = tuple(device)
+        
         paths = [
             self.device2reverse_path_table[device][index]
             for index in sparse_vec
@@ -484,11 +494,17 @@ class RandomwalkModel():
             layer2gates[layer].append(gate)
             return
 
+        # head_gate = {
+        #     'name': 'u',
+        #     'qubits': [random.randint(0, self.n_qubits-1)],
+        #     # [random.random() * 2 *jnp.pi for _ in range(3)],
+        #     'params':  np.ones((3,)) * np.pi * 2
+        # }
         head_gate = {
-            'name': 'u',
-            'qubits': [random.randint(0, self.n_qubits-1)],
+            'name': 'cz',
+            'qubits':  random.choice(self.backend.coupling_map) , #[random.randint(0, self.n_qubits-1)],
             # [random.random() * 2 *jnp.pi for _ in range(3)],
-            'params':  np.ones((3,)) * np.pi * 2
+            'params': [], # np.ones((3,)) * np.pi * 2
         }
         # [head_gate]
         layer2gates = [

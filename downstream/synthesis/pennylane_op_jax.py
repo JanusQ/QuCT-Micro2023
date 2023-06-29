@@ -57,6 +57,7 @@ def layer_circuit_to_pennylane_circuit(layer2gates, params = None, offest = 0):
                 unitary_params = (unitary_params[0: n_params//2] + 1j * unitary_params[n_params//2:]).reshape((2**n_qubits, 2**n_qubits))
                 unitary = to_unitary(unitary_params)
                 # assert jnp.allclose(unitary.T.conj() @ unitary, jnp.eye(2**n_qubits))
+                # print(unitary.size, qubits)
                 qml.QubitUnitary(unitary, wires=qubits)
             else:
                 raise Exception('Unkown gate type', gate)

@@ -6,7 +6,7 @@ from circuit.random_circuit import random_circuit, random_circuit_cycle
 from utils.backend import Backend
 from qiskit import transpile
 import ray
-
+from qiskit.circuit.random import random_circuit as qiskit_random_circuit
 
 def gen_random_circuits(min_gate: int, max_gate: int, n_circuits: int, two_qubit_gate_probs: list, backend: Backend, gate_num_step: int = 1, 
                         reverse=True, optimize=False, multi_process=False, circuit_type='random'):
@@ -44,7 +44,7 @@ def _gen_random_circuits(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backen
     divide, decoupling, coupling_map, n_qubits = backend.divide, backend.decoupling, backend.coupling_map, backend.n_qubits
     basis_single_gates, basis_two_gates = backend.basis_single_gates, backend.basis_two_gates
 
-    assert circuit_type in ('random', 'cycle')
+    assert circuit_type in ('random', 'cycle', 'qiskit')
 
     # print(circuit)
     dataset = []
@@ -53,9 +53,12 @@ def _gen_random_circuits(n_gates=40, two_qubit_prob=0.5, n_circuits=2000, backen
         if circuit_type == 'random':
             circuit = random_circuit(n_qubits, n_gates, two_qubit_prob, reverse=reverse, coupling_map=coupling_map,
                                      basis_single_gates=basis_single_gates, basis_two_gates=basis_two_gates)
-        else:
+        elif circuit_type == 'cycle':
             circuit = random_circuit_cycle(n_qubits, n_gates, two_qubit_prob, reverse=reverse, coupling_map=coupling_map,
                                            basis_single_gates=basis_single_gates, basis_two_gates=basis_two_gates)
+        else:
+            circuit = qiskit_random_circuit(n_qubits, n_gates // n_qubits, measure=True)
+            
 
         # print(circuit)
         # try:

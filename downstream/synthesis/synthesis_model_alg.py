@@ -226,7 +226,8 @@ class SynthesisModel():
             sub_circuits = []
             layer2gates = circuit_info['layer2gates']
             
-            for layer_index, layer_gates in enumerate(layer2gates):
+            found = False
+            for layer_index, layer_gates in enumerate(layer2gates[1:]):
                 # print(layer_index)
                 for target_gate in layer_gates:
                     if len(target_gate['qubits']) == 1:
@@ -243,8 +244,12 @@ class SynthesisModel():
                     
                     # 只用一个就够了，不然可能还有一堆重复的
                     sub_circuit = layer2gates[layer_index:]
-                    sub_circuits.append(sub_circuit[: n_steps])
+                    sub_circuits.append(sub_circuit[:n_steps])
+                    found = True
                     break
+                # break
+                # if found:
+                #     break
                     
                     
             for layer_index, layer_gates in enumerate(layer2gates):
@@ -272,7 +277,7 @@ class SynthesisModel():
                     U = layer_circuit_to_matrix(sub_circuit, n_qubits)  # TODO: vmap
                     # assert np.allclose(U.T.conj() @ U, I)
                     Us.append(U)
-                    sub_circuits.append(sub_circuit[: n_steps])
+                    sub_circuits.append(sub_circuit[:n_steps])
 
             # 本质上讲应该是通过 sub_circuits构建出来的，但是这里的construct不知道为啥没用了
             return device_gate_vecs, Us, sub_circuits
@@ -307,76 +312,6 @@ class SynthesisModel():
         print('len(Us) = ', len(Us), 'len(gate_vecs) = ', len(Vs))
 
         return Us, Vs, sub_circuits
-
-    # def construct_model(self, data):
-    #     print('Start construct model')
-        
-    #     assert False, '现在用sparse_vec现在跑不了了'
-        
-    #     start_time = time.time()
-
-    #     Us, Vs = data
-
-    #     self.pca_model = PCA(Us, reduced_prop=.7)
-    #     output = self.pca_model.transform(Us)
-
-    #     U_to_vec_model = DecisionTreeClassifier(splitter='random')
-    #     U_to_vec_model.fit(output, Vs)
-
-    #     self.U_to_vec_model = U_to_vec_model
-
-    #     print(f'Finish construct model, costing {time.time()-start_time}s')
-
-    # def choose(self, U, verbose = False):
-    #     assert False, '现在用sparse_vec现在跑不了了'
-        
-    #     pca_model: PCA = self.pca_model
-    #     U_to_vec_model: DecisionTreeClassifier = self.U_to_vec_model
-    #     upstream_model = self.upstream_model
-    #     backend = self.backend
-    #     n_qubits = self.n_qubits
-        
-    #     device_gate_vec = pca_model.transform(jnp.array([U]))
-    #     device_gate_vec = U_to_vec_model.predict(device_gate_vec)[0]
-    #     ''' 基于预测的gate vector来构建子电路'''
-    #     device = int(device_gate_vec[0])
-    #     gate_vec = device_gate_vec[1:]
-    #     '''TODO: 万一有冲突怎么办'''
-    #     '''TODO:有可能找到的子电路还会使dist变大，可能需要类似残差的结构'''
-    #     layer2gates = upstream_model.reconstruct(
-    #         device, gate_vec)  # TODO: 如果出现全是0的怎么办
-    #     # print('reconstruct', layer_gates)
-        
-    #     return [layer2gates] #, device_gate_vec
-
-    #     involved_qubits = []
-    #     connected_sets = []  # [[q1, q2], [q3, q4]]  存了在path里面连接的比特组
-    #     for layer_gates in layer2gates:
-    #         for gate in layer_gates:
-    #             involved_qubits += gate['qubits']
-    #             set_indexs = []
-    #             for _index, _connected_set in enumerate(connected_sets):
-    #                 if any([_qubit in _connected_set for _qubit in gate['qubits']]):
-    #                     set_indexs.append(_index)
-
-    #             if len(set_indexs) == 0:
-    #                 connected_sets.append(list(gate['qubits']))
-    #             elif len(set_indexs) == 1:
-    #                 _index = set_indexs[0]
-    #                 connected_sets[_index] += gate['qubits']
-    #                 connected_sets[_index] = list(
-    #                     set(connected_sets[_index]))
-    #             elif len(set_indexs) > 2:
-    #                 new_connected_set = []
-    #                 for _index in set_indexs:
-    #                     new_connected_set += connected_sets[_index]
-    #                     connected_sets.remove(connected_sets[_index])
-    #                 connected_sets.append(new_connected_set)
-
-    #     return [[
-    #         create_unitary_gate(connected_set)
-    #         for connected_set in connected_sets
-    #     ]], device_gate_vec
 
     def save(self):
         with open(f'./temp_data/{self.name}.pkl', 'wb') as f:
@@ -604,6 +539,7 @@ def find_parmas(n_qubits, layer2gates, U, lr=1e-1, max_epoch=1000, allowed_dist=
     # opt = optax.sgd(learning_rate=lr)
     opt_state = opt.init(params)
 
+
     min_loss = 1e2
     best_params = params
 
@@ -627,7 +563,6 @@ def find_parmas(n_qubits, layer2gates, U, lr=1e-1, max_epoch=1000, allowed_dist=
         if min_loss > loss_value and epoch != 0:  # 如果很开始就set了，就可能会一下子陷入全局最优
             min_loss = loss_value
             best_params = params
-            # print(epoch)
             
             # _loss_value = cost_hst(best_params, U)
             # if abs(_loss_value - min_loss) > 1e-2:
@@ -662,33 +597,6 @@ def find_parmas(n_qubits, layer2gates, U, lr=1e-1, max_epoch=1000, allowed_dist=
         
     return best_params, min_loss, epoch
 
-# def hilbert_matrix_distance(n_qubits, total_layers, U, params):
-#     dev = qml.device("default.qubit", wires=n_qubits*2)
-#     @qml.qnode(dev, interface="jax")  # interface如果没有jax就不会有梯度
-#     def hilbert_test():
-#         for q in range(n_qubits):
-#             qml.Hadamard(wires=q)
-
-#         for q in range(n_qubits):
-#             qml.CNOT(wires=[q, q+n_qubits])
-
-#         qml.QubitUnitary(U.conj(), wires=list(range(n_qubits)))
-#         layer_circuit_to_pennylane_circuit(
-#             total_layers, params=params, offest=n_qubits)
-
-#         for q in range(n_qubits):
-#             qml.CNOT(wires=[q, q+n_qubits])
-
-#         for q in range(n_qubits):
-#             qml.Hadamard(wires=q)
-
-#         return qml.probs(list(range(n_qubits*2)))
-
-#     def cost_hst():
-#         probs = hilbert_test()
-#         return (1 - probs[0])
-    
-#     return  1 - math.sqrt(1-cost_hst())
 
 def _optimize(now_layers, new_layers, n_optimized_layers, U, lr, n_iter_no_change, n_qubits, allowed_dist, now_dist, remote = False):
     if not remote:
@@ -722,9 +630,7 @@ def _optimize(now_layers, new_layers, n_optimized_layers, U, lr, n_iter_no_chang
     
     epoch_finetunes = [epoch_spent]
     qml_dists = [qml_dist]
-
-    qml_dist_finetune = qml_dist
-    while len(epoch_finetunes) < 5: # and n_qubits <= 5:
+    while len(epoch_finetunes) < 5:
         lr = max([qml_dist/5, 1e-2])  # 1e-1?
         params_finetune, qml_dist_finetune, epoch_finetune = find_parmas(n_qubits, total_layers, U, max_epoch=500, allowed_dist=allowed_dist,
                                                     n_iter_no_change=5, no_change_tolerance=qml_dist/100, random_params=False, lr=lr, verbose=False)
@@ -741,7 +647,7 @@ def _optimize(now_layers, new_layers, n_optimized_layers, U, lr, n_iter_no_chang
         # optimize_time = optimize_time / sum(epoch_finetunes) * 5
         optimize_time = 0
     else:
-        if qml_dist_finetune - qml_dist >= -1e-5:
+        if qml_dist_finetune > qml_dist:
             optimize_time = optimize_time / sum(epoch_finetunes) * epoch_spent
         pass
             
@@ -763,7 +669,7 @@ def _optimize_remote(total_layers, new_layers, n_optimized_layers, invU, lr, n_i
 
 
 def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: SynthesisModelNN = None, multi_process=True, 
-               verbose=False, lagre_block_penalty=2, timeout = 7*24*3600, synthesis_log = None, n_unitary_candidates = 40):
+               verbose=False, lagre_block_penalty=2, timeout = 5*3600, synthesis_log = None, n_unitary_candidates = 40):
     # heuristic_ratio = .5, 
 
     if synthesis_log is not None:
@@ -807,7 +713,7 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
         canditate_layers = []
 
         # device_gate_vec = None
-        if use_heuristic and iter_count != 0: # and now_dist > .5:
+        if use_heuristic: # and now_dist > .5:
         # if use_heuristic and heuristic_ratio > random() and iter_count != 0 and now_dist > 0.3:
             '''相似的酉矩阵矩阵可能会导致重复插入相似的电路'''
             # canditates, device_gate_vec = heuristic_model.choose(remained_U,)
@@ -815,72 +721,74 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
             start_heuristic_time = time.time()
             canditates = heuristic_model.choose(remained_U, verbose = True)
             canditate_layers += canditates
-            # if  time.time() - start_heuristic_time > 5:
-            print('use heuristic costs', time.time() - start_heuristic_time, 's')  # 五比特花了13s
+            if  time.time() - start_heuristic_time > 5:
+                print('use heuristic costs', time.time() - start_heuristic_time, 's')  # 五比特花了13s
 
         # if True:
         # if not use_heuristic or device_gate_vec is None or (former_device_gate_vec is not None and jnp.allclose(device_gate_vec, former_device_gate_vec)):
         '''explore最优的子电路'''
         # 单比特直接搞一层算了
-        new_layer = []  # 整个空的，就是单纯的findtune
-        for _q in range(n_qubits):
-            new_layer.append(create_unitary_gate([_q])[0][0])
-        canditate_layers.append([new_layer])
 
         # max_n_subset_qubits = max([3, int(n_qubits//2)]) + 1
         # max_n_subset_qubits = max([3, int(n_qubits//3*2)]) + 1
         
-        if iter_count != 0:
+        if True: #iter_count != 0:
             unitary_candidates = []
             # max_n_subset_qubits = max([3, n_qubits - 1])
             # max_n_subset_qubits_step = max([1, (max_n_subset_qubits-3)//2])
             # TODO: 可能后面要设置成关于n_qubits的函数
             # for n_subset_qubits in [2, 3] + list(range(max_n_subset_qubits, 3, -max_n_subset_qubits_step)):
 
-            if n_qubits >= 8:
-                n_subset_qubits = 4
+            # for n_subset_qubits in [3]: #[2, 3]: #[2, 3]:
+            #     if n_qubits <= n_subset_qubits:  # 不会生成大于自己的比特数的子电路
+            #         continue
+
+            #     for subset_qubits in backend.get_connected_qubit_sets(n_subset_qubits):
+            #         # for _ in range(3): # 多来两次会不会效果好一些, 不会
+            #         unitary_candidates.append(
+            #             create_unitary_gate(subset_qubits))
+
+            if n_qubits > 5:
+                n_subset_qubits = 4 # n_qubits - 2
                 for subset_qubits in backend.get_connected_qubit_sets(n_subset_qubits):
                     unitary_candidates.append(
                         create_unitary_gate(subset_qubits))
-            else:
-                for n_subset_qubits in [3]: #[2, 3]: #[2, 3]:
-                    if n_qubits <= n_subset_qubits:  # 不会生成大于自己的比特数的子电路
-                        continue
-
-                    for subset_qubits in backend.get_connected_qubit_sets(n_subset_qubits):
-                        unitary_candidates.append(create_unitary_gate(subset_qubits))
-
+            
+            if n_qubits > 8:
+                n_subset_qubits = 6
+                for subset_qubits in backend.get_connected_qubit_sets(n_subset_qubits):
+                    unitary_candidates.append(
+                        create_unitary_gate(subset_qubits))  
+ 
             # 增加多层的，尽量减少冗余的
+
             canditate_layers += unitary_candidates
             
-            multi_layer_block_size = 2
-            if n_qubits >= 8:
-                multi_layer_block_size = 3
-
-            
-            #  这里如果要先全部遍历在生成会很慢
-            
-            qubit_sets_for_multilayer_unitary_candidates = list(itertools.product(*[backend.get_connected_qubit_sets(multi_layer_block_size) + [None] for depth in range(n_qubits - 2)]))
-            if len(qubit_sets_for_multilayer_unitary_candidates) > n_unitary_candidates:
-                qubit_sets_for_multilayer_unitary_candidates = sample(qubit_sets_for_multilayer_unitary_candidates, k = n_unitary_candidates)
-                
             multilayer_unitary_candidates = []
-            
-            for qubit_sets in qubit_sets_for_multilayer_unitary_candidates:  # 
+            for qubit_sets in itertools.product(*[backend.get_connected_qubit_sets(2) for depth in range(n_qubits)]):  # 
                 # TODO: 需要判断比如前后的是不是有一个是子集
                 multi_layer_candiate = []
                 for gate_qubits in qubit_sets:
-                    if gate_qubits is None: 
-                        continue
                     multi_layer_candiate += create_unitary_gate(gate_qubits)
                 multilayer_unitary_candidates.append(multi_layer_candiate)
             
+            if len(multilayer_unitary_candidates) > n_unitary_candidates:
+                multilayer_unitary_candidates = sample(multilayer_unitary_candidates, k = n_unitary_candidates)
             canditate_layers += multilayer_unitary_candidates
-
         
         for candidate in canditate_layers:
             eliminate_candiate_rep(candidate)
-            
+
+        if iter_count == 0:
+            new_layer = []  # 整个空的，就是单纯的findtune
+            for _q in range(n_qubits):
+                new_layer.append(create_unitary_gate([_q])[0][0])
+    
+            canditate_layers = [
+                [copy.deepcopy(new_layer)] + candiate
+                for candiate in canditate_layers
+            ]
+
         # maximum_n_canditates = 15
         # if len(canditate_layers) > maximum_n_canditates:
         #     canditate_layers = sample(canditate_layers, k = maximum_n_canditates)
@@ -912,10 +820,7 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
                 # n_optimized_layers = 5 + len(candidate_layer)  # TODO: 需要尝试的超参数,看下前面几层的变化大不大
                 n_optimized_layers = 5 + len(candidate_layer)
             
-            '''还没有试过效果, 似乎现在第一次和第二次的结果都差不多'''
-            # if n_qubits > 5: 
-            #     n_optimized_layers = len(total_layers) + len(candidate_layer)
-            
+
             if now_dist < 1e-2:
                 n_iter_no_change = 20
                 # lr = .01
@@ -925,7 +830,6 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
 
             lr = max([now_dist/5, 1e-2])  # TODO: 需要尝试的超参数
             if multi_process:
-                # max_cpu_num
                 futures.append([candidate_layer, _optimize_remote.remote(
                     total_layers, candidate_layer, n_optimized_layers, U, lr, n_iter_no_change, n_qubits, allowed_dist, now_dist)])
             else:
@@ -1008,16 +912,14 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
                 print('Warning: no improvement in the exploration')
             future = random_choice(futures)
             best_candidate, (remained_U, total_layers, c_qml_dist, now_dist, epoch_spent, subp_time) = future
-            
+            best_candidate = best_candidate[0][0]
             
             if synthesis_log is not None:
                 synthesis_log['print'].append(['Warning: no improvement in the exploration'])
-        try:
-            best_candidate = best_candidate[0][0]
-            if best_candidate['name'] == 'empty':
-                subp_times = subp_times[:-(len(futures)-1)]  # empty是没有拟合好导致的，所以时间不算
-        except:
-            traceback.print_exc()
+
+        
+        if best_candidate['name'] == 'empty':
+            subp_times = subp_times[:-(len(futures)-1)]  # empty是没有拟合好导致的，所以时间不算
 
         if verbose:
             # 只显示一部分就好了，不然太乱了
@@ -1085,8 +987,8 @@ def synthesize(U, backend: Backend, allowed_dist=1e-5, heuristic_model: Synthesi
 
     '''最后finetune一下，反而变差了感觉像是hl_test对global phase也敏感的原因'''
 
-    if verbose:
-        print('cpu_time:', subp_times)
+    # if verbose:
+    #     print('compose')
 
     qiskit_circuit: QuantumCircuit = layered_circuits_to_qiskit(
         n_qubits, new_total_layers, barrier=False)
@@ -1218,7 +1120,7 @@ def synthesize_unitary_gate(gate: dict, backend: Backend, allowed_dist=1e-10, la
         #         subp_times.append(subp_time)
         else:
             synthesized_circuit, subp_time = synthesize(
-                unitary, backend_3q, allowed_dist, multi_process=multi_process, lagre_block_penalty=lagre_block_penalty, verbose=False, n_unitary_candidates = 10)
+                unitary, backend_3q, allowed_dist, multi_process=multi_process, lagre_block_penalty=lagre_block_penalty, verbose=False)
             # subp_times.append(subp_time)
 
     '''需要映射回去'''
