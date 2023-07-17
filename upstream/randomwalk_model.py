@@ -441,7 +441,8 @@ class RandomwalkModel():
             circuit_info['gate_paths'].append(paths)
             
             vec = np.zeros(self.max_table_size, dtype=np.float32)
-            vec[np.array(_path_index)] = 1.
+            if len(_path_index) != 0:
+                vec[np.array(_path_index)] = 1.
             circuit_info['vecs'].append(vec)
 
         return circuit_info

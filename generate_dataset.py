@@ -143,11 +143,6 @@ def gen_train_dataset(n_qubits, topology, neighbor_info, coupling_map, dataset_s
         for cir in dataset:
             dataset_machine.append(cir['layer2gates'])
 
-        with open('execute_18bits_validate_1500.pkl','wb')as f:
-            pickle.dump(dataset_machine, f)
-
-        with open('execute_18bits_validate_1500_more_info.pkl','wb')as f:
-            pickle.dump(dataset, f)
         
     return dataset
     

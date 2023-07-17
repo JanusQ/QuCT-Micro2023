@@ -294,7 +294,7 @@ class Backend():
             
         self._true_coupling_map = list(self.coupling_map)
         # describe qubits that have mutual interactions
-        
+
         if neighbor_info is None:
             self.neighbor_info = copy.deepcopy(topology)
         else:
@@ -413,3 +413,5 @@ class FullyConnectedBackend(Backend):
 if __name__ == "__main__":
     topology = gen_grid_topology(4)
     neigh_info = get_grid_neighbor_info(4, 1)
+from utils.backend import Backend
+

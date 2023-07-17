@@ -160,8 +160,8 @@ class FidelityModel():
             import pickle 
             if verbose:
                 print(f'epoch: {epoch}, \t epoch loss = {sum(loss_values)}, \t test loss = {test_loss}')
-                with open (f'params_{epoch}.pkl', 'wb') as f:
-                    pickle.dump(params,f)
+                # with open (f'params_{epoch}.pkl', 'wb') as f:
+                #     pickle.dump(params,f)
             # params = best_params
         
         self.error_params = best_params

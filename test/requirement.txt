@@ -1,0 +1,13 @@
+qiskit-ignis
+tensorcircuit
+optax
+ray
+numpy
+jax==0.4.3
+qiskit
+matplotlib
+scikit-learn
+cloudpickle
+pennylane
+bqskit
+tqdm

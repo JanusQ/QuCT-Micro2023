@@ -2,7 +2,7 @@ import copy
 import numpy as np
 
 from circuit.parser import get_circuit_duration
-
+import ray
 
 def get_extra_info(dataset):
     def get_layer_type_divide(layer2instructions):
@@ -99,96 +99,100 @@ def get_xeb_fidelity(dataset):
     return np.array(xebs)
     
 def make_circuitlet(dataset):
-    result = []
+    futures = []
     
-    for i, circuit in enumerate(dataset):
-        result += cut_circuit(circuit)
+    for start in range(0, len(dataset), 100):
+        futures.append(cut_circuit.remote(dataset[start:start+100]))
         
+    result = []
+    for future in futures:
+        result += ray.get(future)
     return result
-        
-def cut_circuit(circuit):
+
+@ray.remote
+def cut_circuit(circuits):
     # save_gates = copy.deepcopy(circuit['gates'])
     result = []
-    patterns = circuit['devide_qubits']
-    for pattern in patterns:
-        new_index = list(range(len(pattern)))
-        
-        qubit_map = {}
-        reverse_qubit_map = {}
-        
-        for i in range(len(pattern)):
-            qubit_map[new_index[i]] = pattern[i]
-            reverse_qubit_map[pattern[i]] = new_index[i]
-        
-        circ_let = {}
-        
-        #hard code
-        circ_let['qiskit_circuit']=None
-        
-        circ_let['num_qubits']=len(pattern)
-        circ_let['divide_qubits'] = [pattern]
-        circ_let['gate_paths']=[]
-        circ_let['sparse_vecs']=[]
-        circ_let['vecs']=[]
-        
-        circ_let['layer2gates'] = []
-        l2g_copy = copy.deepcopy(circuit['layer2gates'])
-        for layer in l2g_copy:
-            new_layer = []
-            for gate in layer:
+    for circuit in circuits:
+        patterns = circuit['devide_qubits']
+        for pattern in patterns:
+            new_index = list(range(len(pattern)))
+            
+            qubit_map = {}
+            reverse_qubit_map = {}
+            
+            for i in range(len(pattern)):
+                qubit_map[new_index[i]] = pattern[i]
+                reverse_qubit_map[pattern[i]] = new_index[i]
+            
+            circ_let = {}
+            
+            #hard code
+            circ_let['qiskit_circuit']=None
+            
+            circ_let['num_qubits']=len(pattern)
+            circ_let['divide_qubits'] = [pattern]
+            circ_let['gate_paths']=[]
+            circ_let['path_indexs']=[]
+            circ_let['vecs']=[]
+            
+            circ_let['layer2gates'] = []
+            l2g_copy = copy.deepcopy(circuit['layer2gates'])
+            for layer in l2g_copy:
+                new_layer = []
+                for gate in layer:
+                    if set(gate['qubits']) & set(pattern):
+                        new_layer.append(gate)
+                if len(new_layer) != 0:
+                    circ_let['layer2gates'].append(new_layer)
+            
+            circ_let['gates'] = []
+            circ_let['gate2layer'] = []
+            gates_copy = copy.deepcopy(circuit['gates'])
+            for gate in gates_copy:
                 if set(gate['qubits']) & set(pattern):
-                    new_layer.append(gate)
-            if len(new_layer) != 0:
-                circ_let['layer2gates'].append(new_layer)
-        
-        circ_let['gates'] = []
-        circ_let['gate2layer'] = []
-        gates_copy = copy.deepcopy(circuit['gates'])
-        for gate in gates_copy:
-            if set(gate['qubits']) & set(pattern):
-                circ_let['gates'].append(gate)
-                circ_let['gate2layer'].append(circuit['gate2layer'][gate['id']])
-        # save_gates2 = copy.deepcopy(circ_let['gates'])
-        #process index
-        # print(reverse_qubit_map)
-        for gate in circ_let['gates']:
-            for i in range(len(gate['qubits'])):
-                gate['qubits'][i]=reverse_qubit_map[gate['qubits'][i]]
-        
-        for layer in circ_let['layer2gates']:
-            for gate in layer:
+                    circ_let['gates'].append(gate)
+                    circ_let['gate2layer'].append(circuit['gate2layer'][gate['id']])
+            # save_gates2 = copy.deepcopy(circ_let['gates'])
+            #process index
+            # print(reverse_qubit_map)
+            for gate in circ_let['gates']:
                 for i in range(len(gate['qubits'])):
                     gate['qubits'][i]=reverse_qubit_map[gate['qubits'][i]]
-                    
-        for gate in circ_let['gates']:
-            circ_let['gate_paths'].append(circuit['gate_paths'][gate['id']])
-            circ_let['sparse_vecs'].append(circuit['sparse_vecs'][gate['id']])
-            circ_let['vecs'].append(circuit['vecs'][gate['id']])
-        
-        circ_let['gate_num']=len(circ_let['gates'])
-        
-        circ_let['map'] = qubit_map
-        circ_let['reverse_map'] = reverse_qubit_map
-        
-        circ_let['duration'] = get_circuit_duration(circ_let['layer2gates'])
-        
-        
-        for idx, gate in enumerate(circ_let['gates']):
-            gate['id'] = idx
             
-        layer2gates = []
-        idx = 0
-        for layer, gates in enumerate(circ_let['layer2gates']):
-            new_layer = []
-            for _ in range(len(circ_let['layer2gates'][layer])):
-                circ_let['gate2layer'][idx] = layer
-                new_layer.append(circ_let['gates'][idx])
-                idx += 1
-            layer2gates.append(new_layer)
-        circ_let['layer2gates'] = layer2gates
-        
-
-        result.append(circ_let)
+            for layer in circ_let['layer2gates']:
+                for gate in layer:
+                    for i in range(len(gate['qubits'])):
+                        gate['qubits'][i]=reverse_qubit_map[gate['qubits'][i]]
+                        
+            for gate in circ_let['gates']:
+                circ_let['gate_paths'].append(circuit['gate_paths'][gate['id']])
+                circ_let['path_indexs'].append(circuit['path_indexs'][gate['id']])
+                circ_let['vecs'].append(circuit['vecs'][gate['id']])
+            
+            circ_let['gate_num']=len(circ_let['gates'])
+            
+            circ_let['map'] = qubit_map
+            circ_let['reverse_map'] = reverse_qubit_map
+            
+            circ_let['duration'] = get_circuit_duration(circ_let['layer2gates'])
+            
+            
+            for idx, gate in enumerate(circ_let['gates']):
+                gate['id'] = idx
+                
+            layer2gates = []
+            idx = 0
+            for layer, gates in enumerate(circ_let['layer2gates']):
+                new_layer = []
+                for _ in range(len(circ_let['layer2gates'][layer])):
+                    circ_let['gate2layer'][idx] = layer
+                    new_layer.append(circ_let['gates'][idx])
+                    idx += 1
+                layer2gates.append(new_layer)
+            circ_let['layer2gates'] = layer2gates
+            
+            result.append(circ_let)
     
     return result
     
