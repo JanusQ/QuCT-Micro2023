@@ -1,49 +1,22 @@
 import copy
 import pickle
-from jax import numpy as jnp
-from jax import vmap
-import jax
 import numpy as np
-from numpy import random
-import time
-from qiskit.quantum_info.analysis import hellinger_fidelity
 import ray
 import matplotlib.pyplot as plt
-from copy import deepcopy
-from circuit.dataset_loader import gen_random_circuits
 from circuit.formatter import layered_circuits_to_qiskit
-from downstream.fidelity_predict.fidelity_analysis import FidelityModel, smart_predict, error_param_rescale
+from downstream.fidelity_predict.fidelity_analysis import FidelityModel
 from simulator.noise_simulator import NoiseSimulator
-
 from upstream.randomwalk_model import RandomwalkModel, extract_device
-from qiskit import QuantumCircuit, transpile
 from collections import defaultdict
-from circuit.parser import get_circuit_duration
-from utils.backend import Backend, gen_grid_topology, gen_linear_topology, topology_to_coupling_map
+from utils.backend import Backend,  gen_linear_topology, topology_to_coupling_map
 from circuit.dataset_loader import gen_algorithms
 from utils.ray_func import wait
-from circuit.parser import get_circuit_duration, qiskit_to_layered_circuits
-from circuit.dataset_loader import gen_random_circuits
+from circuit.parser import  qiskit_to_layered_circuits
 from circuit.formatter import layered_circuits_to_qiskit, get_layered_instructions, qiskit_to_my_format_circuit
-from downstream.fidelity_predict.fidelity_analysis import smart_predict, error_param_rescale
-from simulator.noise_free_simulator import simulate_noise_free
 from simulator.noise_simulator import NoiseSimulator
-from qiskit.transpiler.preset_passmanagers import (
-    level_0_pass_manager,
-    level_1_pass_manager,
-    level_2_pass_manager,
-    level_3_pass_manager,
-)
-from qiskit.transpiler.passmanager_config import PassManagerConfig
-from qiskit.compiler.transpiler import _parse_coupling_map, _parse_initial_layout
-from plot.plot import plot_duration_fidelity, plot_top_ratio, find_error_path, plot_correlation, plot_real_predicted_fidelity
-from simulator import NoiseSimulator, get_random_erroneous_pattern
 from downstream.fidelity_predict.baseline.rb import get_errors as get_errors_rb
-from circuit.parser import get_circuit_duration
 from qiskit.transpiler.passes import CrosstalkAdaptiveSchedule
-from qiskit.providers.models import BackendProperties
 from qiskit.converters import circuit_to_dag, dag_to_circuit
-
 
 def count_error_path_num(circuit_info, model: RandomwalkModel):
 
@@ -81,22 +54,6 @@ def count_error_path_num(circuit_info, model: RandomwalkModel):
         n_erroneous_patterns.append(error_count)
        
     return n_erroneous_patterns
-
-
-
-def get_xeb_fidelity(circuit_info):
-        fidelity = 1
-        for gate in circuit_info['gates']:
-            device = extract_device(gate)
-            if isinstance(device, tuple):
-                # device = (circuit_info['map'][device[0]],
-                        # circuit_info['map'][device[1]])
-                fidelity = fidelity * (1 - couple_average_error[device])
-            else:
-                # device = circuit_info['map'][device]
-                fidelity = fidelity * (1 - single_average_error[device])
-        # * np.product((measure0_fidelity + measure1_fidelity) / 2)
-        return fidelity
     
 def opt_move(circuit_info, downstream_model, threshold):
     upstream_model = downstream_model.upstream_model 
@@ -335,15 +292,9 @@ if __name__ == '__main__':
     backend.routing = 'sabre'
     backend.optimzation_level = 3
 
-    for algo in algos_baseline:
-        from circuit.parser import get_circuit_duration
         
-        print(get_circuit_duration(algo['layer2gates']))
-        print(algo['id'], len(algo['layer2gates']))
-        print(algo['qiskit_circuit'])
-        print()
-        
-    with open(f"error_params_predicts_5.pkl", "rb")as f:
+
+    with open(f"quct_model.pkl", "rb")as f:
         downstream_model, predicts, reals, durations, _ = pickle.load(f)
         downstream_model: FidelityModel = downstream_model
         upstream_model: RandomwalkModel = downstream_model.upstream_model
@@ -367,28 +318,12 @@ if __name__ == '__main__':
             couple_average_error[tuple(c)] = e
             
         print(single_average_error, couple_average_error)
-        with open(f"rb_error.pkl", "wb")as f:
+        with open(f"rb_model.pkl", "wb")as f:
             pickle.dump((single_average_error, couple_average_error,rb_error), f)
     else:
-        with open(f"rb_error.pkl", "rb")as f:
+        with open(f"rb_model.pkl", "rb")as f:
             single_average_error, couple_average_error, rb_error = pickle.load(f)
-    '''对比rb predict和 step 1 predict和real'''
-    '''条形统计图'''
-
     
-    # reals =run_simulate(algos_baseline)
-    # predicts , rbs = [],[]
-    # for cir in algos_baseline:
-    #     veced_cir = upstream_model.vectorize(cir)
-    #     predicts.append(downstream_model.predict_fidelity(veced_cir))
-    #     rbs.append(get_xeb_fidelity(cir))
-    
-    # rbs = np.array(rbs)
-    # predicts = np.array(predicts)
-    # reals = np.array(reals)
-    # print(rbs, predicts , reals )
-    # print('inacc: rb', np.abs(reals-rbs).mean())
-    # print('inacc: quct', np.abs(reals-predicts).mean())
     
     # fig, axes = plt.subplots(figsize=(15, 10))  
     # x = [i for i in range(len(algos_baseline))]
@@ -398,7 +333,16 @@ if __name__ == '__main__':
     # axes.bar(x+4,reals,width =2,label='reals')
     # fig.legend()
     # fig.savefig('opt_5bit/rb_error.svg')
-    
+
+    # fig, axes = plt.subplots(figsize=(15, 10))  
+    # x = [i for i in range(len(algos_baseline))]
+    # x = np.array(x) * 10
+    # axes.bar(x,predicts,width =2,label='predicts')
+    # axes.bar(x+2,rbs,width =2,label='rbs')
+    # axes.bar(x+4,reals,width =2,label='reals')
+    # fig.legend()
+    # fig.savefig('opt_5bit/rb_error.svg')
+
     
     for _ in range(10):
         backend.routing = 'sabre'
@@ -427,13 +371,16 @@ if __name__ == '__main__':
         backend.routing = 'sabre'
 
     '''要跑的'''
+    
+    names = [circuit_info['alg_id'] for circuit_info in algos_baseline]
+    
     algos_routing = [alg2best_circuitinfo[circuit_info['id']] for circuit_info in algos_baseline]
 
     '''要跑的'''
-    algos_schedule = wait([opt_move(circuit_info, downstream_model, threshold = 0.005) for circuit_info in algos_baseline])
+    algos_schedule = wait([opt_move_remote.remote(circuit_info, downstream_model, threshold = 0.005) for circuit_info in algos_baseline])
 
     '''要跑的'''
-    algos_routing_schedule = wait([opt_move(circuit_info, downstream_model, threshold = 0.005)  for circuit_info in algos_routing]) #TODO: 0.01
+    algos_routing_schedule = wait([opt_move_remote.remote(circuit_info, downstream_model, threshold = 0.005)  for circuit_info in algos_routing]) #TODO: 0.01
 
 
     algos_satmap = gen_algorithms(n_qubits, backend, mirror = True, trans= True)
@@ -464,7 +411,7 @@ if __name__ == '__main__':
 
     fig, axes = plt.subplots(figsize=(15, 10))  
     x = [i for i in range(len(algos_baseline))]
-    x = np.array(x) * 15
+    x = np.array(x) * 20
     axes.bar(x,reals_baseline,width =2,label='reals_baseline')
 
     axes.bar(x+2,reals_routing,width =2,label='reals_routing')
@@ -474,9 +421,10 @@ if __name__ == '__main__':
     axes.bar(x+8,reals_satmap,width =2,label='reals_satmap')
     axes.bar(x+10,reals_crosstalk,width =2,label='reals_crosstalk')
     axes.bar(x+12,reals_satmap_crosstalk,width =2,label='reals_satmap_crosstalk')
-
+    axes.set_xticks(x)
+    axes.set_xticklabels(names)
     fig.legend()
-    fig.savefig('evals.svg')
+    fig.savefig('reals.svg')
 
     print(reals_baseline)
 
@@ -500,7 +448,7 @@ if __name__ == '__main__':
 
     fig, axes = plt.subplots(figsize=(15, 10))  
     x = [i for i in range(len(algos_baseline))]
-    x = np.array(x) * 15
+    x = np.array(x) * 20
     # axes.bar(x,reals_baseline,width =2,label='reals_baseline')
 
     axes.bar(x+2,reals_routing/reals_baseline,width =2,label='reals_routing')
@@ -510,7 +458,8 @@ if __name__ == '__main__':
     axes.bar(x+8,reals_satmap/reals_baseline,width =2,label='reals_satmap')
     axes.bar(x+10,reals_crosstalk/reals_baseline,width =2,label='reals_crosstalk')
     axes.bar(x+12,reals_satmap_crosstalk/reals_baseline,width =2,label='reals_satmap_crosstalk')
-
+    axes.set_xticks(x)
+    axes.set_xticklabels(names)
     fig.legend()
     fig.savefig('improve.svg')
 
