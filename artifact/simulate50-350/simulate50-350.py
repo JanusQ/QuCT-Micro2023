@@ -114,7 +114,7 @@ for size, n_qubits in zip(size_list, qubit_list):
     
     print('average inaccuracy = ', np.abs(predicts - reals).mean())
 
-    all_errors = get_errors(backend, upstream_model=None, multi_process=True)
+    all_errors = get_errors(backend, simulator, upstream_model=None, multi_process=True)
     print(all_errors)
     single_average_error = {}
     couple_average_error = {}
