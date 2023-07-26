@@ -15,7 +15,7 @@ from utils.backend import default_basis_single_gates, default_basis_two_gates
 import copy
 import os
 from upstream import RandomwalkModel
-import cloudpickle as pickle
+# import cloudpickle as pickle
 from qiskit import assemble, transpile
 import ray
 
@@ -80,7 +80,7 @@ def run_rb(backend, simulator, rb_pattern, rb_circs, xdata, target_qubits, upstr
             
         # Add title and label
         # ax.set_title('%d Qubit RB'%(nQ), fontsize=18)
-        fig.savefig(f'./simulate_50_350/{n_totoal_qubits}/{involved_qubits}_rb.svg')
+        # fig.savefig(f'./simulate_50_350/{n_totoal_qubits}/{involved_qubits}_rb.svg')
         plt.close()
         # plt.show()
 
@@ -102,7 +102,7 @@ def get_error_1q(target_qubit, backend, simulator, length_range = [20, 1500], up
 
     # print(rb_circs[0][-1])
 
-    gpc, epc = run_rb(backend, simulator, rb_pattern, rb_circs, xdata, target_qubits, upstream_model = upstream_model, plot = True, involved_qubits = target_qubit)
+    gpc, epc = run_rb(backend, simulator, rb_pattern, rb_circs, xdata, target_qubits, upstream_model = upstream_model, plot = False, involved_qubits = target_qubit)
 
     # calculate 1Q EPGs
     epg = rb.calculate_1q_epg(gate_per_cliff=gpc, epc_1q=epc, qubit=target_qubit)
@@ -124,7 +124,7 @@ def get_error_2q(target_qubits, error_1qs, backend, simulator, length_range = [2
 
     # print(rb_circs[0][-1])
 
-    gpc, epc = run_rb(backend, simulator, rb_pattern, rb_circs, xdata, target_qubits, upstream_model = upstream_model, plot = True, involved_qubits = target_qubits)
+    gpc, epc = run_rb(backend, simulator, rb_pattern, rb_circs, xdata, target_qubits, upstream_model = upstream_model, plot = False, involved_qubits = target_qubits)
 
     # calculate 1Q EPGs
     epg = rb.calculate_2q_epg(

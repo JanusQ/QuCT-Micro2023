@@ -21,7 +21,7 @@ from utils.backend import default_basis_single_gates, default_basis_two_gates
 import pickle
 
 
-def gen_validate_dataset(n_qubits, topology, neighbor_info, coupling_map):
+def gen_uncut_dataset(n_qubits, topology, neighbor_info, coupling_map):
     backend = Backend(n_qubits=n_qubits, topology=topology, neighbor_info=neighbor_info, basis_single_gates=default_basis_single_gates,
                       basis_two_gates=default_basis_two_gates, divide=False, decoupling=False)
 
@@ -36,14 +36,10 @@ def gen_validate_dataset(n_qubits, topology, neighbor_info, coupling_map):
         cir['max_layer'] = max_layer
         dataset_machine.append(cir['layer2gates'])
 
-    with open('execute_300.pkl', 'wb')as f:
-        pickle.dump(dataset_machine, f)
-
-    with open('execute_more_info_300.pkl','wb')as f:
-        pickle.dump(dataset, f)
+    return dataset
 
 
-def gen_train_dataset(n_qubits, topology, neighbor_info, coupling_map, dataset_size, min_cut_qubit = 5, align = False, devide_size=5,circuit_type = 'random'):
+def gen_cut_dataset(n_qubits, topology, neighbor_info, coupling_map, dataset_size, min_cut_qubit = 5, align = False, devide_size=5,circuit_type = 'random'):
     covered_couplng_map = set()
     dataset = []
 
@@ -212,21 +208,21 @@ def gen_various_input_validate():
             
 
 
-size = 6
-n_qubits = 18
-topology = gen_grid_topology(size)  # 3x3 9 qubits
-new_topology = defaultdict(list)
-for qubit in topology.keys():
-    if qubit < n_qubits:
-        for ele in topology[qubit]:
-            if ele < n_qubits:
-                new_topology[qubit].append(ele)
-topology = new_topology
-neighbor_info = copy.deepcopy(topology)
-coupling_map = topology_to_coupling_map(topology)
+# size = 6
+# n_qubits = 18
+# topology = gen_grid_topology(size)  # 3x3 9 qubits
+# new_topology = defaultdict(list)
+# for qubit in topology.keys():
+#     if qubit < n_qubits:
+#         for ele in topology[qubit]:
+#             if ele < n_qubits:
+#                 new_topology[qubit].append(ele)
+# topology = new_topology
+# neighbor_info = copy.deepcopy(topology)
+# coupling_map = topology_to_coupling_map(topology)
 
-# gen_train_dataset(n_qubits, topology, neighbor_info, coupling_map, dataset_size = 1500,circuit_type = 'random')
-gen_validate_dataset(n_qubits, topology, neighbor_info, coupling_map)
-# gen_algorithm_dataset(n_qubits, topology, neighbor_info, coupling_map, True)
-# gen_algorithm_dataset(n_qubits, topology, neighbor_info, coupling_map, False)
-# gen_various_input_validate()
+# # gen_cut_dataset(n_qubits, topology, neighbor_info, coupling_map, dataset_size = 1500,circuit_type = 'random')
+# gen_validate_dataset(n_qubits, topology, neighbor_info, coupling_map)
+# # gen_algorithm_dataset(n_qubits, topology, neighbor_info, coupling_map, True)
+# # gen_algorithm_dataset(n_qubits, topology, neighbor_info, coupling_map, False)
+# # gen_various_input_validate()

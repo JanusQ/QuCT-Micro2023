@@ -215,7 +215,7 @@ class NoiseSimulator():
         fidelities = []
         independent_fidelities = []
         n_erroneous_patterns = []
-        step = 100
+        step = 50
         
         for start in range(0, len(dataset), step):
             sub_dataset = dataset[start:start + step]
