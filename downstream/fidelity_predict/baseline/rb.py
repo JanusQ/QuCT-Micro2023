@@ -15,7 +15,7 @@ from utils.backend import default_basis_single_gates, default_basis_two_gates
 import copy
 import os
 from upstream import RandomwalkModel
-import cloudpickle as pickle
+# import cloudpickle as pickle
 from qiskit import assemble, transpile
 import ray
 

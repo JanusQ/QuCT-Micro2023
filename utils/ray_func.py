@@ -5,7 +5,7 @@ import uuid
 from random import random
 import concurrent.futures
 from concurrent.futures._base import Future
-from collections import Iterable
+# from collections import Iterable
 from inspect import isgeneratorfunction
 from collections import defaultdict
 

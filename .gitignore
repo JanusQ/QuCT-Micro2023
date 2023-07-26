@@ -21,3 +21,5 @@ synthesis_result_baseline/*
 *.mat
 test/*
 tmp/*
+*.data
+jaxlib-0.4.11-cp310-cp310-win_amd64.whl
