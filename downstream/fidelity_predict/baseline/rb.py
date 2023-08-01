@@ -1,24 +1,17 @@
 # Import general libraries (needed for functions)
-import numpy as np
 import matplotlib.pyplot as plt
-from IPython import display
-
+import numpy as np
 # Import the RB Functions
 import qiskit.ignis.verification.randomized_benchmarking as rb
-from simulator import NoiseSimulator, get_random_erroneous_pattern
-# Import Qiskit classes
-import qiskit
-from simulator.noise_simulator import add_pattern_error_path
-from utils.backend import devide_chip, gen_grid_topology, get_grid_neighbor_info, Backend, topology_to_coupling_map
-from collections import defaultdict
-from utils.backend import default_basis_single_gates, default_basis_two_gates
-import copy
-import os
-from upstream import RandomwalkModel
-# import cloudpickle as pickle
-from qiskit import assemble, transpile
 import ray
+# import cloudpickle as pickle
+from qiskit import transpile
 
+from simulator import NoiseSimulator
+# Import Qiskit classes
+from simulator.noise_simulator import add_pattern_error_path
+from upstream import RandomwalkModel
+from utils.backend import Backend
 from utils.ray_func import wait
 
 

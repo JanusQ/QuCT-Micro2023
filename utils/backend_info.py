@@ -1,8 +1,8 @@
 '''Make sure that the circuit matches the hardware contraint'''
-import random
-from qiskit import QuantumCircuit, transpile
-import numpy as np
 from collections import defaultdict
+
+from qiskit import QuantumCircuit, transpile
+
 max_qubit_num = 5
 
 default_basis_gates = ['rx', 'ry', 'rz', 'cz']  # 'h',  # ['u', 'cz'] #

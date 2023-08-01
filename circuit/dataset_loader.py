@@ -1,12 +1,13 @@
-import traceback
+from qiskit import transpile
+
 from circuit.algorithm.get_data import get_dataset_bug_detection
-from circuit.formatter import layered_circuits_to_qiskit
+from qiskit.circuit.random import random_circuit as qiskit_random_circuit
+
+from circuit.algorithm.get_data import get_dataset_bug_detection
 from circuit.parser import get_circuit_duration, qiskit_to_layered_circuits
 from circuit.random_circuit import random_circuit, random_circuit_cycle
 from utils.backend import Backend
-from qiskit import transpile
 import ray
-from qiskit.circuit.random import random_circuit as qiskit_random_circuit
 
 def gen_random_circuits(min_gate: int, max_gate: int, n_circuits: int, two_qubit_gate_probs: list, backend: Backend, gate_num_step: int = 1,
                         reverse=True, optimize=False, multi_process=False, circuit_type='random'):

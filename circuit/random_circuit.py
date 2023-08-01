@@ -1,10 +1,11 @@
+import random
 from cmath import pi
 from collections import defaultdict
+
 from qiskit import QuantumCircuit
-import random
+
 # from utils.backend_info import default_basis_two_gates, default_basis_single_gates
 # from qiskit.converters import dag_to_circuit, circuit_to_dag
-import math
 
 '''
 randomly generate various circuit for noise analysis

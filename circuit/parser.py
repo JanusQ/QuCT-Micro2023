@@ -1,11 +1,10 @@
 import math
 
+import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister
 from qiskit.circuit import CircuitInstruction, Qubit
-from qiskit.dagcircuit import DAGOpNode
 
-from circuit.formatter import qiskit_to_my_format_circuit, layered_instructions_to_circuit,  get_layered_instructions
-import numpy as np
+from circuit.formatter import qiskit_to_my_format_circuit, get_layered_instructions
 
 
 def qiskit_to_layered_circuits(circuit, divide=False, decoupling=False):

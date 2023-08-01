@@ -1,8 +1,10 @@
 import copy
+
 import numpy as np
+import ray
 
 from circuit.parser import get_circuit_duration
-import ray
+
 
 def get_extra_info(dataset):
     def get_layer_type_divide(layer2instructions):

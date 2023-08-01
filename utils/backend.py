@@ -1,9 +1,9 @@
-import time
-from utils.backend_info import *
-from collections import defaultdict
-import math
 import copy
 import itertools as it
+import time
+import random
+
+from utils.backend_info import *
 
 
 def gen_washington_topology(n_qubit):

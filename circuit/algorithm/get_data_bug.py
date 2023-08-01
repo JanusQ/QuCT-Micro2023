@@ -1,5 +1,4 @@
 from qiskit.dagcircuit.dagnode import DAGOpNode
-from qiskit.dagcircuit.dagnode import DAGOpNode
 
 from circuit.formatter import my_circuit_to_dag
 

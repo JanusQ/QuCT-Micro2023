@@ -1,21 +1,18 @@
+import os
+import pickle
 import random
 from collections import defaultdict
-from qiskit.circuit import Instruction
-import pickle
-import os
-from circuit.parser import qiskit_to_layered_circuits
-from circuit.formatter import instruction2str
-import numpy as np
-from qiskit.circuit import QuantumCircuit
-from jax import grad, jit, vmap, pmap
-import ray
 from copy import deepcopy
-from jax import numpy as jnp
-import optax
-from upstream.sparse_dimensionality_reduction import sp_mds_reduce, sp_MDS, pad_to
+
+import numpy as np
+import ray
+from qiskit.circuit import QuantumCircuit
+
+from circuit.formatter import instruction2str
+from circuit.parser import qiskit_to_layered_circuits
 from utils.backend import Backend
-from circuit.formatter import layered_circuits_to_qiskit
 from utils.ray_func import wait
+
 
 # 利用随机游走来采样的方法
 

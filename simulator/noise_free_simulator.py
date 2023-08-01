@@ -1,7 +1,8 @@
 
-from qiskit import QuantumCircuit, execute
-from qiskit import IBMQ, Aer
 import copy
+
+from qiskit import Aer
+from qiskit import execute
 
 # 需要暴露电路中比特
 qasm_simulator = Aer.get_backend('qasm_simulator')

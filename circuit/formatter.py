@@ -219,7 +219,6 @@ QUBIT_NAME_OFFLINE = ['q3_15',
 
 def convert_layer(level):
     # Filter warnings for back-reference index of a qubit
-    import warnings
 
     QUBIT_NAME = QUBIT_NAME_OFFLINE
 

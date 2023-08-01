@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
+
 
 def get_duration2circuit_infos(durations,step,max_duration):
     durations = np.array(durations)

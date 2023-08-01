@@ -1,17 +1,12 @@
-import random
-from re import A
-
 import jax
-import matplotlib.pyplot as plt
 
 # import tensorflow as tf
 import numpy as np
 import optax
 
 # 还得传参数进去
-from jax import grad, jit
 from jax import numpy as jnp
-from jax import pmap, vmap
+from jax import vmap
 from sklearn.utils import shuffle
 
 

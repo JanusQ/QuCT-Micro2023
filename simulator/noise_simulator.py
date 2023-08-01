@@ -1,21 +1,19 @@
 import random
+import time
 from collections import defaultdict
 
-from qiskit_aer.noise import NoiseModel, pauli_error, depolarizing_error, thermal_relaxation_error
-
-from circuit.formatter import layered_circuits_to_qiskit
-
-from qiskit import QuantumCircuit, execute
-from qiskit import Aer
-
-from qiskit.quantum_info.analysis import hellinger_fidelity
-from numpy import pi
-
-from upstream.randomwalk_model import extract_device, RandomwalkModel
 import ray
+from numpy import pi
+from qiskit import Aer
+from qiskit import QuantumCircuit, execute
+from qiskit.quantum_info.analysis import hellinger_fidelity
+from qiskit_aer.noise import NoiseModel, depolarizing_error, thermal_relaxation_error
+
 from circuit.random_circuit import random_1q_layer
+from upstream.randomwalk_model import extract_device, RandomwalkModel
 from utils.backend import Backend
-import time
+
+
 # https://qiskit.org/documentation/tutorials/simulators/3_building_noise_models.html
 
 # backend_name = 'ibm_nairobi'
@@ -47,8 +45,6 @@ import time
 # print('coupling_map', coupling_map)
 
 # TODO: 目前没有考虑 T1/T2 thermal relaxation
-
-from simulator.noise_free_simulator import simulate_noise_free
 
 class NoiseSimulator():
 

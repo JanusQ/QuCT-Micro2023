@@ -1,24 +1,15 @@
-from collections import defaultdict
-import copy
-import matplotlib.pyplot as plt
 from circuit.dataset_loader import gen_algorithms
-from circuit.formatter import layered_circuits_to_executable_code
-from circuit.formatter import layered_circuits_to_qiskit
+import pickle
+import random
 
-from circuit.parser import get_circuit_duration, qiskit_to_layered_circuits
+from circuit import gen_random_circuits
+from circuit.dataset_loader import gen_algorithms
+from circuit.formatter import layered_circuits_to_qiskit
+from circuit.parser import qiskit_to_layered_circuits
 from circuit.random_circuit import random_1q_layer
 from circuit.utils import get_extra_info, stitching
-from plot.plot import plot_duration_fidelity, plot_top_ratio, find_error_path
-import random
-import numpy as np
-
-from circuit import gen_random_circuits, label_ground_truth_fidelity
-from upstream import RandomwalkModel
-from downstream import FidelityModel
-from simulator import NoiseSimulator
-from utils.backend import devide_chip, gen_grid_topology, get_devide_qubit, get_grid_neighbor_info, Backend, topology_to_coupling_map
 from utils.backend import default_basis_single_gates, default_basis_two_gates
-import pickle
+from utils.backend import get_devide_qubit, Backend
 
 
 def gen_uncut_dataset(n_qubits, topology, neighbor_info, coupling_map):

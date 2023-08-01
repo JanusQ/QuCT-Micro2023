@@ -1,18 +1,16 @@
-from collections import defaultdict
 import random
+from collections import defaultdict
 
-from qiskit import QuantumCircuit
-
-from upstream.dimensionality_reduction import batch
-import numpy as np
-from jax import numpy as jnp
 import jax
-from jax import vmap
+import numpy as np
 import optax
-
-from upstream.randomwalk_model import extract_device
-from upstream import RandomwalkModel
+from jax import numpy as jnp
+from jax import vmap
 from sklearn.model_selection import train_test_split
+
+from upstream import RandomwalkModel
+from upstream.dimensionality_reduction import batch
+from upstream.randomwalk_model import extract_device
 
 error_param_rescale = 10000  # TODO: 再大一些
 
@@ -156,8 +154,7 @@ class FidelityModel():
             if test_loss < min_loss:
                 min_loss = test_loss
                 best_params = params
-            
-            import pickle 
+
             if verbose:
                 print(f'epoch: {epoch}, \t epoch loss = {sum(loss_values)}, \t test loss = {test_loss}')
                 # with open (f'params_{epoch}.pkl', 'wb') as f:
@@ -303,8 +300,7 @@ class FidelityModel():
             if test_loss < min_loss:
                 min_loss = test_loss
                 best_params = params
-            
-            import pickle 
+
             if verbose:
                 print(f'epoch: {epoch}, \t epoch loss = {sum(loss_values)}, \t test loss = {test_loss}')
                 # with open (f'params_{epoch}.pkl', 'wb') as f:

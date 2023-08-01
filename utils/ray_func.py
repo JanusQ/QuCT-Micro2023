@@ -1,13 +1,10 @@
-import ray
-import threading
 import inspect
-import uuid
-from random import random
-import concurrent.futures
-from concurrent.futures._base import Future
 # from collections import Iterable
-from inspect import isgeneratorfunction
 from collections import defaultdict
+from concurrent.futures._base import Future
+
+import ray
+
 
 # 是不是需要远程执行的函数
 def is_ray_func(func):

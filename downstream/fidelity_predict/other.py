@@ -1,7 +1,11 @@
-from simulator.noise_simulator import *
 from qiskit import QuantumCircuit
 from utils.backend_info import  single_qubit_fidelity, two_qubit_fidelity, readout_error
 from upstream.randomwalk_model import RandomwalkModel
+from qiskit import QuantumCircuit
+
+from upstream.randomwalk_model import RandomwalkModel
+from utils.backend_info import single_qubit_fidelity, two_qubit_fidelity, readout_error
+
 
 def naive_predict(circuit):
     fidelity = 1

@@ -1,17 +1,13 @@
 import random
 
-from circuit.algorithm.algorithm2_sys import Algorithm
-from circuit.algorithm.dataset1_sys import hamiltonian_simulation, ising, qknn, qsvm, swap, vqe, QAOA_maxcut, grover
-from circuit.algorithm.dataset2_sys import deutsch_jozsa, multiplier, qec_5_x, qnn, qugan, simon, square_root
-
 from qiskit import QuantumCircuit, transpile, QuantumRegister
 from qiskit.circuit import Qubit
-from qiskit.circuit.random import random_circuit
 
+from circuit.algorithm.algorithm2_sys import Algorithm
+from circuit.algorithm.dataset1_sys import hamiltonian_simulation, ising, qknn, qsvm, grover
 from circuit.algorithm.dataset1_sys import vqc
 from circuit.parser import qiskit_to_layered_circuits
 from utils.backend import Backend
-from utils.backend_info import default_basis_gates
 
 
 def get_data(id, qiskit_circuit, coupling_map, mirror, backend: Backend, trans=True):

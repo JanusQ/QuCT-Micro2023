@@ -3,3 +3,5 @@ tmp/*
 *.zip
 *.pkl
 *.data
+*.html
+*.txt
