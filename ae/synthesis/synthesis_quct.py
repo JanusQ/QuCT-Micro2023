@@ -23,7 +23,7 @@ def eval(n_qubits, type, filename, U, synthesis_model: SynthesisModel, n_unitary
     assert matrix_distance_squared(U @ U.T.conj(), np.eye(2 ** n_qubits)) < 1e-4
 
     synthesized_circuit, cpu_time = synthesize(U, backend=target_backend, allowed_dist=1e-2,
-                                               multi_process=True,
+                                               multi_process=False,
                                                heuristic_model=synthesis_model if use_heuristic else None,
                                                verbose=True, lagre_block_penalty=4, synthesis_log=synthesis_log,
                                                n_unitary_candidates=n_unitary_candidates, timeout=3 * 3600)

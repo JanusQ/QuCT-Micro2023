@@ -38,5 +38,5 @@ ax2.plot(x, times[0], linewidth = 4, marker = '^', markersize = 12, label = 'ccd
 ax2.plot(x, times[1], linewidth = 4, marker = '^', markersize = 12, label = 'quct')
 ax2.plot(x, times[2], linewidth = 4, marker = '^', markersize = 12, label = 'qfast')
 ax2.set_ylabel('time')
-fig.savefig('compare_synthesis.svg')
+fig.savefig('ae/synthesis/compare_synthesis.svg')
 
