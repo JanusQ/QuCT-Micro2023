@@ -146,4 +146,4 @@ if __name__ == '__main__':
 
 # avg  gete_num: 45.6  cnot_num: 14.2  depth: 29.4  time: 651.219592165947
 # avg  gete_num: 57.0  cnot_num: 18.0  depth: 37.0  time: 364.21331002665966
-# avg  gete_num: 56.1  cnot_num: 17.7  depth: 36.4  time: 334.35874539333474
+# avg  gete_num: 56.1  cnot_num: 17.7  depth: 36.4  time: 339.6948023623105

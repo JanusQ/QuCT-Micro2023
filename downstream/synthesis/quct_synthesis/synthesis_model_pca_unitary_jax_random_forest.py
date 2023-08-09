@@ -456,7 +456,7 @@ class SynthesisModelNN(SynthesisModel):
 
         # metric= self.flatten_matrix_distance_squared,
         
-        self.nbrs = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=-1).fit(Us)  # algorithm='ball_tree',
+        # self.nbrs = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=-1).fit(Us)  # algorithm='ball_tree',
 
         labels = np.zeros((len(Vs), upstream_model.max_table_size+2))
         for idx, V in enumerate(Vs):
@@ -476,56 +476,58 @@ class SynthesisModelNN(SynthesisModel):
 
         U = self.pca_model.transform(jnp.array([U]))[0]
         U = flatten(U)
-        nbrs = self.nbrs
+        # nbrs = self.nbrs
 
         indices = self.rf.predict([U])[0]
         print('RandomForestClassifier:', indices)
-        upstream_model.reconstruct(tuple(indices[:2].astype(int)), np.where(indices[2:] != 0)[0])
+        l2g = upstream_model.reconstruct(tuple(indices[:2].astype(int)), np.where(indices[2:] != 0)[0])
 
-        distances, indices = nbrs.kneighbors([U])
-        distances, indices = distances[0], indices[0]
-        print('NearestNeighbors:', indices)
+        return [l2g]
+
+        # distances, indices = nbrs.kneighbors([U])
+        # distances, indices = distances[0], indices[0]
+        # print('NearestNeighbors:', indices)
 
         ''' 基于预测的gate vector来构建子电路'''
 
         # if verbose:
         #     print('heuristic distance = ', distances)
 
-        candidates = []
-        # indices = indices[distances < .8]
+        # candidates = []
+        # # indices = indices[distances < .8]
 
-        if len(indices) == 0: return []
+        # if len(indices) == 0: return []
 
-        for index in indices:
-            # device, sparse_gate_vec = Vs[index]
-            # candidate = upstream_model.reconstruct(
-            #     device, sparse_gate_vec)
+        # for index in indices:
+        #     # device, sparse_gate_vec = Vs[index]
+        #     # candidate = upstream_model.reconstruct(
+        #     #     device, sparse_gate_vec)
 
-            candidate = self.sub_circuits[index]
+        #     candidate = self.sub_circuits[index]
 
-            candidate = [[create_unitary_gate(gate['qubits'])[0][0] for gate in layer_gates if len(gate['qubits']) == 2]
-                for layer_gates in candidate]
-            candidate = [layer_gates for layer_gates in candidate if len(layer_gates) != 0]
-            if len(candidate) == 0:
-                continue
+        #     candidate = [[create_unitary_gate(gate['qubits'])[0][0] for gate in layer_gates if len(gate['qubits']) == 2]
+        #         for layer_gates in candidate]
+        #     candidate = [layer_gates for layer_gates in candidate if len(layer_gates) != 0]
+        #     if len(candidate) == 0:
+        #         continue
 
-            # TODO:不知道为啥没有identity
-            # u = layer_circuit_to_matrix(candidate, self.backend.n_qubits)
-            # if matrix_distance_squared(u, np.eye(2**self.backend.n_qubits)) > .1:
-            #     print(matrix_distance_squared(u, np.eye(2**self.backend.n_qubits)))
+        #     # TODO:不知道为啥没有identity
+        #     # u = layer_circuit_to_matrix(candidate, self.backend.n_qubits)
+        #     # if matrix_distance_squared(u, np.eye(2**self.backend.n_qubits)) > .1:
+        #     #     print(matrix_distance_squared(u, np.eye(2**self.backend.n_qubits)))
 
-            candidates.append(candidate)
+        #     candidates.append(candidate)
 
-        # hash2canditate_layers = {
-        #     hash_layer_gates(candidate_layer): candidate_layer
-        #     for candidate_layer in candidates
-        # }
-        # candidates = list(hash2canditate_layers.values())
+        # # hash2canditate_layers = {
+        # #     hash_layer_gates(candidate_layer): candidate_layer
+        # #     for candidate_layer in candidates
+        # # }
+        # # candidates = list(hash2canditate_layers.values())
 
-        # for candidate in candidates:
-        #     print(layered_circuits_to_qiskit(self.upstream_model.n_qubits, candidate, False))
+        # # for candidate in candidates:
+        # #     print(layered_circuits_to_qiskit(self.upstream_model.n_qubits, candidate, False))
 
-        return candidates
+        # return candidates
 
 
 # 现在的搜索没有随机性，因为每个门都是从identify开始的
