@@ -1,7 +1,8 @@
 *.pyc
 tmp/*
 *.zip
-*.pkl
+dataset*.pkl
+synthesis*.pkl
 *.data
 *.html
 *.txt
