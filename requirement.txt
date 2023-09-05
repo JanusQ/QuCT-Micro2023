@@ -1,0 +1,16 @@
+qiskit==0.39.0
+qiskit-ignis
+tensorcircuit
+optax
+ray
+numpy
+jax==0.4.3
+qiskit
+matplotlib
+scikit-learn
+cloudpickle
+pennylane
+bqskit
+tqdm
+seaborn
+jupyter
