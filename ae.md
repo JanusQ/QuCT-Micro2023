@@ -63,7 +63,7 @@ Firstly, vectorization model transformes each gate into a vector that captures i
 
   - Create a virtual environment with a Python version of at least 3.9.
   - Install all dependent Python packages in requirements.txt using pip
-  - We recommend using qiskit==0.41.0 with jax==0.4.12 to avoid unexpected compatibility issues.
+  - We recommend using qiskit==0.39.0 with jax==0.4.12 to avoid unexpected compatibility issues.
 
 
 
