@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 from circuit.utils import make_circuitlet
 from downstream import FidelityModel
 from downstream.fidelity_predict.baseline.rb import get_errors
-from generate_dataset import gen_cut_dataset
+from circuit.generate_dataset import gen_cut_dataset
 from simulator import NoiseSimulator, get_random_erroneous_pattern
 from upstream import RandomwalkModel
 from upstream.randomwalk_model import extract_device
